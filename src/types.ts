@@ -1,5 +1,8 @@
 export type TransactionType = 'deposit' | 'withdrawal' | 'buy' | 'sell' | 'adjustment';
 
+export type PaymentMethod = 'cash' | 'cheque';
+export type ChequeStatus = 'pending' | 'cleared' | 'bounced';
+
 export interface Person {
   id: string;
   name: string;
@@ -23,6 +26,13 @@ export interface Transaction {
   copperStockAfter?: number; // Copper stock snapshot after this transaction
   notes?: string;
   createdAt: string;
+  // Cheque System Fields
+  paymentMethod?: PaymentMethod; // 'cash' | 'cheque' (default 'cash')
+  chequeNumber?: string; // شماره صیادی یا سریال چک
+  chequeDueDate?: string; // تاریخ سررسید چک (مثال: 1403/12/25)
+  chequeBank?: string; // نام بانک صادرکننده چک (مثال: ملی، ملت، صادرات)
+  chequeStatus?: ChequeStatus; // 'pending' (در انتظار وصول) | 'cleared' (پاس شده) | 'bounced' (برگشت خورده)
+  chequeClearedDate?: string; // تاریخ پاس شدن چک
 }
 
 export interface PersonWalletSummary {
@@ -41,6 +51,15 @@ export interface PersonWalletSummary {
   profitPercentage: number; // درصد سود واقعی
   weightedAvgBuyPrice: number; // میانگین موزون قیمت خرید هر کیلو
   transactionsCount: number;
+  // Cheque Summary Fields
+  pendingChequesCount: number; // تعداد چک‌های پاس نشده
+  pendingChequesTotalAmount: number; // جمع مبلغ چک‌های پاس نشده
+  hasUnclearedCheques: boolean; // آیا چک پاس نشده دارد (که مانع خرید جدید می‌شود)
+}
+
+export interface MarketPrices {
+  buyPrice: number; // e.g. 3,000,000 تومان
+  sellPrice: number; // e.g. 2,850,000 تومان
 }
 
 export interface OverallStats {
@@ -56,7 +75,9 @@ export interface OverallStats {
   totalPurchasedKg: number; // مجموع کل مس خریداری‌شده
   totalSoldPrice: number; // مجموع کل فروش‌ها
   totalSoldKg: number; // مجموع کل مس فروخته‌شده
-  marketCopperPrice: number; // قیمت مرجع فعلی هر کیلو مس در بازار
+  marketCopperPrice: number; // قیمت مرجع فعلی هر کیلو مس در بازار (ارزش‌گذاری)
+  marketBuyPrice: number; // قیمت مرجع خرید مس
+  marketSellPrice: number; // قیمت مرجع فروش مس
 }
 
 export type FilterStatus = 'all' | 'has_cash' | 'has_stock' | 'has_asset';

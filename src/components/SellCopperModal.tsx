@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet } from 'lucide-react';
-import { Person, PersonWalletSummary } from '../types';
+import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet, CreditCard, Building2, Clock, CheckCircle2 } from 'lucide-react';
+import { Person, PersonWalletSummary, PaymentMethod } from '../types';
 import { getTodayJalaliString } from '../utils/persianDate';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { NumericInput } from './NumericInput';
@@ -15,10 +15,15 @@ interface SellCopperModalProps {
     pricePerKg: number;
     totalPrice: number;
     notes?: string;
+    paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
   }) => void;
   people: Person[];
   summaries: PersonWalletSummary[];
   selectedPersonId?: string;
+  defaultPricePerKg?: number;
 }
 
 export const SellCopperModal: React.FC<SellCopperModalProps> = ({
@@ -28,24 +33,35 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   people,
   summaries,
   selectedPersonId,
+  defaultPricePerKg = 2850000,
 }) => {
   const [personId, setPersonId] = useState('');
   const [date, setDate] = useState(getTodayJalaliString());
   const [weightKg, setWeightKg] = useState<number>(0);
-  const [pricePerKg, setPricePerKg] = useState<number>(0);
+  const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 2850000);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+
+  // Payment Method & Cheque State
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [chequeNumber, setChequeNumber] = useState('');
+  const [chequeDueDate, setChequeDueDate] = useState('');
+  const [chequeBank, setChequeBank] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setPersonId(selectedPersonId || (people.length > 0 ? people[0].id : ''));
       setDate(getTodayJalaliString());
       setWeightKg(0);
-      setPricePerKg(0);
+      setPricePerKg(defaultPricePerKg || 2850000);
       setNotes('');
       setError('');
+      setPaymentMethod('cash');
+      setChequeNumber('');
+      setChequeDueDate('');
+      setChequeBank('');
     }
-  }, [isOpen, selectedPersonId, people]);
+  }, [isOpen, selectedPersonId, people, defaultPricePerKg]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);
   const currentStock = selectedPersonSummary?.copperStockKg || 0;
@@ -103,6 +119,17 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       return;
     }
 
+    if (paymentMethod === 'cheque') {
+      if (!chequeNumber.trim()) {
+        setError('لطفاً شماره چک / صیادی را وارد کنید.');
+        return;
+      }
+      if (!chequeDueDate.trim()) {
+        setError('لطفاً تاریخ سررسید چک را وارد کنید.');
+        return;
+      }
+    }
+
     onSave({
       personId,
       date: date.trim() || getTodayJalaliString(),
@@ -110,6 +137,10 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       pricePerKg,
       totalPrice: calculatedTotal,
       notes: notes.trim() || undefined,
+      paymentMethod,
+      chequeNumber: paymentMethod === 'cheque' ? chequeNumber.trim() : undefined,
+      chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
+      chequeBank: paymentMethod === 'cheque' ? chequeBank.trim() : undefined,
     });
     onClose();
   };
@@ -129,7 +160,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 ثبت فروش مس
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                کسر از موجودی مس انبار و واریز مبلغ فروش به کیف پول شخص
+                کسر از موجودی مس انبار و تسویه نقدی یا دریافت چک
               </p>
             </div>
           </div>
@@ -202,6 +233,117 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
             </div>
           )}
 
+          {/* Payment Method Selector (Cash vs Cheque) */}
+          <div>
+            <label className="block text-xs font-bold text-stone-700 mb-1.5">
+              نحوه تسویه وجه معامله <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cash')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  paymentMethod === 'cash'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs ring-1 ring-emerald-500'
+                    : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                <Wallet className="w-4 h-4 text-emerald-600" />
+                <span>تسویه نقد (کیف پول)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cheque')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  paymentMethod === 'cheque'
+                    ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
+                    : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-amber-700" />
+                <span>دریافت چک مدت‌دار</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cheque Details Box (Displayed when Cheque payment is selected) */}
+          {paymentMethod === 'cheque' && (
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-xs font-bold text-amber-950">
+                <span className="flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-amber-700" />
+                  مشخصات چک دریافتی
+                </span>
+                <span className="text-[11px] font-normal text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md">
+                  مسدودکننده خرید تا زمان وصول
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Cheque Number */}
+                <div>
+                  <label htmlFor="cheque-num" className="block text-[11px] font-bold text-stone-700 mb-1">
+                    شماره چک / شناسه صیاد <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="cheque-num"
+                    type="text"
+                    required={paymentMethod === 'cheque'}
+                    value={chequeNumber}
+                    onChange={(e) => setChequeNumber(e.target.value)}
+                    placeholder="مثال: 123456789 یا سریال"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600 font-mono"
+                  />
+                </div>
+
+                {/* Cheque Due Date */}
+                <div>
+                  <label htmlFor="cheque-date" className="block text-[11px] font-bold text-stone-700 mb-1">
+                    تاریخ سررسید چک <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="cheque-date"
+                      type="text"
+                      required={paymentMethod === 'cheque'}
+                      value={chequeDueDate}
+                      onChange={(e) => setChequeDueDate(e.target.value)}
+                      placeholder="1403/12/28"
+                      className="w-full pl-2.5 pr-8 py-1.5 text-xs bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cheque Bank */}
+              <div>
+                <label htmlFor="cheque-bank" className="block text-[11px] font-bold text-stone-700 mb-1">
+                  نام بانک صادرکننده <span className="text-stone-400 font-normal">(اختیاری)</span>
+                </label>
+                <div className="relative">
+                  <Building2 className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="cheque-bank"
+                    type="text"
+                    value={chequeBank}
+                    onChange={(e) => setChequeBank(e.target.value)}
+                    placeholder="مثال: بانک ملی، تجارت، ملت..."
+                    className="w-full pl-2.5 pr-8 py-1.5 text-xs bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                  />
+                </div>
+              </div>
+
+              <div className="text-[11px] text-amber-900 bg-amber-100/60 p-2 rounded-lg leading-relaxed flex items-start gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                <span>
+                  <b>قانون سامانه:</b> تا زمانی که این چک در وضعیت «پاس شده» قرار نگیرد، این شخص مجاز به ثبت خرید جدید نخواهد بود.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Date & Weight Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             
@@ -258,9 +400,21 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
 
           {/* Price per Kg */}
           <div>
-            <label htmlFor="sell-price-kg" className="block text-xs font-bold text-stone-700 mb-1.5">
-              قیمت فروش هر کیلوگرم (تومان) <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="sell-price-kg" className="block text-xs font-bold text-stone-700">
+                قیمت فروش هر کیلوگرم (تومان) <span className="text-rose-500">*</span>
+              </label>
+              {defaultPricePerKg > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPricePerKg(defaultPricePerKg)}
+                  className="text-[11px] text-emerald-800 hover:text-emerald-950 font-semibold cursor-pointer underline decoration-dotted"
+                  title="تنظیم مجدد به قیمت مرجع فروش"
+                >
+                  نرخ روز بازار: {formatNumber(defaultPricePerKg)} ت
+                </button>
+              )}
+            </div>
             <NumericInput
               id="sell-price-kg"
               value={pricePerKg}
@@ -268,7 +422,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 setPricePerKg(val);
                 setError('');
               }}
-              placeholder="مثال: 750,000"
+              placeholder="مثال: 2,850,000"
               unitLabel="تومان/کیلو"
               showWordHelper={true}
               required

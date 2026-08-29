@@ -39,6 +39,7 @@ interface PersonDetailModalProps {
   onEditTransaction: (tx: Transaction) => void;
   onDeleteTransaction: (txId: string) => void;
   onEditPerson: (personId: string) => void;
+  onOpenStatement?: (personId: string) => void;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -55,6 +56,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onEditTransaction,
   onDeleteTransaction,
   onEditPerson,
+  onOpenStatement,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
 
@@ -167,6 +169,17 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
           {/* Top Action Bar */}
           <div className="flex items-center gap-2">
+            {onOpenStatement && (
+              <button
+                type="button"
+                onClick={() => onOpenStatement(person.id)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-stone-900 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors cursor-pointer shadow-xs"
+                title="صدور صورت‌حساب رسمی، دریافت فایل PDF و ارسال به واتساپ"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>صورت‌حساب و PDF (واتساپ)</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={handlePrint}
@@ -174,7 +187,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
               title="چاپ صورتحساب و کاردکس"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>چاپ صورتحساب</span>
+              <span>چاپ</span>
             </button>
             <button
               type="button"

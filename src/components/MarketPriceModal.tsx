@@ -1,92 +1,125 @@
-import React, { useState } from 'react';
-import { X, Tag, DollarSign, Check, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Tag, ShoppingBag, TrendingUp, Check, Info, ArrowLeftRight, Sparkles } from 'lucide-react';
 import { NumericInput } from './NumericInput';
-import { formatToman } from '../utils/formatters';
+import { formatNumber, formatToman } from '../utils/formatters';
+import { MarketPrices } from '../types';
 
 interface MarketPriceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPrice: number;
-  onSave: (newPrice: number) => void;
+  currentPrices: MarketPrices | number;
+  onSave: (newPrices: MarketPrices) => void;
 }
 
 export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
   isOpen,
   onClose,
-  currentPrice,
+  currentPrices,
   onSave,
 }) => {
-  const [price, setPrice] = useState(currentPrice);
+  const initialBuy = typeof currentPrices === 'number' 
+    ? currentPrices 
+    : (currentPrices?.buyPrice || 3000000);
+  const initialSell = typeof currentPrices === 'number' 
+    ? Math.max(0, currentPrices - 150000) 
+    : (currentPrices?.sellPrice || 2850000);
+
+  const [buyPrice, setBuyPrice] = useState<number>(initialBuy);
+  const [sellPrice, setSellPrice] = useState<number>(initialSell);
   const [error, setError] = useState('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-      setPrice(currentPrice);
+      const b = typeof currentPrices === 'number' ? currentPrices : (currentPrices?.buyPrice || 3000000);
+      const s = typeof currentPrices === 'number' ? Math.max(0, currentPrices - 150000) : (currentPrices?.sellPrice || 2850000);
+      setBuyPrice(b);
+      setSellPrice(s);
       setError('');
     }
-  }, [isOpen, currentPrice]);
+  }, [isOpen, currentPrices]);
 
   if (!isOpen) return null;
 
+  const spreadDifference = buyPrice - sellPrice;
+
+  const handleApplySpread = (diff: number) => {
+    setSellPrice(Math.max(0, buyPrice - diff));
+    setError('');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (price <= 0) {
-      setError('لطفاً قیمت معتبر برای هر کیلوگرم مس وارد کنید.');
+    if (buyPrice <= 0) {
+      setError('لطفاً قیمت معتبر برای خرید مس وارد کنید.');
       return;
     }
-    onSave(price);
+    if (sellPrice <= 0) {
+      setError('لطفاً قیمت معتبر برای فروش مس وارد کنید.');
+      return;
+    }
+    onSave({
+      buyPrice,
+      sellPrice,
+    });
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-amber-50/80 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-700 text-white flex items-center justify-center shadow-xs">
-              <Tag className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-xl bg-stone-800 text-amber-400 flex items-center justify-center shadow-xs">
+              <Tag className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-stone-900">
-                تنظیم قیمت روز مس در بازار
+              <h3 className="font-bold text-base text-white">
+                تنظیم قیمت‌های مرجع روز مس در بازار
               </h3>
-              <p className="text-xs text-stone-500 mt-0.5">
-                محاسبه خودکار ارزش روز دارایی مس تمام افراد و انبار
+              <p className="text-xs text-stone-300 mt-0.5">
+                تعیین نرخ پیش‌فرض خرید و فروش در فاکتورها و ارزش‌گذاری انبار
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-400 hover:text-white hover:bg-stone-800 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4">
           
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-medium">
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
               {error}
             </div>
           )}
 
-          <div>
-            <label htmlFor="market-price-input" className="block text-xs font-bold text-stone-700 mb-1.5">
-              قیمت مرجع هر کیلوگرم مس (تومان) <span className="text-rose-500">*</span>
-            </label>
+          {/* 1. قیمت خرید روز مس */}
+          <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="market-buy-price-input" className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-amber-700" />
+                <span>قیمت مرجع خرید مس (تومان / کیلوگرم)</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[11px] text-amber-800 font-medium">دیفالت فرم ثبت خرید</span>
+            </div>
+            
             <NumericInput
-              id="market-price-input"
-              value={price}
+              id="market-buy-price-input"
+              value={buyPrice}
               onChange={(val) => {
-                setPrice(val);
+                setBuyPrice(val);
                 setError('');
               }}
-              placeholder="مثال: 750,000"
+              placeholder="مثال: 3,000,000"
               unitLabel="تومان/کیلو"
               showWordHelper={true}
               autoFocus
@@ -94,13 +127,73 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
             />
           </div>
 
-          <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-semibold text-stone-700">
-              <Info className="w-3.5 h-3.5 text-amber-700" />
-              <span>نحوه عملکرد قیمت مرجع:</span>
+          {/* 2. قیمت فروش روز مس */}
+          <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="market-sell-price-input" className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-emerald-700" />
+                <span>قیمت مرجع فروش مس (تومان / کیلوگرم)</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[11px] text-emerald-800 font-medium">دیفالت فرم ثبت فروش</span>
             </div>
+            
+            <NumericInput
+              id="market-sell-price-input"
+              value={sellPrice}
+              onChange={(val) => {
+                setSellPrice(val);
+                setError('');
+              }}
+              placeholder="مثال: 2,850,000"
+              unitLabel="تومان/کیلو"
+              showWordHelper={true}
+              required
+            />
+          </div>
+
+          {/* Quick Spread Helper Bar */}
+          <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-stone-600 font-semibold flex items-center gap-1">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-stone-500" />
+                اختلاف نرخ خرید و فروش (اسپرد):
+              </span>
+              <span className="font-bold text-stone-900 font-mono">
+                {formatNumber(spreadDifference)} تومان {spreadDifference < 0 ? '(فروش بیشتر از خرید)' : ''}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-stone-200/80">
+              <span className="text-[11px] text-stone-500">تنظیم سریع اختلاف فروش:</span>
+              <button
+                type="button"
+                onClick={() => handleApplySpread(150000)}
+                className="px-2.5 py-1 text-[11px] font-bold bg-white hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-800 transition-colors cursor-pointer"
+              >
+                ۱۵۰,۰۰۰ تومان کمتر (پیش‌فرض بازار)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplySpread(100000)}
+                className="px-2.5 py-1 text-[11px] font-medium bg-white hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-700 transition-colors cursor-pointer"
+              >
+                ۱۰۰,۰۰۰ تومان کمتر
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplySpread(200000)}
+                className="px-2.5 py-1 text-[11px] font-medium bg-white hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-700 transition-colors cursor-pointer"
+              >
+                ۲۰۰,۰۰۰ تومان کمتر
+              </button>
+            </div>
+          </div>
+
+          <div className="p-3 bg-stone-100/70 rounded-xl text-xs text-stone-600 flex items-start gap-2">
+            <Info className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
             <p className="text-[11px] leading-relaxed">
-              ارزش مس موجود در انبار هر شخص بر اساس فرمول «موجودی مس × قیمت مرجع» محاسبه شده و بلافاصله ارزش کل دارایی‌های افراد در داشبورد و کاردکس به‌روزرسانی می‌شود.
+              با ذخیره این مقادیر، هنگام باز کردن پنجره‌های «ثبت خرید مس» و «ثبت فروش مس»، این نرخ‌ها به صورت خودکار در فیلد قیمت هر کیلوگرم قرار می‌گیرند و نیازی به تایپ مجدد نخواهید داشت (مگر اینکه بخواهید دستی تغییر دهید).
             </p>
           </div>
 
@@ -109,16 +202,16 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
             >
               انصراف
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-sm font-bold text-white bg-amber-700 hover:bg-amber-800 active:bg-amber-900 rounded-lg transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-stone-900 hover:bg-stone-800 active:bg-black rounded-lg transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
-              <span>به‌روزرسانی قیمت</span>
+              <span>به‌روزرسانی قیمت‌های مرجع</span>
             </button>
           </div>
 

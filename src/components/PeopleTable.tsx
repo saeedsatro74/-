@@ -13,7 +13,8 @@ import {
   ArrowUpRight,
   Wallet,
   Landmark,
-  UserPlus
+  UserPlus,
+  FileText
 } from 'lucide-react';
 import { PersonWalletSummary, FilterStatus, SortField, SortOrder } from '../types';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
@@ -28,6 +29,7 @@ interface PeopleTableProps {
   onAddPurchase: (personId: string) => void;
   onAddSale: (personId: string) => void;
   onAddNewPerson: () => void;
+  onOpenStatement?: (personId: string) => void;
 }
 
 export const PeopleTable: React.FC<PeopleTableProps> = ({
@@ -40,6 +42,7 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
   onAddPurchase,
   onAddSale,
   onAddNewPerson,
+  onOpenStatement,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
@@ -375,6 +378,18 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                           <span>مشاهده و عملیات</span>
                         </button>
 
+                        {/* Quick Statement / PDF */}
+                        {onOpenStatement && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenStatement(item.person.id)}
+                            className="p-1.5 text-stone-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                            title="صورت‌حساب، دریافت PDF و ارسال به واتساپ"
+                          >
+                            <FileText className="w-4 h-4 text-stone-600 hover:text-amber-800" />
+                          </button>
+                        )}
+
                         {/* Quick Buy */}
                         <button
                           type="button"
@@ -494,6 +509,16 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                   </button>
 
                   <div className="flex items-center gap-1">
+                    {onOpenStatement && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenStatement(item.person.id)}
+                        className="p-1.5 text-stone-700 bg-stone-100 hover:bg-amber-100 rounded-lg"
+                        title="صورت‌حساب و PDF"
+                      >
+                        <FileText className="w-4 h-4 text-stone-600" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => onAddPurchase(item.person.id)}

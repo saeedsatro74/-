@@ -9,7 +9,8 @@ import {
   ArrowDownLeft,
   Tag,
   Edit2,
-  LogOut
+  LogOut,
+  CreditCard
 } from 'lucide-react';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -22,10 +23,14 @@ interface HeaderProps {
   onAddSale: () => void;
   onOpenMarketPrice: () => void;
   onOpenDataModal: () => void;
+  onOpenChequesModal?: () => void;
+  pendingChequesCount?: number;
   onLogout?: () => void;
   totalStockKg: number;
   totalCash: number;
   marketPrice: number;
+  marketBuyPrice?: number;
+  marketSellPrice?: number;
   isCloudConnected?: boolean;
   isSyncing?: boolean;
 }
@@ -38,13 +43,19 @@ export const Header: React.FC<HeaderProps> = ({
   onAddSale,
   onOpenMarketPrice,
   onOpenDataModal,
+  onOpenChequesModal,
+  pendingChequesCount = 0,
   onLogout,
   totalStockKg,
   marketPrice,
+  marketBuyPrice,
+  marketSellPrice,
   isCloudConnected = true,
   isSyncing = false,
 }) => {
   const persianDate = getPersianFullDate();
+  const buyRate = marketBuyPrice || marketPrice;
+  const sellRate = marketSellPrice || Math.max(0, buyRate - 150000);
 
   return (
     <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs no-print">
@@ -116,13 +127,16 @@ export const Header: React.FC<HeaderProps> = ({
             <div 
               onClick={onOpenMarketPrice}
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg cursor-pointer transition-colors"
-              title="برای تغییر قیمت مرجع کلیک کنید"
+              title="برای تغییر قیمت‌های مرجع خرید و فروش کلیک کنید"
             >
               <Tag className="w-3.5 h-3.5 text-stone-600" />
-              <div className="text-xs">
-                <span className="text-stone-500">نرخ روز مس: </span>
-                <span className="font-bold text-stone-900 font-mono">{formatNumber(marketPrice)}</span>
-                <span className="text-[11px] text-stone-400 mr-1">تومان</span>
+              <div className="text-xs flex items-center gap-1.5">
+                <span className="text-stone-500">خرید:</span>
+                <span className="font-bold text-stone-900 font-mono">{formatNumber(buyRate)}</span>
+                <span className="text-stone-300">|</span>
+                <span className="text-stone-500">فروش:</span>
+                <span className="font-bold text-stone-900 font-mono">{formatNumber(sellRate)}</span>
+                <span className="text-[11px] text-stone-400 mr-0.5">تومان</span>
               </div>
               <Edit2 className="w-3 h-3 text-stone-400 mr-0.5" />
             </div>

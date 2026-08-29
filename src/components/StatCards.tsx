@@ -27,21 +27,31 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }
     <div className="space-y-3">
       
       {/* Top Banner: Market Price Bar */}
-      <div className="bg-stone-900 text-white rounded-xl p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-stone-900 text-white rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-stone-800 flex items-center justify-center text-amber-400">
+          <div className="w-10 h-10 rounded-lg bg-stone-800 flex items-center justify-center text-amber-400 shrink-0">
             <Tag className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-300">قیمت مرجع فعلی مس در بازار:</span>
-              <span className="font-bold text-base sm:text-lg font-mono text-white">
-                {formatNumber(stats.marketCopperPrice)}
-              </span>
-              <span className="text-xs text-stone-300">تومان/کیلو</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-stone-400">نرخ مرجع خرید:</span>
+                <span className="font-bold text-sm sm:text-base font-mono text-amber-300">
+                  {formatNumber(stats.marketBuyPrice || stats.marketCopperPrice)}
+                </span>
+                <span className="text-[11px] text-stone-400">ت/کیلو</span>
+              </div>
+              <span className="text-stone-600 hidden sm:inline">•</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-stone-400">نرخ مرجع فروش:</span>
+                <span className="font-bold text-sm sm:text-base font-mono text-emerald-300">
+                  {formatNumber(stats.marketSellPrice || Math.max(0, (stats.marketBuyPrice || stats.marketCopperPrice) - 150000))}
+                </span>
+                <span className="text-[11px] text-stone-400">ت/کیلو</span>
+              </div>
             </div>
             <p className="text-[11px] text-stone-400 mt-0.5">
-              مبنای محاسبه ارزش روز دارایی مس افراد و انبار کل
+              مبنای محاسبه ارزش روز دارایی مس افراد و مقدار پیش‌فرض در فرم‌های خرید و فروش
             </p>
           </div>
         </div>
@@ -50,10 +60,10 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }
           <button
             type="button"
             onClick={onOpenMarketPrice}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-900 bg-stone-100 hover:bg-white active:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-stone-900 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
           >
             <Edit2 className="w-3.5 h-3.5" />
-            <span>تغییر قیمت مرجع بازار</span>
+            <span>تغییر قیمت مرجع بازار (خرید / فروش)</span>
           </button>
         )}
       </div>

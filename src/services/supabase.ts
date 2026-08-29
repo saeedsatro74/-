@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { Person, Transaction } from '../types';
-import { DEFAULT_MARKET_COPPER_PRICE } from '../utils/storage';
+import { Person, Transaction, MarketPrices } from '../types';
+import { DEFAULT_MARKET_BUY_PRICE, DEFAULT_MARKET_SELL_PRICE, DEFAULT_MARKET_COPPER_PRICE } from '../utils/storage';
 
 // Supabase URL & Public Anon Key
 export const SUPABASE_URL = 
@@ -36,6 +36,12 @@ export interface TransactionRow {
   copper_stock_after: number | null;
   notes: string | null;
   created_at: string;
+  payment_method?: string | null;
+  cheque_number?: string | null;
+  cheque_due_date?: string | null;
+  cheque_bank?: string | null;
+  cheque_status?: string | null;
+  cheque_cleared_date?: string | null;
 }
 
 export interface AppSettingRow {
@@ -79,6 +85,12 @@ export function toTransaction(row: TransactionRow): Transaction {
     copperStockAfter: row.copper_stock_after !== null ? Number(row.copper_stock_after) : undefined,
     notes: row.notes || undefined,
     createdAt: row.created_at,
+    paymentMethod: (row.payment_method as any) || undefined,
+    chequeNumber: row.cheque_number || undefined,
+    chequeDueDate: row.cheque_due_date || undefined,
+    chequeBank: row.cheque_bank || undefined,
+    chequeStatus: (row.cheque_status as any) || undefined,
+    chequeClearedDate: row.cheque_cleared_date || undefined,
   };
 }
 
@@ -98,6 +110,12 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     copper_stock_after: tx.copperStockAfter !== undefined && tx.copperStockAfter !== null ? Number(tx.copperStockAfter) : null,
     notes: tx.notes || null,
     created_at: tx.createdAt || new Date().toISOString(),
+    payment_method: tx.paymentMethod || null,
+    cheque_number: tx.chequeNumber || null,
+    cheque_due_date: tx.chequeDueDate || null,
+    cheque_bank: tx.chequeBank || null,
+    cheque_status: tx.chequeStatus || null,
+    cheque_cleared_date: tx.chequeClearedDate || null,
   };
 }
 
@@ -110,33 +128,54 @@ export async function fetchAllFromSupabase(): Promise<{
   people: Person[];
   transactions: Transaction[];
   marketPrice: number;
+  marketPrices: MarketPrices;
   isConnected: boolean;
   error?: string;
 }> {
   try {
-    const [peopleRes, txRes, settingsRes] = await Promise.all([
+    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes] = await Promise.all([
       supabase.from('people').select('*').order('created_at', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: true }),
       supabase.from('app_settings').select('*').eq('key', 'market_copper_price').maybeSingle(),
+      supabase.from('app_settings').select('*').eq('key', 'market_buy_price').maybeSingle(),
+      supabase.from('app_settings').select('*').eq('key', 'market_sell_price').maybeSingle(),
     ]);
 
     if (peopleRes.error) {
       console.warn('Supabase people fetch error:', peopleRes.error);
-      return { people: [], transactions: [], marketPrice: DEFAULT_MARKET_COPPER_PRICE, isConnected: false, error: peopleRes.error.message };
+      return { 
+        people: [], 
+        transactions: [], 
+        marketPrice: DEFAULT_MARKET_BUY_PRICE, 
+        marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
+        isConnected: false, 
+        error: peopleRes.error.message 
+      };
     }
 
     const people = (peopleRes.data as PersonRow[] || []).map(toPerson);
     const transactions = (txRes.data as TransactionRow[] || []).map(toTransaction);
     
-    let marketPrice = DEFAULT_MARKET_COPPER_PRICE;
-    if (settingsRes.data && settingsRes.data.value) {
-      marketPrice = Number(settingsRes.data.value) || DEFAULT_MARKET_COPPER_PRICE;
+    let buyPrice = DEFAULT_MARKET_BUY_PRICE;
+    let sellPrice = DEFAULT_MARKET_SELL_PRICE;
+
+    if (buySettingsRes.data && buySettingsRes.data.value) {
+      buyPrice = Number(buySettingsRes.data.value) || DEFAULT_MARKET_BUY_PRICE;
+    } else if (settingsRes.data && settingsRes.data.value) {
+      buyPrice = Number(settingsRes.data.value) || DEFAULT_MARKET_BUY_PRICE;
+    }
+
+    if (sellSettingsRes.data && sellSettingsRes.data.value) {
+      sellPrice = Number(sellSettingsRes.data.value) || DEFAULT_MARKET_SELL_PRICE;
+    } else {
+      sellPrice = Math.max(0, buyPrice - 150000);
     }
 
     return {
       people,
       transactions,
-      marketPrice,
+      marketPrice: buyPrice,
+      marketPrices: { buyPrice, sellPrice },
       isConnected: true,
     };
   } catch (err: any) {
@@ -144,7 +183,8 @@ export async function fetchAllFromSupabase(): Promise<{
     return {
       people: [],
       transactions: [],
-      marketPrice: DEFAULT_MARKET_COPPER_PRICE,
+      marketPrice: DEFAULT_MARKET_BUY_PRICE,
+      marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
       isConnected: false,
       error: err?.message || 'Failed to connect to Supabase',
     };
@@ -241,22 +281,36 @@ export async function dbDeleteTransaction(txId: string): Promise<boolean> {
 }
 
 /**
- * Save market copper price in app_settings table
+ * Save market copper prices (buy and sell) in app_settings table
  */
-export async function dbSaveMarketPrice(price: number): Promise<boolean> {
+export async function dbSaveMarketPrices(prices: MarketPrices): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('app_settings')
-      .upsert({ key: 'market_copper_price', value: price }, { onConflict: 'key' });
+      .upsert([
+        { key: 'market_buy_price', value: prices.buyPrice },
+        { key: 'market_sell_price', value: prices.sellPrice },
+        { key: 'market_copper_price', value: prices.buyPrice },
+      ], { onConflict: 'key' });
     if (error) {
-      console.error('Error saving market price:', error);
+      console.error('Error saving market prices:', error);
       return false;
     }
     return true;
   } catch (err) {
-    console.error('Supabase dbSaveMarketPrice error:', err);
+    console.error('Supabase dbSaveMarketPrices error:', err);
     return false;
   }
+}
+
+/**
+ * Save market copper price in app_settings table (legacy compatibility)
+ */
+export async function dbSaveMarketPrice(price: number): Promise<boolean> {
+  return dbSaveMarketPrices({
+    buyPrice: price,
+    sellPrice: Math.max(0, price - 150000),
+  });
 }
 
 /**

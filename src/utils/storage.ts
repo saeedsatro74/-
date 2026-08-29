@@ -1,12 +1,15 @@
-import { Person, Transaction, PersonWalletSummary, OverallStats } from '../types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices } from '../types';
 
 const STORAGE_KEYS = {
   PEOPLE: 'copper_wallet_people_v2',
   TRANSACTIONS: 'copper_wallet_transactions_v2',
   MARKET_PRICE: 'copper_wallet_market_price_v2',
+  MARKET_PRICES: 'copper_wallet_market_prices_v3',
 };
 
-export const DEFAULT_MARKET_COPPER_PRICE = 750000; // 750,000 Toman per Kg
+export const DEFAULT_MARKET_BUY_PRICE = 3000000; // 3,000,000 Toman per Kg
+export const DEFAULT_MARKET_SELL_PRICE = 2850000; // 2,850,000 Toman per Kg (150,000 Toman less)
+export const DEFAULT_MARKET_COPPER_PRICE = DEFAULT_MARKET_BUY_PRICE;
 
 // Realistic Seed People
 const INITIAL_PEOPLE: Person[] = [
@@ -297,22 +300,61 @@ export function saveTransactions(transactions: Transaction[]): void {
   localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
 }
 
-export function getStoredMarketPrice(): number {
+export function getStoredMarketPrices(): MarketPrices {
   try {
-    const data = localStorage.getItem(STORAGE_KEYS.MARKET_PRICE);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.MARKET_PRICE, JSON.stringify(DEFAULT_MARKET_COPPER_PRICE));
-      return DEFAULT_MARKET_COPPER_PRICE;
+    const data = localStorage.getItem(STORAGE_KEYS.MARKET_PRICES);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed.buyPrice === 'number' && parsed.buyPrice > 0) {
+        return {
+          buyPrice: parsed.buyPrice,
+          sellPrice: typeof parsed.sellPrice === 'number' && parsed.sellPrice > 0 
+            ? parsed.sellPrice 
+            : Math.max(0, parsed.buyPrice - 150000),
+        };
+      }
     }
-    const val = JSON.parse(data);
-    return typeof val === 'number' && val > 0 ? val : DEFAULT_MARKET_COPPER_PRICE;
+    
+    // Fallback to legacy single price if exists
+    const legacyData = localStorage.getItem(STORAGE_KEYS.MARKET_PRICE);
+    if (legacyData) {
+      const val = JSON.parse(legacyData);
+      if (typeof val === 'number' && val > 0) {
+        return {
+          buyPrice: val,
+          sellPrice: Math.max(0, val - 150000),
+        };
+      }
+    }
+
+    return {
+      buyPrice: DEFAULT_MARKET_BUY_PRICE,
+      sellPrice: DEFAULT_MARKET_SELL_PRICE,
+    };
   } catch {
-    return DEFAULT_MARKET_COPPER_PRICE;
+    return {
+      buyPrice: DEFAULT_MARKET_BUY_PRICE,
+      sellPrice: DEFAULT_MARKET_SELL_PRICE,
+    };
   }
 }
 
+export function saveMarketPrices(prices: MarketPrices): void {
+  localStorage.setItem(STORAGE_KEYS.MARKET_PRICES, JSON.stringify(prices));
+  // Keep legacy single key synced with buy price
+  localStorage.setItem(STORAGE_KEYS.MARKET_PRICE, JSON.stringify(prices.buyPrice));
+}
+
+export function getStoredMarketPrice(): number {
+  return getStoredMarketPrices().buyPrice;
+}
+
 export function saveMarketPrice(price: number): void {
-  localStorage.setItem(STORAGE_KEYS.MARKET_PRICE, JSON.stringify(price));
+  const current = getStoredMarketPrices();
+  saveMarketPrices({
+    buyPrice: price,
+    sellPrice: current.sellPrice > 0 ? current.sellPrice : Math.max(0, price - 150000),
+  });
 }
 
 export function resetToSampleData(): { people: Person[]; transactions: Transaction[]; marketPrice: number } {
@@ -364,6 +406,9 @@ export function replayAndCalculatePersonLedger(
   let totalSoldPrice = 0;
   let totalSoldKg = 0;
 
+  let pendingChequesCount = 0;
+  let pendingChequesTotalAmount = 0;
+
   const recalculatedTransactions: Transaction[] = [];
 
   for (const rawTx of personTxs) {
@@ -371,6 +416,14 @@ export function replayAndCalculatePersonLedger(
     const amount = Number(tx.amount) || 0;
     const weight = Number(tx.weightKg) || 0;
     const unitPrice = Number(tx.unitPrice) || 0;
+
+    // Track pending cheques for sales
+    if (tx.type === 'sell' && tx.paymentMethod === 'cheque') {
+      if (!tx.chequeStatus || tx.chequeStatus === 'pending') {
+        pendingChequesCount += 1;
+        pendingChequesTotalAmount += amount;
+      }
+    }
 
     switch (tx.type) {
       case 'deposit': {
@@ -454,6 +507,9 @@ export function replayAndCalculatePersonLedger(
       profitPercentage,
       weightedAvgBuyPrice: Math.round(runningWeightedCostPerKg),
       transactionsCount: recalculatedTransactions.length,
+      pendingChequesCount,
+      pendingChequesTotalAmount,
+      hasUnclearedCheques: pendingChequesCount > 0,
     },
   };
 }
@@ -503,8 +559,16 @@ export function replayAllTransactions(
  */
 export function calculateOverallStats(
   summaries: PersonWalletSummary[],
-  marketCopperPrice: number
+  marketPricesInput: MarketPrices | number
 ): OverallStats {
+  const buyPrice = typeof marketPricesInput === 'number' 
+    ? marketPricesInput 
+    : (marketPricesInput?.buyPrice || DEFAULT_MARKET_BUY_PRICE);
+  const sellPrice = typeof marketPricesInput === 'number' 
+    ? Math.max(0, marketPricesInput - 150000) 
+    : (marketPricesInput?.sellPrice || DEFAULT_MARKET_SELL_PRICE);
+  const marketCopperPrice = buyPrice; // Valuation reference
+
   const totalCashBalance = summaries.reduce((sum, s) => sum + s.cashBalance, 0);
   const totalCopperStockKg = summaries.reduce((sum, s) => sum + s.copperStockKg, 0);
   const totalCopperMarketValue = Math.round(totalCopperStockKg * marketCopperPrice);
@@ -536,5 +600,7 @@ export function calculateOverallStats(
     totalSoldPrice,
     totalSoldKg,
     marketCopperPrice,
+    marketBuyPrice: buyPrice,
+    marketSellPrice: sellPrice,
   };
 }

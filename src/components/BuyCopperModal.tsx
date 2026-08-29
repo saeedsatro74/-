@@ -19,6 +19,7 @@ interface BuyCopperModalProps {
   people: Person[];
   summaries: PersonWalletSummary[];
   selectedPersonId?: string;
+  defaultPricePerKg?: number;
   onOpenDepositForPerson?: (personId: string) => void;
 }
 
@@ -29,12 +30,13 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
   people,
   summaries,
   selectedPersonId,
+  defaultPricePerKg = 3000000,
   onOpenDepositForPerson,
 }) => {
   const [personId, setPersonId] = useState('');
   const [date, setDate] = useState(getTodayJalaliString());
   const [weightKg, setWeightKg] = useState<number>(0);
-  const [pricePerKg, setPricePerKg] = useState<number>(0);
+  const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 3000000);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -43,15 +45,18 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
       setPersonId(selectedPersonId || (people.length > 0 ? people[0].id : ''));
       setDate(getTodayJalaliString());
       setWeightKg(0);
-      setPricePerKg(0);
+      setPricePerKg(defaultPricePerKg || 3000000);
       setNotes('');
       setError('');
     }
-  }, [isOpen, selectedPersonId, people]);
+  }, [isOpen, selectedPersonId, people, defaultPricePerKg]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);
   const currentCash = selectedPersonSummary?.cashBalance || 0;
   const currentStock = selectedPersonSummary?.copperStockKg || 0;
+  const hasUnclearedCheques = selectedPersonSummary?.hasUnclearedCheques || false;
+  const pendingChequesCount = selectedPersonSummary?.pendingChequesCount || 0;
+  const pendingChequesAmount = selectedPersonSummary?.pendingChequesTotalAmount || 0;
 
   // Auto-calculated total purchase amount
   const calculatedTotal = useMemo(() => {
@@ -67,6 +72,14 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
     e.preventDefault();
     if (!personId) {
       setError('لطفاً فرد مورد نظر را انتخاب کنید.');
+      return;
+    }
+    if (hasUnclearedCheques) {
+      setError(
+        `امکان ثبت خرید برای این شخص وجود ندارد! این طرف حساب دارای ${pendingChequesCount} فقره چک پاس‌نشده به مبلغ ${formatToman(
+          pendingChequesAmount
+        )} است. طبق قوانین سیستم، تا زمان وصول و پاس شدن تمام چک‌ها، خرید مس برای این شخص مسدود است.`
+      );
       return;
     }
     if (weightKg <= 0) {
@@ -150,14 +163,19 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                   setError('');
                 }}
                 required
-                className="w-full pl-3 pr-9 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600 transition-all cursor-pointer"
+                className={`w-full pl-3 pr-9 py-2 text-sm bg-white border rounded-lg text-stone-900 focus:outline-none transition-all cursor-pointer ${
+                  hasUnclearedCheques
+                    ? 'border-rose-400 focus:ring-2 focus:ring-rose-500'
+                    : 'border-stone-300 focus:ring-2 focus:ring-amber-600 focus:border-amber-600'
+                }`}
               >
                 <option value="" disabled>-- انتخاب کنید --</option>
                 {people.map((p) => {
                   const pSummary = summaries.find((s) => s.person.id === p.id);
+                  const blocked = pSummary?.hasUnclearedCheques;
                   return (
                     <option key={p.id} value={p.id}>
-                      {p.name} {pSummary ? `(موجودی ریالی: ${formatNumber(pSummary.cashBalance)} تومان)` : ''}
+                      {p.name} {blocked ? '⛔ (دارای چک پاس‌نشده - مسدود)' : pSummary ? `(موجودی ریالی: ${formatNumber(pSummary.cashBalance)} تومان)` : ''}
                     </option>
                   );
                 })}
@@ -165,8 +183,21 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             </div>
           </div>
 
+          {/* Uncleared Cheque Critical Warning */}
+          {hasUnclearedCheques && (
+            <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 text-rose-900 font-bold">
+                <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+                <span>خرید برای این شخص به دلیل چک پاس‌نشده مسدود است!</span>
+              </div>
+              <p className="text-rose-800 leading-relaxed">
+                این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. تا زمان تایید پاس شدن چک در سامانه، ثبت هرگونه فاکتور خرید جدید غیرفعال است.
+              </p>
+            </div>
+          )}
+
           {/* Person Wallet Status Badge */}
-          {selectedPersonSummary && (
+          {selectedPersonSummary && !hasUnclearedCheques && (
             <div className="grid grid-cols-2 gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
               <div className="flex items-center gap-1.5">
                 <Wallet className="w-4 h-4 text-amber-700" />
@@ -229,9 +260,21 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
 
           {/* Price per Kg */}
           <div>
-            <label htmlFor="buy-price-kg" className="block text-xs font-bold text-stone-700 mb-1.5">
-              قیمت خرید هر کیلوگرم (تومان) <span className="text-rose-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="buy-price-kg" className="block text-xs font-bold text-stone-700">
+                قیمت خرید هر کیلوگرم (تومان) <span className="text-rose-500">*</span>
+              </label>
+              {defaultPricePerKg > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPricePerKg(defaultPricePerKg)}
+                  className="text-[11px] text-amber-800 hover:text-amber-950 font-semibold cursor-pointer underline decoration-dotted"
+                  title="تنظیم مجدد به قیمت مرجع خرید"
+                >
+                  نرخ روز بازار: {formatNumber(defaultPricePerKg)} ت
+                </button>
+              )}
+            </div>
             <NumericInput
               id="buy-price-kg"
               value={pricePerKg}
@@ -239,7 +282,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                 setPricePerKg(val);
                 setError('');
               }}
-              placeholder="مثال: 650,000"
+              placeholder="مثال: 3,000,000"
               unitLabel="تومان/کیلو"
               showWordHelper={true}
               required

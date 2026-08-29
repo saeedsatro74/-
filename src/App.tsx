@@ -4,21 +4,25 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Person, Transaction, PersonWalletSummary, OverallStats } from './types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices } from './types';
 import { 
   getStoredPeople, 
   getStoredTransactions, 
   getStoredMarketPrice,
+  getStoredMarketPrices,
   savePeople, 
   saveTransactions, 
   saveMarketPrice,
+  saveMarketPrices,
   clearAllData,
   calculatePersonSummary, 
   calculateOverallStats,
   replayAllTransactions,
   replayAndCalculatePersonLedger,
   resetToSampleData,
-  DEFAULT_MARKET_COPPER_PRICE
+  DEFAULT_MARKET_COPPER_PRICE,
+  DEFAULT_MARKET_BUY_PRICE,
+  DEFAULT_MARKET_SELL_PRICE
 } from './utils/storage';
 import { 
   fetchAllFromSupabase, 
@@ -29,6 +33,7 @@ import {
   dbBatchUpsertTransactions, 
   dbDeleteTransaction, 
   dbSaveMarketPrice,
+  dbSaveMarketPrices,
   dbClearAllCloudData,
   supabase
 } from './services/supabase';
@@ -45,6 +50,7 @@ import { MarketPriceModal } from './components/MarketPriceModal';
 import { TransactionEditModal } from './components/TransactionEditModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DataBackupModal } from './components/DataBackupModal';
+import { AccountStatementModal } from './components/AccountStatementModal';
 import { LoginScreen } from './components/LoginScreen';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString } from './utils/persianDate';
@@ -59,13 +65,15 @@ export default function App() {
   // Core State
   const [people, setPeople] = useState<Person[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [marketPrice, setMarketPrice] = useState<number>(DEFAULT_MARKET_COPPER_PRICE);
+  const [marketPrices, setMarketPrices] = useState<MarketPrices>(() => getStoredMarketPrices());
+  const marketPrice = marketPrices.buyPrice;
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [statementPersonId, setStatementPersonId] = useState<string | null>(null);
 
   // Modal States
   const [isPersonFormOpen, setIsPersonFormOpen] = useState(false);
@@ -144,21 +152,21 @@ export default function App() {
           const replayed = replayAllTransactions(cloudResult.people, cloudResult.transactions);
           setPeople(cloudResult.people);
           setTransactions(replayed);
-          setMarketPrice(cloudResult.marketPrice);
+          setMarketPrices(cloudResult.marketPrices);
           savePeople(cloudResult.people);
           saveTransactions(replayed);
-          saveMarketPrice(cloudResult.marketPrice);
+          saveMarketPrices(cloudResult.marketPrices);
         } else {
           // Cloud connection issue, fallback to local storage
           setIsCloudConnected(false);
           const storedPeople = getStoredPeople();
           const storedTransactions = getStoredTransactions();
-          const storedPrice = getStoredMarketPrice();
+          const storedPrices = getStoredMarketPrices();
           const replayed = replayAllTransactions(storedPeople, storedTransactions);
 
           setPeople(storedPeople);
           setTransactions(replayed);
-          setMarketPrice(storedPrice);
+          setMarketPrices(storedPrices);
           showToast('اتصال به سرور برقرار نشد، داده‌ها از حافظه محلی فراخوانی شدند.', 'info');
         }
       } catch (err) {
@@ -166,12 +174,12 @@ export default function App() {
         setIsCloudConnected(false);
         const storedPeople = getStoredPeople();
         const storedTransactions = getStoredTransactions();
-        const storedPrice = getStoredMarketPrice();
+        const storedPrices = getStoredMarketPrices();
         const replayed = replayAllTransactions(storedPeople, storedTransactions);
 
         setPeople(storedPeople);
         setTransactions(replayed);
-        setMarketPrice(storedPrice);
+        setMarketPrices(storedPrices);
       } finally {
         setIsLoaded(true);
         setIsSyncing(false);
@@ -239,10 +247,19 @@ export default function App() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_settings' },
         async (payload: any) => {
-          if (payload.new && payload.new.key === 'market_copper_price') {
-            const newP = Number(payload.new.value) || DEFAULT_MARKET_COPPER_PRICE;
-            setMarketPrice(newP);
-            saveMarketPrice(newP);
+          if (payload.new && (payload.new.key === 'market_copper_price' || payload.new.key === 'market_buy_price' || payload.new.key === 'market_sell_price')) {
+            const current = getStoredMarketPrices();
+            if (payload.new.key === 'market_buy_price' || payload.new.key === 'market_copper_price') {
+              const buy = Number(payload.new.value) || DEFAULT_MARKET_BUY_PRICE;
+              const updated: MarketPrices = { ...current, buyPrice: buy };
+              setMarketPrices(updated);
+              saveMarketPrices(updated);
+            } else if (payload.new.key === 'market_sell_price') {
+              const sell = Number(payload.new.value) || DEFAULT_MARKET_SELL_PRICE;
+              const updated: MarketPrices = { ...current, sellPrice: sell };
+              setMarketPrices(updated);
+              saveMarketPrices(updated);
+            }
           }
         }
       )
@@ -266,28 +283,33 @@ export default function App() {
     return replayed;
   };
 
-  const updateMarketPriceState = async (newPrice: number) => {
-    setMarketPrice(newPrice);
-    saveMarketPrice(newPrice);
+  const updateMarketPricesState = async (newPrices: MarketPrices) => {
+    setMarketPrices(newPrices);
+    saveMarketPrices(newPrices);
     setIsSyncing(true);
-    await dbSaveMarketPrice(newPrice);
+    await dbSaveMarketPrices(newPrices);
     setIsSyncing(false);
-    showToast(`قیمت مرجع مس به ${formatToman(newPrice)} برای هر کیلو در سرور به‌روز شد.`);
+    showToast(`قیمت‌های مرجع مس (خرید: ${formatToman(newPrices.buyPrice)} | فروش: ${formatToman(newPrices.sellPrice)}) به‌روز شدند.`);
   };
 
   // Compute Summaries and Overall Stats
   const summaries: PersonWalletSummary[] = useMemo(() => {
-    return people.map((p) => calculatePersonSummary(p, transactions, marketPrice));
-  }, [people, transactions, marketPrice]);
+    return people.map((p) => calculatePersonSummary(p, transactions, marketPrices.buyPrice));
+  }, [people, transactions, marketPrices.buyPrice]);
 
   const overallStats: OverallStats = useMemo(() => {
-    return calculateOverallStats(summaries, marketPrice);
-  }, [summaries, marketPrice]);
+    return calculateOverallStats(summaries, marketPrices);
+  }, [summaries, marketPrices]);
 
   const selectedPerson = useMemo(() => {
     if (!selectedPersonId) return null;
     return people.find((p) => p.id === selectedPersonId) || null;
   }, [selectedPersonId, people]);
+
+  const statementPerson = useMemo(() => {
+    if (!statementPersonId) return null;
+    return people.find((p) => p.id === statementPersonId) || null;
+  }, [statementPersonId, people]);
 
   // --- Handlers for Person ---
   const handleOpenAddPerson = () => {
@@ -556,9 +578,13 @@ export default function App() {
     setIsSyncing(true);
     updatePeople(newPeople);
     if (newMarketPrice) {
-      setMarketPrice(newMarketPrice);
-      saveMarketPrice(newMarketPrice);
-      await dbSaveMarketPrice(newMarketPrice);
+      const prices: MarketPrices = {
+        buyPrice: newMarketPrice,
+        sellPrice: Math.max(0, newMarketPrice - 150000),
+      };
+      setMarketPrices(prices);
+      saveMarketPrices(prices);
+      await dbSaveMarketPrices(prices);
     }
     const replayed = await updateTransactions(newTransactions, newPeople);
     for (const p of newPeople) {
@@ -573,16 +599,21 @@ export default function App() {
   const handleResetToSample = async () => {
     setIsSyncing(true);
     const sample = resetToSampleData();
+    const defaultPrices: MarketPrices = {
+      buyPrice: DEFAULT_MARKET_BUY_PRICE,
+      sellPrice: DEFAULT_MARKET_SELL_PRICE,
+    };
     setPeople(sample.people);
     setTransactions(sample.transactions);
-    setMarketPrice(sample.marketPrice);
+    setMarketPrices(defaultPrices);
+    saveMarketPrices(defaultPrices);
 
     // Sync sample to cloud
     for (const p of sample.people) {
       await dbUpsertPerson(p);
     }
     await dbBatchUpsertTransactions(sample.transactions);
-    await dbSaveMarketPrice(sample.marketPrice);
+    await dbSaveMarketPrices(defaultPrices);
 
     setIsSyncing(false);
     setIsDataModalOpen(false);
@@ -594,7 +625,10 @@ export default function App() {
     clearAllData();
     setPeople([]);
     setTransactions([]);
-    setMarketPrice(DEFAULT_MARKET_COPPER_PRICE);
+    setMarketPrices({
+      buyPrice: DEFAULT_MARKET_BUY_PRICE,
+      sellPrice: DEFAULT_MARKET_SELL_PRICE,
+    });
     setSelectedPersonId(null);
 
     // Wipe all rows from Cloud
@@ -641,7 +675,9 @@ export default function App() {
         onLogout={handleLogout}
         totalStockKg={overallStats.totalCopperStockKg}
         totalCash={overallStats.totalCashBalance}
-        marketPrice={marketPrice}
+        marketPrice={marketPrices.buyPrice}
+        marketBuyPrice={marketPrices.buyPrice}
+        marketSellPrice={marketPrices.sellPrice}
         isCloudConnected={isCloudConnected}
         isSyncing={isSyncing}
       />
@@ -666,6 +702,7 @@ export default function App() {
           onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
           onAddSale={(personId) => handleOpenSellCopper(personId)}
           onAddNewPerson={handleOpenAddPerson}
+          onOpenStatement={(personId) => setStatementPersonId(personId)}
         />
 
       </main>
@@ -694,7 +731,7 @@ export default function App() {
           onClose={() => setSelectedPersonId(null)}
           person={selectedPerson}
           transactions={transactions}
-          marketCopperPrice={marketPrice}
+          marketCopperPrice={marketPrices.buyPrice}
           onAddDeposit={(personId) => handleOpenDeposit(personId)}
           onAddWithdrawal={(personId) => handleOpenWithdrawal(personId)}
           onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
@@ -703,6 +740,18 @@ export default function App() {
           onEditTransaction={handleOpenEditTransaction}
           onDeleteTransaction={handlePromptDeleteTransaction}
           onEditPerson={handleOpenEditPerson}
+          onOpenStatement={(personId) => setStatementPersonId(personId)}
+        />
+      )}
+
+      {/* Official Account Statement & PDF Modal */}
+      {statementPerson && (
+        <AccountStatementModal
+          isOpen={!!statementPersonId}
+          onClose={() => setStatementPersonId(null)}
+          person={statementPerson}
+          transactions={transactions}
+          marketCopperPrice={marketPrices.buyPrice}
         />
       )}
 
@@ -733,6 +782,7 @@ export default function App() {
         people={people}
         summaries={summaries}
         selectedPersonId={buyCopperState.targetPersonId}
+        defaultPricePerKg={marketPrices.buyPrice}
         onOpenDepositForPerson={(pId) => handleOpenDeposit(pId)}
       />
 
@@ -744,6 +794,7 @@ export default function App() {
         people={people}
         summaries={summaries}
         selectedPersonId={sellCopperState.targetPersonId}
+        defaultPricePerKg={marketPrices.sellPrice}
       />
 
       {/* Adjustment Modal */}
@@ -760,8 +811,8 @@ export default function App() {
       <MarketPriceModal
         isOpen={isMarketPriceOpen}
         onClose={() => setIsMarketPriceOpen(false)}
-        currentPrice={marketPrice}
-        onSave={updateMarketPriceState}
+        currentPrices={marketPrices}
+        onSave={updateMarketPricesState}
       />
 
       {/* Transaction Edit Modal */}
