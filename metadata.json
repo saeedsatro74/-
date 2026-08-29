@@ -1,0 +1,6 @@
+{
+  "name": "مدیریت خرید و فروش لوله مسی",
+  "description": "سیستم حسابداری و مدیریت خرید و فروش لوله مسی و موجودی انبار به همراه گزارش سود و زیان افراد",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
