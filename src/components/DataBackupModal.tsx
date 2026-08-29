@@ -7,7 +7,8 @@ import {
   RotateCcw, 
   FileSpreadsheet, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { Person, Transaction, PersonWalletSummary } from '../types';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -21,6 +22,7 @@ interface DataBackupModalProps {
   summaries: PersonWalletSummary[];
   onRestoreData: (people: Person[], transactions: Transaction[], marketPrice?: number) => void;
   onResetToSample: () => void;
+  onFactoryReset: () => void;
 }
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
@@ -32,6 +34,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   summaries,
   onRestoreData,
   onResetToSample,
+  onFactoryReset,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -226,13 +229,37 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   setTimeout(() => setSuccessMessage(''), 4000);
                 }
               }}
-              className="p-4 rounded-xl border border-stone-200 hover:border-rose-300 hover:bg-rose-50/50 transition-all text-right flex flex-col justify-between cursor-pointer group"
+              className="p-4 rounded-xl border border-stone-200 hover:border-amber-400 hover:bg-amber-50/50 transition-all text-right flex flex-col justify-between cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-sm text-stone-900 group-hover:text-rose-700">داده‌های نمونه اولیه</span>
-                <RotateCcw className="w-4 h-4 text-rose-600" />
+                <span className="font-bold text-sm text-stone-900 group-hover:text-amber-800">بارگذاری داده‌های تستی</span>
+                <RotateCcw className="w-4 h-4 text-amber-600" />
               </div>
-              <span className="text-[11px] text-stone-500">بارگذاری مجدد سناریوی واقعی علی رضایی و شرکت‌ها</span>
+              <span className="text-[11px] text-stone-500">بارگذاری مجدد داده‌های نمونه اولیه علی رضایی و شرکت‌ها</span>
+            </button>
+
+            {/* Factory Reset - Clear All to Zero */}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('هشدار: آیا مطمئن هستید که می‌خواهید تمام داده‌ها را به صفر و حالت کارخانه بازنشانی کنید؟ تمام اشخاص و تراکنش‌ها از سرور حذف خواهند شد.')) {
+                  onFactoryReset();
+                  setSuccessMessage('تمام داده‌ها صفر شدند و سیستم به حالت اولیه بازگشت.');
+                  setTimeout(() => setSuccessMessage(''), 4000);
+                }
+              }}
+              className="p-4 rounded-xl border border-rose-200 bg-rose-50/30 hover:border-rose-400 hover:bg-rose-50 transition-all text-right flex flex-col justify-between cursor-pointer group sm:col-span-2"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-sm text-rose-800 flex items-center gap-1.5">
+                  <span>صفر کردن و بازنشانی کامل به حالت کارخانه</span>
+                  <span className="text-[10px] bg-rose-200 text-rose-900 px-1.5 py-0.5 rounded font-normal">پاکسازی کامل</span>
+                </span>
+                <Trash2 className="w-4 h-4 text-rose-700" />
+              </div>
+              <span className="text-[11px] text-rose-600">
+                حذف تمامی اشخاص، تراکنش‌های مالی، تاریخچه خرید و فروش از سرور مرکزی جهت شروع با اطلاعات جدید
+              </span>
             </button>
 
           </div>

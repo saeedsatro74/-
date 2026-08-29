@@ -27,20 +27,20 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }
     <div className="space-y-3">
       
       {/* Top Banner: Market Price Bar */}
-      <div className="bg-gradient-to-r from-amber-900 via-amber-800 to-stone-900 text-white rounded-xl p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-stone-900 text-white rounded-xl p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-amber-300">
+          <div className="w-10 h-10 rounded-lg bg-stone-800 flex items-center justify-center text-amber-400">
             <Tag className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-amber-200">قیمت مرجع فعلی مس در بازار:</span>
+              <span className="text-xs text-stone-300">قیمت مرجع فعلی مس در بازار:</span>
               <span className="font-bold text-base sm:text-lg font-mono text-white">
                 {formatNumber(stats.marketCopperPrice)}
               </span>
-              <span className="text-xs text-amber-200">تومان/کیلو</span>
+              <span className="text-xs text-stone-300">تومان/کیلو</span>
             </div>
-            <p className="text-[11px] text-amber-200/80 mt-0.5">
+            <p className="text-[11px] text-stone-400 mt-0.5">
               مبنای محاسبه ارزش روز دارایی مس افراد و انبار کل
             </p>
           </div>
@@ -50,7 +50,7 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }
           <button
             type="button"
             onClick={onOpenMarketPrice}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-100 hover:bg-white active:bg-amber-200 rounded-lg transition-colors cursor-pointer shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-900 bg-stone-100 hover:bg-white active:bg-stone-200 rounded-lg transition-colors cursor-pointer"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>تغییر قیمت مرجع بازار</span>
@@ -130,20 +130,20 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }
         {/* 4. مجموع کل دارایی‌ها (ریالی + مس) */}
         <div 
           id="card-stat-total-asset"
-          className="bg-amber-50/70 rounded-xl border border-amber-200 p-3.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-400"
+          className="bg-stone-900 text-white rounded-xl border border-stone-800 p-3.5 shadow-xs relative overflow-hidden transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-900">مجموع کل دارایی‌ها</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-700 text-white flex items-center justify-center">
+            <span className="text-xs font-semibold text-stone-300">مجموع کل دارایی‌ها</span>
+            <div className="w-7 h-7 rounded-lg bg-stone-800 text-amber-400 flex items-center justify-center">
               <Landmark className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-extrabold text-amber-950 tracking-tight font-mono">
+            <div className="text-lg sm:text-xl font-extrabold text-white tracking-tight font-mono">
               {formatNumber(stats.totalAssetValue)}
-              <span className="text-xs font-normal text-amber-900 mr-1">ت</span>
+              <span className="text-xs font-normal text-stone-400 mr-1">ت</span>
             </div>
-            <div className="mt-1 text-[11px] text-amber-800">
+            <div className="mt-1 text-[11px] text-stone-400">
               نقدینگی + ارزش مس انبار
             </div>
           </div>

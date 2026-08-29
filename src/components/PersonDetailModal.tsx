@@ -127,13 +127,13 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-800 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-lg shadow-sm">
               {person.name.charAt(0)}
             </div>
             <div>
@@ -170,7 +170,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg transition-colors cursor-pointer"
               title="چاپ صورتحساب و کاردکس"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -189,77 +189,75 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         {/* Scrollable Content */}
         <div className="overflow-y-auto p-4 sm:p-6 space-y-5">
           
-          {/* Asset & Wallet Overview Summary Cards */}
+          {/* Asset & Wallet Overview Summary Cards - Clean Slate Palette */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             
             {/* 1. Cash Balance */}
-            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3 shadow-2xs">
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-900">موجودی ریالی (تومان)</span>
-                <Wallet className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-semibold text-stone-500">موجودی ریالی</span>
+                <Wallet className="w-4 h-4 text-emerald-600" />
               </div>
-              <div className="mt-2 text-lg sm:text-xl font-bold font-mono text-emerald-950">
-                {formatNumber(summary.cashBalance)}
+              <div className="mt-2 text-lg sm:text-xl font-bold font-mono text-emerald-800">
+                {formatNumber(summary.cashBalance)} <span className="text-xs font-normal text-stone-500 font-sans">تومان</span>
               </div>
-              <p className="text-[11px] text-emerald-800 mt-0.5">
-                مانده وجه نقد قابل خرید یا برداشت
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                مانده نقدی در کیف پول
               </p>
             </div>
 
             {/* 2. Copper Stock */}
-            <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 shadow-2xs">
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-amber-900">موجودی مس (کیلو)</span>
+                <span className="text-xs font-semibold text-stone-500">موجودی مس</span>
                 <Boxes className="w-4 h-4 text-amber-700" />
               </div>
-              <div className="mt-2 text-lg sm:text-xl font-bold font-mono text-amber-950">
-                {formatWeight(summary.copperStockKg, false)}
+              <div className="mt-2 text-lg sm:text-xl font-bold font-mono text-stone-900">
+                {formatWeight(summary.copperStockKg, false)} <span className="text-xs font-normal text-stone-500 font-sans">کیلو</span>
               </div>
-              <p className="text-[11px] text-amber-800 mt-0.5">
+              <p className="text-[11px] text-stone-500 mt-0.5">
                 {summary.weightedAvgBuyPrice > 0 ? `میانگین خرید: ${formatNumber(summary.weightedAvgBuyPrice)} ت` : 'بدون موجودی مس'}
               </p>
             </div>
 
             {/* 3. Copper Market Value */}
-            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 shadow-2xs">
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-600">ارزش روز مس موجود</span>
+                <span className="text-xs font-semibold text-stone-500">ارزش روز مس</span>
                 <Tag className="w-4 h-4 text-stone-500" />
               </div>
               <div className="mt-2 text-lg sm:text-xl font-bold font-mono text-stone-900">
-                {formatNumber(copperMarketValue)}
+                {formatNumber(copperMarketValue)} <span className="text-xs font-normal text-stone-500 font-sans">تومان</span>
               </div>
               <p className="text-[11px] text-stone-500 mt-0.5">
-                با نرخ {formatNumber(marketCopperPrice)} ت/ک
+                نرخ {formatNumber(marketCopperPrice)} ت/ک
               </p>
             </div>
 
             {/* 4. Total Asset Value */}
-            <div className="bg-gradient-to-br from-amber-700 to-amber-900 text-white rounded-xl p-3 shadow-xs">
+            <div className="bg-stone-900 text-white rounded-xl p-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-amber-200">مجموع ارزش دارایی</span>
-                <Landmark className="w-4 h-4 text-amber-200" />
+                <span className="text-xs font-semibold text-stone-300">مجموع ارزش دارایی</span>
+                <Landmark className="w-4 h-4 text-stone-300" />
               </div>
               <div className="mt-2 text-lg sm:text-xl font-extrabold font-mono text-white">
-                {formatNumber(totalAssetValue)}
+                {formatNumber(totalAssetValue)} <span className="text-xs font-normal text-stone-300 font-sans">تومان</span>
               </div>
-              <p className="text-[11px] text-amber-200 mt-0.5">
+              <p className="text-[11px] text-stone-300 mt-0.5">
                 نقدینگی + ارزش روز مس
               </p>
             </div>
 
             {/* 5. Realized Profit */}
-            <div className={`col-span-2 lg:col-span-1 rounded-xl p-3 border shadow-2xs ${
-              isProfitPositive ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'
-            }`}>
+            <div className="col-span-2 lg:col-span-1 rounded-xl p-3.5 border border-stone-200 bg-stone-50">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-700">سود محقق‌شده</span>
-                <BadgePercent className="w-4 h-4 text-stone-600" />
+                <span className="text-xs font-semibold text-stone-500">سود محقق‌شده</span>
+                <BadgePercent className="w-4 h-4 text-stone-500" />
               </div>
               <div className={`mt-2 text-lg sm:text-xl font-bold font-mono ${
                 isProfitPositive ? 'text-emerald-700' : 'text-rose-700'
               }`}>
-                {summary.realizedProfit > 0 ? '+' : ''}{formatNumber(summary.realizedProfit)}
+                {summary.realizedProfit > 0 ? '+' : ''}{formatNumber(summary.realizedProfit)} <span className="text-xs font-normal text-stone-500 font-sans">ت</span>
               </div>
               <div className="flex items-center justify-between text-[11px] mt-0.5">
                 <span className="text-stone-500">بازدهی معاملات:</span>
@@ -271,53 +269,53 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
           </div>
 
-          {/* Fast Transaction Buttons Toolbar */}
-          <div className="p-3 bg-stone-100 rounded-xl border border-stone-200/90 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-              <span>عملیات سریع برای {person.name}:</span>
+          {/* Fast Transaction Buttons Toolbar - Calm styling */}
+          <div className="p-3.5 bg-stone-100/90 rounded-xl border border-stone-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+              <span>ثبت عملیات جدید برای {person.name}:</span>
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => onAddDeposit(person.id)}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-stone-800 bg-white hover:bg-stone-50 border border-stone-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
               >
-                <ArrowDownLeft className="w-3.5 h-3.5" />
-                <span>+ واریز وجه</span>
+                <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
+                <span>واریز وجه</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onAddWithdrawal(person.id)}
-                className="px-3 py-1.5 text-xs font-bold text-rose-800 bg-rose-100 hover:bg-rose-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-stone-800 bg-white hover:bg-stone-50 border border-stone-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
               >
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                <span>- برداشت وجه</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
+                <span>برداشت وجه</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onAddPurchase(person.id)}
-                className="px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-200/80 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-stone-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
                 <span>خرید مس</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onAddSale(person.id)}
-                className="px-3 py-1.5 text-xs font-bold text-blue-900 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-stone-800 bg-white hover:bg-stone-50 border border-stone-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
               >
-                <TrendingUp className="w-3.5 h-3.5" />
+                <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
                 <span>فروش مس</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onAddAdjustment(person.id)}
-                className="px-3 py-1.5 text-xs font-semibold text-stone-800 bg-stone-200 hover:bg-stone-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-semibold text-stone-600 bg-stone-200 hover:bg-stone-300 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
               >
                 <Sliders className="w-3.5 h-3.5" />
                 <span>اصلاح حساب</span>

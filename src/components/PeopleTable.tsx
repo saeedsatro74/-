@@ -361,80 +361,59 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                       )}
                     </td>
 
-                    {/* Quick Wallet Actions */}
+                    {/* Actions */}
                     <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1.5">
                         
-                        {/* View Ledger */}
+                        {/* Primary View & Manage Button */}
                         <button
                           type="button"
                           onClick={() => onSelectPerson(item.person.id)}
-                          className="p-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-                          title="مشاهده دفتر تراکنش‌ها و کاردکس"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-stone-800 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 rounded-lg transition-colors cursor-pointer"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5 text-stone-600" />
+                          <span>مشاهده و عملیات</span>
                         </button>
 
-                        {/* Deposit Cash */}
-                        <button
-                          type="button"
-                          onClick={() => onAddDeposit(item.person.id)}
-                          className="p-1.5 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          title="واریز وجه به کیف پول"
-                        >
-                          <ArrowDownLeft className="w-4 h-4" />
-                        </button>
-
-                        {/* Withdraw Cash */}
-                        <button
-                          type="button"
-                          onClick={() => onAddWithdrawal(item.person.id)}
-                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="برداشت وجه از کیف پول"
-                        >
-                          <ArrowUpRight className="w-4 h-4" />
-                        </button>
-
-                        {/* Buy Copper */}
+                        {/* Quick Buy */}
                         <button
                           type="button"
                           onClick={() => onAddPurchase(item.person.id)}
-                          className="p-1.5 text-amber-800 hover:text-amber-950 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-stone-700 hover:text-amber-900 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                           title="خرید مس"
                         >
-                          <ShoppingBag className="w-4 h-4" />
+                          <ShoppingBag className="w-4 h-4 text-amber-700" />
                         </button>
 
-                        {/* Sell Copper */}
+                        {/* Quick Sell */}
                         <button
                           type="button"
                           onClick={() => onAddSale(item.person.id)}
-                          className="p-1.5 text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-stone-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="فروش مس"
                         >
-                          <TrendingUp className="w-4 h-4" />
+                          <TrendingUp className="w-4 h-4 text-blue-600" />
+                        </button>
+
+                        {/* Quick Deposit */}
+                        <button
+                          type="button"
+                          onClick={() => onAddDeposit(item.person.id)}
+                          className="p-1.5 text-stone-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="واریز وجه"
+                        >
+                          <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
                         </button>
 
                         {/* Edit Person */}
                         <button
                           type="button"
                           onClick={() => onEditPerson(item.person.id)}
-                          className="p-1.5 text-stone-400 hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
-                          title="ویرایش مشخصات شخص"
+                          className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
+                          title="ویرایش مشخصات"
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Edit3 className="w-3.5 h-3.5" />
                         </button>
-
-                        {/* Delete Person */}
-                        <button
-                          type="button"
-                          onClick={() => onDeletePerson(item.person.id)}
-                          className="p-1.5 text-stone-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="حذف حساب شخص"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-
                       </div>
                     </td>
                   </tr>
@@ -508,28 +487,20 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectPerson(item.person.id)}
-                    className="text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1"
+                    className="text-xs font-semibold text-stone-800 bg-stone-100 hover:bg-stone-200 px-3.5 py-1.5 rounded-lg flex items-center gap-1.5"
                   >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>دفتر تراکنش‌ها</span>
+                    <Eye className="w-3.5 h-3.5 text-stone-600" />
+                    <span>مشاهده پرونده و تراکنش‌ها</span>
                   </button>
 
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onAddDeposit(item.person.id)}
-                      className="p-1.5 text-emerald-700 bg-emerald-50 rounded-lg"
-                      title="واریز وجه"
-                    >
-                      <ArrowDownLeft className="w-4 h-4" />
-                    </button>
                     <button
                       type="button"
                       onClick={() => onAddPurchase(item.person.id)}
                       className="p-1.5 text-amber-800 bg-amber-50 rounded-lg"
                       title="خرید مس"
                     >
-                      <ShoppingBag className="w-4 h-4" />
+                      <ShoppingBag className="w-4 h-4 text-amber-700" />
                     </button>
                     <button
                       type="button"
@@ -537,7 +508,15 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                       className="p-1.5 text-blue-700 bg-blue-50 rounded-lg"
                       title="فروش مس"
                     >
-                      <TrendingUp className="w-4 h-4" />
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onAddDeposit(item.person.id)}
+                      className="p-1.5 text-emerald-700 bg-emerald-50 rounded-lg"
+                      title="واریز وجه"
+                    >
+                      <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
                     </button>
                     <button
                       type="button"
@@ -546,14 +525,6 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                       title="ویرایش"
                     >
                       <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeletePerson(item.person.id)}
-                      className="p-1.5 text-rose-500 bg-rose-50 rounded-lg"
-                      title="حذف"
-                    >
-                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

@@ -260,6 +260,22 @@ export async function dbSaveMarketPrice(price: number): Promise<boolean> {
 }
 
 /**
+ * Clear all data completely in Supabase (Factory reset)
+ */
+export async function dbClearAllCloudData(): Promise<boolean> {
+  try {
+    // Delete in reverse order of foreign key constraints
+    await supabase.from('transactions').delete().neq('id', '___non_existent___');
+    await supabase.from('people').delete().neq('id', '___non_existent___');
+    await supabase.from('app_settings').upsert({ key: 'market_copper_price', value: DEFAULT_MARKET_COPPER_PRICE });
+    return true;
+  } catch (err) {
+    console.error('Supabase dbClearAllCloudData error:', err);
+    return false;
+  }
+}
+
+/**
  * Seed initial sample data into Supabase if empty
  */
 export async function seedSupabaseIfEmpty(

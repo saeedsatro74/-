@@ -12,6 +12,7 @@ import {
   savePeople, 
   saveTransactions, 
   saveMarketPrice,
+  clearAllData,
   calculatePersonSummary, 
   calculateOverallStats,
   replayAllTransactions,
@@ -28,6 +29,7 @@ import {
   dbBatchUpsertTransactions, 
   dbDeleteTransaction, 
   dbSaveMarketPrice,
+  dbClearAllCloudData,
   supabase
 } from './services/supabase';
 import { Header } from './components/Header';
@@ -43,11 +45,17 @@ import { MarketPriceModal } from './components/MarketPriceModal';
 import { TransactionEditModal } from './components/TransactionEditModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DataBackupModal } from './components/DataBackupModal';
+import { LoginScreen } from './components/LoginScreen';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString } from './utils/persianDate';
 import { formatToman } from './utils/formatters';
 
 export default function App() {
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem('waateh_auth_token');
+  });
+
   // Core State
   const [people, setPeople] = useState<Person[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -132,33 +140,14 @@ export default function App() {
         if (cloudResult.isConnected) {
           setIsCloudConnected(true);
           
-          // If Supabase table is empty on first run, seed it with sample data
-          if (cloudResult.people.length === 0) {
-            const localPeople = getStoredPeople();
-            const localTransactions = getStoredTransactions();
-            const localPrice = getStoredMarketPrice();
-            
-            await seedSupabaseIfEmpty(localPeople, localTransactions, localPrice);
-            
-            // Replay and set
-            const replayed = replayAllTransactions(localPeople, localTransactions);
-            setPeople(localPeople);
-            setTransactions(replayed);
-            setMarketPrice(localPrice);
-            savePeople(localPeople);
-            saveTransactions(replayed);
-            saveMarketPrice(localPrice);
-            showToast('داده‌های اولیه در پایگاه‌داده Supabase با موفقیت ثبت شدند.', 'info');
-          } else {
-            // Load live data from Supabase
-            const replayed = replayAllTransactions(cloudResult.people, cloudResult.transactions);
-            setPeople(cloudResult.people);
-            setTransactions(replayed);
-            setMarketPrice(cloudResult.marketPrice);
-            savePeople(cloudResult.people);
-            saveTransactions(replayed);
-            saveMarketPrice(cloudResult.marketPrice);
-          }
+          // Load live data from Supabase directly
+          const replayed = replayAllTransactions(cloudResult.people, cloudResult.transactions);
+          setPeople(cloudResult.people);
+          setTransactions(replayed);
+          setMarketPrice(cloudResult.marketPrice);
+          savePeople(cloudResult.people);
+          saveTransactions(replayed);
+          saveMarketPrice(cloudResult.marketPrice);
         } else {
           // Cloud connection issue, fallback to local storage
           setIsCloudConnected(false);
@@ -578,7 +567,7 @@ export default function App() {
     await dbBatchUpsertTransactions(replayed);
     setIsSyncing(false);
     setIsDataModalOpen(false);
-    showToast('اطلاعات پشتیبان با موفقیت در دیتابیس Supabase بازیابی شد.');
+    showToast('اطلاعات پشتیبان با موفقیت در سرور بازیابی شد.');
   };
 
   const handleResetToSample = async () => {
@@ -597,23 +586,48 @@ export default function App() {
 
     setIsSyncing(false);
     setIsDataModalOpen(false);
-    showToast('داده‌های نمونه اولیه در دیتابیس Supabase بازنشانی شدند.');
+    showToast('داده‌های نمونه اولیه در سرور بازنشانی شدند.');
   };
+
+  const handleFactoryReset = async () => {
+    setIsSyncing(true);
+    clearAllData();
+    setPeople([]);
+    setTransactions([]);
+    setMarketPrice(DEFAULT_MARKET_COPPER_PRICE);
+    setSelectedPersonId(null);
+
+    // Wipe all rows from Cloud
+    await dbClearAllCloudData();
+
+    setIsSyncing(false);
+    setIsDataModalOpen(false);
+    showToast('تمامی اطلاعات از سرور پاک شدند و سیستم به حالت خام بازنشانی شد.');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('waateh_auth_token');
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 text-stone-600">
         <div className="text-center space-y-3">
-          <div className="w-9 h-9 border-3 border-amber-700 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm font-semibold text-stone-800">در حال اتصال به پایگاه‌داده Supabase...</p>
-          <p className="text-xs text-stone-500">همگام‌سازی جداول افراد، تراکنش‌ها و انبار مس</p>
+          <div className="w-9 h-9 border-3 border-stone-800 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm font-semibold text-stone-800">در حال بارگذاری داده‌های سامانه معاملات واته...</p>
+          <p className="text-xs text-stone-500">همگام‌سازی اطلاعات حساب‌ها و انبار مس</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col selection:bg-amber-700 selection:text-white">
+    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col selection:bg-stone-800 selection:text-white">
       
       {/* Top Header */}
       <Header
@@ -624,6 +638,7 @@ export default function App() {
         onAddSale={() => handleOpenSellCopper()}
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
+        onLogout={handleLogout}
         totalStockKg={overallStats.totalCopperStockKg}
         totalCash={overallStats.totalCashBalance}
         marketPrice={marketPrice}
@@ -659,15 +674,15 @@ export default function App() {
       <footer className="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-500 no-print mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-stone-700">سامانه حسابداری و کیف پول معاملات مس</span>
+            <span className="font-semibold text-stone-800">سامانه معاملات مس واته (Waateh)</span>
             <span className="text-stone-300">•</span>
             <span className="text-emerald-700 font-medium flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-              متصل به پایگاه داده ابری Supabase
+              سامانه متصل و فعال
             </span>
           </div>
           <div className="text-stone-400">
-            محاسبه خودکار ارزش دارایی، کاردکس انبار و ثبت لحظه‌ای در جداول دیتابیس
+            محاسبه خودکار ارزش دارایی، کاردکس انبار و ثبت لحظه‌ای
           </div>
         </div>
       </footer>
@@ -778,6 +793,7 @@ export default function App() {
         summaries={summaries}
         onRestoreData={handleRestoreData}
         onResetToSample={handleResetToSample}
+        onFactoryReset={handleFactoryReset}
       />
 
       {/* Toast Notification Alert */}
