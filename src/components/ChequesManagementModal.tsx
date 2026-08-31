@@ -136,11 +136,11 @@ export const ChequesManagementModal: React.FC<ChequesManagementModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-5xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-amber-50/80 flex items-center justify-between shrink-0">
+        {/* Header (Sticky at top) */}
+        <div className="p-4 sm:p-5 border-b border-stone-200 bg-amber-50/90 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-800 text-white flex items-center justify-center shadow-xs">
               <CreditCard className="w-5 h-5" />
@@ -164,7 +164,8 @@ export const ChequesManagementModal: React.FC<ChequesManagementModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
+            title="بستن پنجره"
           >
             <X className="w-5 h-5" />
           </button>

@@ -15,6 +15,7 @@ interface SellCopperModalProps {
     pricePerKg: number;
     totalPrice: number;
     notes?: string;
+    registeredBy?: string;
     paymentMethod?: PaymentMethod;
     chequeNumber?: string;
     chequeDueDate?: string;
@@ -39,6 +40,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   const [date, setDate] = useState(getTodayJalaliString());
   const [weightKg, setWeightKg] = useState<number>(0);
   const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 2850000);
+  const [registeredBy, setRegisteredBy] = useState('حسابدار مس');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -54,6 +56,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       setDate(getTodayJalaliString());
       setWeightKg(0);
       setPricePerKg(defaultPricePerKg || 2850000);
+      setRegisteredBy('حسابدار مس');
       setNotes('');
       setError('');
       setPaymentMethod('cash');
@@ -137,6 +140,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       pricePerKg,
       totalPrice: calculatedTotal,
       notes: notes.trim() || undefined,
+      registeredBy: registeredBy.trim() || 'مسئول مس',
       paymentMethod,
       chequeNumber: paymentMethod === 'cheque' ? chequeNumber.trim() : undefined,
       chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
@@ -146,11 +150,11 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/70 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-lg my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-emerald-50/80 flex items-center justify-between">
+        {/* Header (Sticky at top) */}
+        <div className="p-4 sm:p-5 border-b border-stone-200 bg-emerald-50/90 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
               <TrendingUp className="w-4 h-4" />
@@ -160,21 +164,31 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 ثبت فروش مس
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                کسر از موجودی مس انبار و تسویه نقدی یا دریافت چک
+                ثبت حواله فروش (پس از تأیید مدیرعامل در کاردکس و دفاتر مالی اعمال خواهد شد)
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
+            title="بستن پنجره"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Form Body - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="p-5 space-y-4 flex-1">
+          
+          {/* Approval Notice */}
+          <div className="p-3 bg-blue-50/90 border border-blue-300/80 rounded-xl text-xs text-blue-950 flex items-start gap-2.5">
+            <Clock className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong>فرآیند نظارت مدیرعامل:</strong> با ثبت این فرم، حواله فروش در وضعیت <span className="bg-blue-200/80 text-blue-950 font-bold px-1.5 py-0.5 rounded">در انتظار تأیید</span> قرار می‌گیرد و پس از تأیید مدیرعامل به حساب ریالی و انبار اعمال خواهد شد.
+            </p>
+          </div>
           
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-medium leading-relaxed flex items-start gap-2">
@@ -335,10 +349,10 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 </div>
               </div>
 
-              <div className="text-[11px] text-amber-900 bg-amber-100/60 p-2 rounded-lg leading-relaxed flex items-start gap-1.5">
+              <div className="text-[11px] text-amber-900 bg-amber-100/60 p-2.5 rounded-lg leading-relaxed flex items-start gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
                 <span>
-                  <b>قانون سامانه:</b> تا زمانی که این چک در وضعیت «پاس شده» قرار نگیرد، این شخص مجاز به ثبت خرید جدید نخواهد بود.
+                  <b>قانون سامانه:</b> مبلغ این چک تا زمان وصول به موجودی نقدی شخص اضافه نمی‌شود و تا زمان «پاس شدن چک»، امکان خرید مس جدید برای این شخص مسدود خواهد بود.
                 </span>
               </div>
             </div>
@@ -485,6 +499,25 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
             </div>
           )}
 
+          {/* Submitter Name */}
+          <div>
+            <label htmlFor="sell-registered-by" className="block text-xs font-bold text-stone-700 mb-1.5">
+              نام مسئول ثبت‌کننده فروش <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <User className="w-4 h-4 text-stone-400 absolute right-3 top-1/2 -translate-y-1/2" />
+              <input
+                id="sell-registered-by"
+                type="text"
+                required
+                value={registeredBy}
+                onChange={(e) => setRegisteredBy(e.target.value)}
+                placeholder="مثال: حسابدار مس، کارشناس فروش..."
+                className="w-full pl-3 pr-9 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all"
+              />
+            </div>
+          </div>
+
           {/* Notes */}
           <div>
             <label htmlFor="sell-notes" className="block text-xs font-bold text-stone-700 mb-1.5">
@@ -503,12 +536,14 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
             </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-3 border-t border-stone-200 flex items-center justify-end gap-2.5">
+          </div>
+
+          {/* Footer Buttons (Fixed at bottom) */}
+          <div className="p-4 border-t border-stone-200 bg-stone-50/90 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
             >
               انصراف
             </button>

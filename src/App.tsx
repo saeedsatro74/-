@@ -14,6 +14,8 @@ import {
   saveTransactions, 
   saveMarketPrice,
   saveMarketPrices,
+  saveAdminPassword,
+  saveStaffPassword,
   clearAllData,
   calculatePersonSummary, 
   calculateOverallStats,
@@ -51,16 +53,39 @@ import { TransactionEditModal } from './components/TransactionEditModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { DataBackupModal } from './components/DataBackupModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
+import { PendingApprovalsModal } from './components/PendingApprovalsModal';
+import { TransactionReceiptModal } from './components/TransactionReceiptModal';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { LoginScreen } from './components/LoginScreen';
+import { ClientPortalView } from './components/ClientPortalView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
-import { getTodayJalaliString } from './utils/persianDate';
+import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
 import { formatToman } from './utils/formatters';
+import { AuthSession } from './types';
 
 export default function App() {
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem('waateh_auth_token');
+  // Auth State & Session
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
+    const raw = localStorage.getItem('waateh_auth_session');
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    }
+    const token = localStorage.getItem('waateh_auth_token');
+    if (token) {
+      return { role: 'admin', username: 'مدیرعامل', loginAt: new Date().toISOString() };
+    }
+    return null;
   });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!localStorage.getItem('waateh_auth_session') || !!localStorage.getItem('waateh_auth_token');
+  });
+
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   // Core State
   const [people, setPeople] = useState<Person[]>([]);
@@ -74,6 +99,10 @@ export default function App() {
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [statementPersonId, setStatementPersonId] = useState<string | null>(null);
+
+  // Approvals & Receipts Modal State
+  const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
+  const [receiptModalTx, setReceiptModalTx] = useState<Transaction | null>(null);
 
   // Modal States
   const [isPersonFormOpen, setIsPersonFormOpen] = useState(false);
@@ -129,6 +158,7 @@ export default function App() {
   });
 
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+  const [isChangePassModalOpen, setIsChangePassModalOpen] = useState(false);
 
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -352,6 +382,18 @@ export default function App() {
     setEditingPerson(null);
   };
 
+  const handleSavePersonPassword = async (personId: string, newPass: string) => {
+    setIsSyncing(true);
+    const updatedPeople = people.map((p) => p.id === personId ? { ...p, password: newPass } : p);
+    updatePeople(updatedPeople);
+    const target = updatedPeople.find((p) => p.id === personId);
+    if (target) {
+      await dbUpsertPerson(target);
+    }
+    setIsSyncing(false);
+    showToast('رمز عبور حساب کاربر با موفقیت تغییر کرد.');
+  };
+
   const handlePromptDeletePerson = (personId: string) => {
     const p = people.find((item) => item.id === personId);
     if (!p) return;
@@ -439,7 +481,9 @@ export default function App() {
     pricePerKg: number;
     totalPrice: number;
     notes?: string;
+    registeredBy?: string;
   }) => {
+    const pSummary = summaries.find((s) => s.person.id === data.personId);
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -449,13 +493,19 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
       notes: data.notes,
+      approvalStatus: 'pending',
+      registeredBy: data.registeredBy || 'مسئول مس',
+      receiptNumber: generateReceiptNumber('buy'),
+      cashBalanceBefore: pSummary?.cashBalance ?? 0,
+      copperStockBefore: pSummary?.copperStockKg ?? 0,
       createdAt: new Date().toISOString(),
     };
 
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(data.personId, replayed);
 
-    showToast(`خرید ${data.weightKg} کیلوگرم مس به ارزش ${formatToman(data.totalPrice)} در سرور ثبت شد.`);
+    showToast(`سند خرید ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
+    setReceiptModalTx(newTx);
   };
 
   // --- Handlers for Sell Copper ---
@@ -473,7 +523,13 @@ export default function App() {
     pricePerKg: number;
     totalPrice: number;
     notes?: string;
+    registeredBy?: string;
+    paymentMethod?: any;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
   }) => {
+    const pSummary = summaries.find((s) => s.person.id === data.personId);
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -483,13 +539,95 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
       notes: data.notes,
+      approvalStatus: 'pending',
+      registeredBy: data.registeredBy || 'مسئول مس',
+      receiptNumber: generateReceiptNumber('sell'),
+      cashBalanceBefore: pSummary?.cashBalance ?? 0,
+      copperStockBefore: pSummary?.copperStockKg ?? 0,
+      paymentMethod: data.paymentMethod,
+      chequeNumber: data.chequeNumber,
+      chequeDueDate: data.chequeDueDate,
+      chequeBank: data.chequeBank,
+      chequeStatus: data.paymentMethod === 'cheque' ? 'pending' : undefined,
       createdAt: new Date().toISOString(),
     };
 
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(data.personId, replayed);
 
-    showToast(`فروش ${data.weightKg} کیلوگرم مس به ارزش ${formatToman(data.totalPrice)} در سرور ثبت شد.`);
+    showToast(`حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
+    setReceiptModalTx(newTx);
+  };
+
+  // --- Manager CEO Approval & Rejection Handlers ---
+  const handleApproveTransaction = async (txId: string, approverName: string = 'مدیرعامل') => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    const updatedTxs = transactions.map((t) => {
+      if (t.id === txId) {
+        return {
+          ...t,
+          approvalStatus: 'approved' as const,
+          approvedBy: approverName,
+          approvedAt: getPersianDateTimeString(),
+          rejectionReason: undefined,
+        };
+      }
+      return t;
+    });
+
+    const replayed = await updateTransactions(updatedTxs);
+    await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    showToast(`معامله مس (${targetTx.type === 'buy' ? 'خرید' : 'فروش'}) توسط ${approverName} تأیید شد و اثر مالی آن اعمال گردید.`);
+  };
+
+  const handleRejectTransaction = async (txId: string, reason: string, approverName: string = 'مدیرعامل') => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    const updatedTxs = transactions.map((t) => {
+      if (t.id === txId) {
+        return {
+          ...t,
+          approvalStatus: 'rejected' as const,
+          approvedBy: approverName,
+          approvedAt: getPersianDateTimeString(),
+          rejectionReason: reason,
+        };
+      }
+      return t;
+    });
+
+    const replayed = await updateTransactions(updatedTxs);
+    await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    showToast(`معامله مس رد شد و تأثیری در موجودی نخواهد داشت.`);
+  };
+
+  const handleBulkApprove = async (txIds: string[], approverName: string = 'مدیرعامل') => {
+    if (txIds.length === 0) return;
+
+    const updatedTxs = transactions.map((t) => {
+      if (txIds.includes(t.id)) {
+        return {
+          ...t,
+          approvalStatus: 'approved' as const,
+          approvedBy: approverName,
+          approvedAt: getPersianDateTimeString(),
+          rejectionReason: undefined,
+        };
+      }
+      return t;
+    });
+
+    const replayed = await updateTransactions(updatedTxs);
+    const affectedPersonIds: string[] = Array.from(
+      new Set(transactions.filter((t) => txIds.includes(t.id)).map((t) => t.personId))
+    );
+    for (const pId of affectedPersonIds) {
+      await syncPersonLedgerToCloud(pId, replayed);
+    }
+    showToast(`تعداد ${txIds.length} معامله مس به صورت یکجا تأیید شدند.`);
   };
 
   // --- Handlers for Adjustment ---
@@ -641,11 +779,43 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('waateh_auth_token');
+    localStorage.removeItem('waateh_auth_session');
+    setAuthSession(null);
     setIsAuthenticated(false);
   };
 
+  const handleLoginSuccess = (session?: AuthSession) => {
+    if (session) {
+      setAuthSession(session);
+    } else {
+      const raw = localStorage.getItem('waateh_auth_session');
+      if (raw) {
+        try {
+          setAuthSession(JSON.parse(raw));
+        } catch (e) {}
+      }
+    }
+    setIsAuthenticated(true);
+  };
+
+  const handleSaveClientPassword = async (personId: string, newPass: string) => {
+    // Update state & localStorage & Supabase
+    setPeople((prev) => {
+      const updated = prev.map((p) => (p.id === personId ? { ...p, password: newPass } : p));
+      savePeople(updated);
+      return updated;
+    });
+
+    const targetPerson = people.find((p) => p.id === personId);
+    if (targetPerson) {
+      await dbUpsertPerson({ ...targetPerson, password: newPass });
+    }
+
+    showToast('رمز عبور حساب کاربری شما با موفقیت به‌روزرسانی شد.');
+  };
+
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return <LoginScreen people={people} onLoginSuccess={handleLoginSuccess} />;
   }
 
   if (!isLoaded) {
@@ -660,6 +830,71 @@ export default function App() {
     );
   }
 
+  // --- CLIENT ROLE PORTAL VIEW ---
+  if (authSession?.role === 'client' && authSession.personId) {
+    const clientPerson = people.find((p) => p.id === authSession.personId);
+    const clientSummary = summaries.find((s) => s.person.id === authSession.personId);
+
+    if (clientPerson && clientSummary) {
+      return (
+        <>
+          <ClientPortalView
+            person={clientPerson}
+            summary={clientSummary}
+            transactions={transactions}
+            marketPrices={marketPrices}
+            onChangePassword={() => setIsChangePasswordOpen(true)}
+            onOpenStatement={() => setStatementPersonId(clientPerson.id)}
+            onViewReceipt={(tx) => setReceiptModalTx(tx)}
+            onLogout={handleLogout}
+          />
+
+          {/* Client Statement / Cardex Modal */}
+          {statementPersonId && (
+            <AccountStatementModal
+              isOpen={!!statementPersonId}
+              onClose={() => setStatementPersonId(null)}
+              person={clientPerson}
+              transactions={transactions}
+              marketPrices={marketPrices}
+              summary={clientSummary}
+            />
+          )}
+
+          {/* Client Transaction Receipt Modal */}
+          {receiptModalTx && (
+            <TransactionReceiptModal
+              isOpen={!!receiptModalTx}
+              onClose={() => setReceiptModalTx(null)}
+              transaction={receiptModalTx}
+              person={clientPerson}
+              marketPrice={marketPrices.buyPrice}
+            />
+          )}
+
+          {/* Change Password Modal */}
+          {isChangePasswordOpen && (
+            <ChangePasswordModal
+              person={clientPerson}
+              onClose={() => setIsChangePasswordOpen(false)}
+              onSavePassword={handleSaveClientPassword}
+            />
+          )}
+
+          {/* Toast Notification Alert */}
+          {toast && (
+            <div className="fixed bottom-5 left-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
+              <div className="bg-stone-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm border border-stone-800">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{toast.message}</span>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col selection:bg-stone-800 selection:text-white">
       
@@ -672,6 +907,9 @@ export default function App() {
         onAddSale={() => handleOpenSellCopper()}
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
+        onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
+        pendingApprovalsCount={overallStats.pendingApprovalsCount || 0}
+        onChangePassword={() => setIsChangePassModalOpen(true)}
         onLogout={handleLogout}
         totalStockKg={overallStats.totalCopperStockKg}
         totalCash={overallStats.totalCashBalance}
@@ -680,6 +918,8 @@ export default function App() {
         marketSellPrice={marketPrices.sellPrice}
         isCloudConnected={isCloudConnected}
         isSyncing={isSyncing}
+        userRole={authSession?.role || 'admin'}
+        currentUsername={authSession?.username}
       />
 
       {/* Main Content Area */}
@@ -688,7 +928,9 @@ export default function App() {
         {/* Statistical Asset Cards */}
         <StatCards 
           stats={overallStats} 
+          userRole={authSession?.role || 'admin'}
           onOpenMarketPrice={() => setIsMarketPriceOpen(true)} 
+          onOpenApprovals={authSession?.role === 'admin' ? () => setIsApprovalsModalOpen(true) : undefined}
         />
 
         {/* Primary People and Copper Wallets Table */}
@@ -741,6 +983,7 @@ export default function App() {
           onDeleteTransaction={handlePromptDeleteTransaction}
           onEditPerson={handleOpenEditPerson}
           onOpenStatement={(personId) => setStatementPersonId(personId)}
+          onViewReceipt={(tx) => setReceiptModalTx(tx)}
         />
       )}
 
@@ -754,6 +997,27 @@ export default function App() {
           marketCopperPrice={marketPrices.buyPrice}
         />
       )}
+
+      {/* CEO Approvals Management Modal */}
+      <PendingApprovalsModal
+        isOpen={isApprovalsModalOpen}
+        onClose={() => setIsApprovalsModalOpen(false)}
+        transactions={transactions}
+        people={people}
+        userRole={authSession?.role || 'admin'}
+        onApprove={handleApproveTransaction}
+        onReject={handleRejectTransaction}
+        onBulkApprove={handleBulkApprove}
+        onViewReceipt={(tx) => setReceiptModalTx(tx)}
+      />
+
+      {/* Official Transaction Receipt Modal */}
+      <TransactionReceiptModal
+        isOpen={!!receiptModalTx}
+        onClose={() => setReceiptModalTx(null)}
+        transaction={receiptModalTx}
+        person={receiptModalTx ? people.find((p) => p.id === receiptModalTx.personId) || null : null}
+      />
 
       {/* Add / Edit Person Modal */}
       <PersonFormModal
@@ -846,6 +1110,26 @@ export default function App() {
         onResetToSample={handleResetToSample}
         onFactoryReset={handleFactoryReset}
       />
+
+      {/* Change Password Modal for CEO / Staff / Client */}
+      {isChangePassModalOpen && (
+        <ChangePasswordModal
+          role={authSession?.role || 'admin'}
+          person={authSession?.role === 'client' && authSession.personId ? people.find((p) => p.id === authSession.personId) || null : null}
+          onClose={() => setIsChangePassModalOpen(false)}
+          onSaveAdminPassword={(newPass) => {
+            saveAdminPassword(newPass);
+            showToast('رمز عبور مدیرعامل با موفقیت بروزرسانی شد.');
+          }}
+          onSaveStaffPassword={(newPass) => {
+            saveStaffPassword(newPass);
+            showToast('رمز عبور حسابدار مس با موفقیت بروزرسانی شد.');
+          }}
+          onSavePassword={(personId, newPass) => {
+            handleSavePersonPassword(personId, newPass);
+          }}
+        />
+      )}
 
       {/* Toast Notification Alert */}
       {toast && (

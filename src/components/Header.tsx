@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ShoppingBag, 
   TrendingUp, 
@@ -10,7 +10,11 @@ import {
   Tag,
   Edit2,
   LogOut,
-  CreditCard
+  CreditCard,
+  ShieldCheck,
+  AlertTriangle,
+  X,
+  KeyRound
 } from 'lucide-react';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -23,8 +27,11 @@ interface HeaderProps {
   onAddSale: () => void;
   onOpenMarketPrice: () => void;
   onOpenDataModal: () => void;
+  onOpenApprovalsModal?: () => void;
+  pendingApprovalsCount?: number;
   onOpenChequesModal?: () => void;
   pendingChequesCount?: number;
+  onChangePassword?: () => void;
   onLogout?: () => void;
   totalStockKg: number;
   totalCash: number;
@@ -33,6 +40,8 @@ interface HeaderProps {
   marketSellPrice?: number;
   isCloudConnected?: boolean;
   isSyncing?: boolean;
+  userRole?: 'admin' | 'staff' | 'client';
+  currentUsername?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,8 +52,11 @@ export const Header: React.FC<HeaderProps> = ({
   onAddSale,
   onOpenMarketPrice,
   onOpenDataModal,
+  onOpenApprovalsModal,
+  pendingApprovalsCount = 0,
   onOpenChequesModal,
   pendingChequesCount = 0,
+  onChangePassword,
   onLogout,
   totalStockKg,
   marketPrice,
@@ -52,10 +64,20 @@ export const Header: React.FC<HeaderProps> = ({
   marketSellPrice,
   isCloudConnected = true,
   isSyncing = false,
+  userRole = 'admin',
+  currentUsername,
 }) => {
   const persianDate = getPersianFullDate();
   const buyRate = marketBuyPrice || marketPrice;
   const sellRate = marketSellPrice || Math.max(0, buyRate - 150000);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleConfirmLogout = () => {
+    setShowLogoutModal(false);
+    if (onLogout) {
+      onLogout();
+    }
+  };
 
   return (
     <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs no-print">
@@ -77,18 +99,16 @@ export const Header: React.FC<HeaderProps> = ({
                     (Waateh)
                   </span>
                   
-                  {/* Clean Server Status Badge */}
-                  <div 
-                    onClick={onOpenDataModal}
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium cursor-pointer transition-colors bg-stone-100 text-stone-700 hover:bg-stone-200"
-                    title="وضعیت اتصال سرور داده‌های آنلاین"
-                  >
-                    <span className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-500 animate-ping' : isCloudConnected ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className="hidden md:inline">
-                      {isSyncing ? 'در حال ذخیره...' : isCloudConnected ? 'سرور آنلاین' : 'آفلاین'}
-                    </span>
-                  </div>
-                </div>
+                  {/* Role Badge */}
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    userRole === 'admin'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : userRole === 'staff'
+                      ? 'bg-blue-100 text-blue-900 border-blue-300'
+                      : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                  }`}>
+                    {userRole === 'admin' ? '🛡️ مدیرعامل' : userRole === 'staff' ? '💼 حسابدار مس' : '👤 مشتری'}
+                  </span>                </div>
                 <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
                   <Calendar className="w-3.5 h-3.5 text-stone-400" />
                   <span>{persianDate}</span>
@@ -98,31 +118,108 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Mobile Data & Market Price Buttons */}
+            {/* Mobile Data & Approvals Buttons */}
             <div className="lg:hidden flex items-center gap-1.5">
+              {onChangePassword && (
+                <button
+                  type="button"
+                  onClick={onChangePassword}
+                  className="p-1.5 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
+                  title={userRole === 'admin' ? 'تغییر رمز مدیرعامل' : userRole === 'staff' ? 'تغییر رمز حسابدار مس' : 'تغییر رمز عبور'}
+                >
+                  <KeyRound className="w-4 h-4" />
+                </button>
+              )}
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutModal(true)}
+                  className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 cursor-pointer"
+                  title="خروج و قفل سامانه"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+              {userRole === 'admin' && onOpenApprovalsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenApprovalsModal}
+                  className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                    pendingApprovalsCount > 0
+                      ? 'bg-amber-500 text-stone-950 border-amber-600 animate-pulse'
+                      : 'bg-stone-100 text-stone-700 border-stone-200'
+                  }`}
+                  title="کارتابل تأییدات مدیرعامل"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {pendingApprovalsCount > 0 && (
+                    <span className="bg-stone-950 text-white text-[10px] px-1.5 py-0.2 rounded-full">
+                      {pendingApprovalsCount}
+                    </span>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onOpenMarketPrice}
-                className="px-2.5 py-1.5 text-stone-800 bg-stone-100 border border-stone-200 rounded-lg text-xs font-semibold flex items-center gap-1"
+                className="px-2.5 py-1.5 text-stone-800 bg-stone-100 border border-stone-200 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 title="تنظیم نرخ مس"
               >
                 <Tag className="w-3.5 h-3.5 text-stone-600" />
                 <span>نرخ مس</span>
               </button>
-              <button
-                type="button"
-                onClick={onOpenDataModal}
-                className="p-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-stone-200"
-                title="مدیریت داده‌ها"
-              >
-                <Database className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
-          {/* Quick Action Toolbar - Calm & Harmonious Palette */}
+          {/* Quick Action Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
             
+            {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}
+            {userRole === 'admin' && onOpenApprovalsModal && (
+              <button
+                id="btn-approvals-header"
+                type="button"
+                onClick={onOpenApprovalsModal}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
+                  pendingApprovalsCount > 0
+                    ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 border-amber-600 ring-2 ring-amber-400/40 animate-pulse'
+                    : 'bg-stone-800 hover:bg-stone-900 text-white border-stone-800'
+                }`}
+                title="کارتابل تأییدات و بررسی معاملات مس توسط مدیرعامل"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-300" />
+                <span>تأییدات مدیرعامل</span>
+                {pendingApprovalsCount > 0 && (
+                  <span className="bg-stone-950 text-amber-400 text-xs px-2 py-0.5 rounded-full font-mono font-black mr-0.5">
+                    {pendingApprovalsCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* Cheque Management Button */}
+            {onOpenChequesModal && (
+              <button
+                id="btn-cheques-header"
+                type="button"
+                onClick={onOpenChequesModal}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
+                  pendingChequesCount > 0
+                    ? 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100'
+                    : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                }`}
+                title="مدیریت چک‌های صیادی و وضعیت پاس شدن"
+              >
+                <CreditCard className="w-4 h-4 text-blue-600" />
+                <span>چک‌ها</span>
+                {pendingChequesCount > 0 && (
+                  <span className="bg-blue-600 text-white text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+                    {pendingChequesCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Market Price Widget */}
             <div 
               onClick={onOpenMarketPrice}
@@ -189,27 +286,25 @@ export const Header: React.FC<HeaderProps> = ({
               <span>شخص جدید</span>
             </button>
 
-            {/* Backup & Settings Button */}
-            <button
-              id="btn-data-modal"
-              type="button"
-              onClick={onOpenDataModal}
-              className="hidden lg:flex p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors cursor-pointer"
-              title="پشتیبان‌گیری و تنظیمات داده‌ها"
-            >
-              <Database className="w-4 h-4" />
-            </button>
+            {/* Change Password Button */}
+            {onChangePassword && (
+              <button
+                id="btn-change-password"
+                type="button"
+                onClick={onChangePassword}
+                className="hidden lg:flex p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors cursor-pointer"
+                title={userRole === 'admin' ? 'تغییر رمز عبور مدیرعامل' : userRole === 'staff' ? 'تغییر رمز عبور حسابدار مس' : 'تغییر رمز عبور'}
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Logout / Lock Button */}
             {onLogout && (
               <button
                 id="btn-logout"
                 type="button"
-                onClick={() => {
-                  if (window.confirm('آیا می‌خواهید از سامانه خارج شوید و صفحه قفل شود؟')) {
-                    onLogout();
-                  }
-                }}
+                onClick={() => setShowLogoutModal(true)}
                 className="p-2 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
                 title="قفل و خروج از سامانه"
               >
@@ -220,6 +315,54 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Custom In-App Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/75 backdrop-blur-xs flex items-center justify-center p-3">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 bg-rose-50 border-b border-rose-100 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <span>خروج از سامانه معاملات</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="p-1 text-stone-400 hover:text-stone-700 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-xs sm:text-sm text-stone-700 leading-relaxed">
+                آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شده و صفحه سامانه قفل شود؟
+              </p>
+              <p className="text-[11px] text-stone-500 bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                🔒 جهت ورود مجدد به سامانه، باید رمز عبور مدیریت، پرسنل یا شماره طرف‌حساب را وارد فرمایید.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-stone-50 border-t border-stone-200 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-stone-200/80 hover:bg-stone-200 rounded-xl transition-colors cursor-pointer"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>بله، خارج شو</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

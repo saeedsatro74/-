@@ -238,11 +238,11 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-5xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Top Control Bar */}
-        <div className="p-3.5 sm:p-4 border-b border-stone-200 bg-stone-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
+        {/* Top Control Bar (Sticky at top) */}
+        <div className="p-3.5 sm:p-4 border-b border-stone-200 bg-stone-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0 z-10 no-print">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-stone-800 text-amber-400 flex items-center justify-center">
               <FileText className="w-5 h-5" />

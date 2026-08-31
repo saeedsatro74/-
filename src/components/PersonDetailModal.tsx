@@ -40,6 +40,7 @@ interface PersonDetailModalProps {
   onDeleteTransaction: (txId: string) => void;
   onEditPerson: (personId: string) => void;
   onOpenStatement?: (personId: string) => void;
+  onViewReceipt?: (tx: Transaction) => void;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -57,6 +58,7 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onDeleteTransaction,
   onEditPerson,
   onOpenStatement,
+  onViewReceipt,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
 
@@ -128,11 +130,11 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-6xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        {/* Modal Header (Sticky at top) */}
+        <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50/95 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 z-10">
           
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold text-lg shadow-sm">
@@ -202,6 +204,21 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         {/* Scrollable Content */}
         <div className="overflow-y-auto p-4 sm:p-6 space-y-5">
           
+          {/* Uncleared Cheque Warning Banner */}
+          {summary.hasUnclearedCheques && (
+            <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl flex items-start gap-2.5 text-xs text-rose-900 shadow-xs">
+              <Info className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-sm text-rose-950">
+                  هشدار: خرید مس برای این شخص مسدود است!
+                </div>
+                <div className="text-rose-800 mt-0.5 leading-relaxed">
+                  این طرف حساب دارای <b>{summary.pendingChequesCount} فقره چک پاس‌نشده</b> به مبلغ <b>{formatToman(summary.pendingChequesTotalAmount)}</b> می‌باشد. طبق قوانین سیستم، تا زمان پاس شدن تمامی چک‌ها، ثبت فاکتور خرید جدید مس غیرفعال است.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Asset & Wallet Overview Summary Cards - Clean Slate Palette */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             
@@ -433,7 +450,30 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
                           {/* Type */}
                           <td className="py-3 px-3 whitespace-nowrap">
-                            {getTransactionBadge(tx.type)}
+                            <div className="flex flex-col gap-1">
+                              <div>{getTransactionBadge(tx.type)}</div>
+                              {(tx.type === 'buy' || tx.type === 'sell') && (
+                                <div>
+                                  {tx.approvalStatus === 'pending' && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping inline-block" />
+                                      در انتظار تأیید
+                                    </span>
+                                  )}
+                                  {tx.approvalStatus === 'approved' && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                      تأیید مدیرعامل
+                                    </span>
+                                  )}
+                                  {tx.approvalStatus === 'rejected' && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                                      رد شده
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
 
                           {/* Copper Weight */}
@@ -504,6 +544,16 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                           {/* Actions */}
                           <td className="py-3 px-3 text-center">
                             <div className="flex items-center justify-center gap-1">
+                              {onViewReceipt && (
+                                <button
+                                  type="button"
+                                  onClick={() => onViewReceipt(tx)}
+                                  className="p-1 text-stone-500 hover:text-stone-900 hover:bg-stone-200/80 rounded transition-colors cursor-pointer"
+                                  title="مشاهده و چاپ رسید رسمی معامله"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => onEditTransaction(tx)}

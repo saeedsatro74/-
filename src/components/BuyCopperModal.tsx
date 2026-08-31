@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ShoppingBag, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, Wallet } from 'lucide-react';
+import { X, ShoppingBag, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, Wallet, Clock } from 'lucide-react';
 import { Person, PersonWalletSummary } from '../types';
 import { getTodayJalaliString } from '../utils/persianDate';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
@@ -15,6 +15,7 @@ interface BuyCopperModalProps {
     pricePerKg: number;
     totalPrice: number;
     notes?: string;
+    registeredBy?: string;
   }) => void;
   people: Person[];
   summaries: PersonWalletSummary[];
@@ -37,6 +38,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
   const [date, setDate] = useState(getTodayJalaliString());
   const [weightKg, setWeightKg] = useState<number>(0);
   const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 3000000);
+  const [registeredBy, setRegisteredBy] = useState('حسابدار مس');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -46,6 +48,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
       setDate(getTodayJalaliString());
       setWeightKg(0);
       setPricePerKg(defaultPricePerKg || 3000000);
+      setRegisteredBy('حسابدار مس');
       setNotes('');
       setError('');
     }
@@ -106,16 +109,17 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
       pricePerKg,
       totalPrice: calculatedTotal,
       notes: notes.trim() || undefined,
+      registeredBy: registeredBy.trim() || 'مسئول مس',
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/70 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-lg my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-amber-50/80 flex items-center justify-between">
+        {/* Header (Sticky at top) */}
+        <div className="p-4 sm:p-5 border-b border-stone-200 bg-amber-50/90 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-700 text-white flex items-center justify-center shadow-xs">
               <ShoppingBag className="w-4 h-4" />
@@ -125,21 +129,31 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                 ثبت خرید مس
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                کسر وجه از کیف پول ریالی و افزایش موجودی مس در انبار
+                ثبت فاکتور خرید (پس از تأیید مدیرعامل در کاردکس اعمال خواهد شد)
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
+            title="بستن پنجره"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Form Body - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="p-5 space-y-4 flex-1">
+          
+          {/* Approval Notice */}
+          <div className="p-3 bg-amber-50/90 border border-amber-300/80 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
+            <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong>فرآیند نظارت مدیرعامل:</strong> با ثبت این فرم، سند در وضعیت <span className="bg-amber-200/80 text-amber-950 font-bold px-1.5 py-0.5 rounded">در انتظار تأیید</span> قرار می‌گیرد و پس از تأیید مدیرعامل به کیف پول و موجودی انبار اضافه خواهد شد.
+            </p>
+          </div>
           
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-medium leading-relaxed flex items-start gap-2">
@@ -343,6 +357,25 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             </div>
           )}
 
+          {/* Submitter Name */}
+          <div>
+            <label htmlFor="buy-registered-by" className="block text-xs font-bold text-stone-700 mb-1.5">
+              نام مسئول ثبت‌کننده خرید <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <User className="w-4 h-4 text-stone-400 absolute right-3 top-1/2 -translate-y-1/2" />
+              <input
+                id="buy-registered-by"
+                type="text"
+                required
+                value={registeredBy}
+                onChange={(e) => setRegisteredBy(e.target.value)}
+                placeholder="مثال: حسابدار مس، کارشناس خرید..."
+                className="w-full pl-3 pr-9 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600 transition-all"
+              />
+            </div>
+          </div>
+
           {/* Notes */}
           <div>
             <label htmlFor="buy-notes" className="block text-xs font-bold text-stone-700 mb-1.5">
@@ -361,20 +394,22 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-3 border-t border-stone-200 flex items-center justify-end gap-2.5">
+          </div>
+
+          {/* Footer Buttons (Fixed at bottom of modal) */}
+          <div className="p-4 border-t border-stone-200 bg-stone-50/90 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
             >
               انصراف
             </button>
             <button
               type="submit"
-              disabled={hasInsufficientCash}
+              disabled={hasInsufficientCash || hasUnclearedCheques}
               className={`px-5 py-2 text-sm font-bold text-white rounded-lg transition-colors shadow-xs flex items-center gap-1.5 ${
-                hasInsufficientCash
+                hasInsufficientCash || hasUnclearedCheques
                   ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
                   : 'bg-amber-700 hover:bg-amber-800 active:bg-amber-900 cursor-pointer'
               }`}

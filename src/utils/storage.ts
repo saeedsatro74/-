@@ -5,7 +5,44 @@ const STORAGE_KEYS = {
   TRANSACTIONS: 'copper_wallet_transactions_v2',
   MARKET_PRICE: 'copper_wallet_market_price_v2',
   MARKET_PRICES: 'copper_wallet_market_prices_v3',
+  ADMIN_PASSWORD: 'waateh_admin_password_v1',
+  STAFF_PASSWORD: 'waateh_staff_password_v1',
 };
+
+export const DEFAULT_ADMIN_PASSWORD = 'milad@68';
+export const DEFAULT_STAFF_PASSWORD = 'staff123';
+
+export function getStoredAdminPassword(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD;
+  } catch {
+    return DEFAULT_ADMIN_PASSWORD;
+  }
+}
+
+export function saveAdminPassword(pass: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, pass.trim());
+  } catch (e) {
+    console.error('Failed to save admin password', e);
+  }
+}
+
+export function getStoredStaffPassword(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.STAFF_PASSWORD) || DEFAULT_STAFF_PASSWORD;
+  } catch {
+    return DEFAULT_STAFF_PASSWORD;
+  }
+}
+
+export function saveStaffPassword(pass: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.STAFF_PASSWORD, pass.trim());
+  } catch (e) {
+    console.error('Failed to save staff password', e);
+  }
+}
 
 export const DEFAULT_MARKET_BUY_PRICE = 3000000; // 3,000,000 Toman per Kg
 export const DEFAULT_MARKET_SELL_PRICE = 2850000; // 2,850,000 Toman per Kg (150,000 Toman less)
@@ -408,6 +445,7 @@ export function replayAndCalculatePersonLedger(
 
   let pendingChequesCount = 0;
   let pendingChequesTotalAmount = 0;
+  let pendingApprovalsCount = 0;
 
   const recalculatedTransactions: Transaction[] = [];
 
@@ -415,9 +453,28 @@ export function replayAndCalculatePersonLedger(
     const tx: Transaction = { ...rawTx };
     const amount = Number(tx.amount) || 0;
     const weight = Number(tx.weightKg) || 0;
-    const unitPrice = Number(tx.unitPrice) || 0;
+    const status = tx.approvalStatus || 'approved'; // Default legacy to approved
 
-    // Track pending cheques for sales
+    // Always record snapshots of balance BEFORE this transaction
+    tx.cashBalanceBefore = Math.round(runningCashBalance);
+    tx.copperStockBefore = Number(runningCopperStockKg.toFixed(3));
+
+    // Track pending transactions awaiting CEO approval
+    if (status === 'pending') {
+      pendingApprovalsCount += 1;
+    }
+
+    // NON-APPROVED transactions (pending, draft, rejected) MUST NOT affect balances or ledger stats
+    if (status !== 'approved') {
+      tx.cashBalanceAfter = Math.round(runningCashBalance);
+      tx.copperStockAfter = Number(runningCopperStockKg.toFixed(3));
+      recalculatedTransactions.push(tx);
+      continue;
+    }
+
+    // --- Only APPROVED transactions update balances and stock ---
+
+    // Track pending cheques for approved sales
     if (tx.type === 'sell' && tx.paymentMethod === 'cheque') {
       if (!tx.chequeStatus || tx.chequeStatus === 'pending') {
         pendingChequesCount += 1;
@@ -451,7 +508,12 @@ export function replayAndCalculatePersonLedger(
         break;
       }
       case 'sell': {
-        runningCashBalance += amount;
+        // Cash balance only increases if payment is cash OR if the cheque has been CLEARED (پاس شده)
+        const isCashOrClearedCheque = tx.paymentMethod !== 'cheque' || tx.chequeStatus === 'cleared';
+        if (isCashOrClearedCheque) {
+          runningCashBalance += amount;
+        }
+
         totalSoldPrice += amount;
         totalSoldKg += weight;
 
@@ -510,6 +572,7 @@ export function replayAndCalculatePersonLedger(
       pendingChequesCount,
       pendingChequesTotalAmount,
       hasUnclearedCheques: pendingChequesCount > 0,
+      pendingApprovalsCount,
     },
   };
 }
@@ -585,6 +648,7 @@ export function calculateOverallStats(
 
   const totalPeopleCount = summaries.length;
   const activeStockPeopleCount = summaries.filter((s) => s.copperStockKg > 0).length;
+  const pendingApprovalsCount = summaries.reduce((sum, s) => sum + (s.pendingApprovalsCount || 0), 0);
 
   return {
     totalCashBalance,
@@ -602,5 +666,6 @@ export function calculateOverallStats(
     marketCopperPrice,
     marketBuyPrice: buyPrice,
     marketSellPrice: sellPrice,
+    pendingApprovalsCount,
   };
 }

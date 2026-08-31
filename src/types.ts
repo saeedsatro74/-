@@ -2,6 +2,16 @@ export type TransactionType = 'deposit' | 'withdrawal' | 'buy' | 'sell' | 'adjus
 
 export type PaymentMethod = 'cash' | 'cheque';
 export type ChequeStatus = 'pending' | 'cleared' | 'bounced';
+export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
+
+export type UserRole = 'admin' | 'staff' | 'client';
+
+export interface AuthSession {
+  role: UserRole;
+  personId?: string; // If role === 'client', personId is set
+  username?: string; // e.g. "مدیرعامل", "مسئول مس", or person name
+  loginAt: string;
+}
 
 export interface Person {
   id: string;
@@ -9,6 +19,7 @@ export interface Person {
   phone?: string;
   notes?: string;
   createdAt: string;
+  password?: string; // Optional client-specific login password (default is last 4 digits of phone or 1234)
 }
 
 export interface Transaction {
@@ -22,10 +33,19 @@ export interface Transaction {
   cogs?: number; // Cost of Goods Sold (for sell transactions)
   profit?: number; // Realized profit on this sale (for sell transactions)
   profitPercentage?: number; // Profit percentage on this sale
+  cashBalanceBefore?: number; // Cash balance snapshot before this transaction
   cashBalanceAfter?: number; // Cash balance snapshot after this transaction
+  copperStockBefore?: number; // Copper stock snapshot before this transaction
   copperStockAfter?: number; // Copper stock snapshot after this transaction
   notes?: string;
   createdAt: string;
+  // CEO Approval Workflow Fields
+  approvalStatus?: ApprovalStatus; // 'draft' | 'pending' | 'approved' | 'rejected'
+  registeredBy?: string; // e.g. "مسئول مس"
+  approvedBy?: string; // e.g. "مدیرعامل"
+  approvedAt?: string; // e.g. "1403/12/10 ساعت 14:35"
+  rejectionReason?: string; // e.g. "قیمت خرید اشتباه وارد شده است."
+  receiptNumber?: string; // e.g. "REC-140312-8419"
   // Cheque System Fields
   paymentMethod?: PaymentMethod; // 'cash' | 'cheque' (default 'cash')
   chequeNumber?: string; // شماره صیادی یا سریال چک
@@ -55,6 +75,8 @@ export interface PersonWalletSummary {
   pendingChequesCount: number; // تعداد چک‌های پاس نشده
   pendingChequesTotalAmount: number; // جمع مبلغ چک‌های پاس نشده
   hasUnclearedCheques: boolean; // آیا چک پاس نشده دارد (که مانع خرید جدید می‌شود)
+  // Approval Summary Fields
+  pendingApprovalsCount: number; // تعداد معاملات در انتظار تأیید مدیرعامل
 }
 
 export interface MarketPrices {
@@ -78,6 +100,7 @@ export interface OverallStats {
   marketCopperPrice: number; // قیمت مرجع فعلی هر کیلو مس در بازار (ارزش‌گذاری)
   marketBuyPrice: number; // قیمت مرجع خرید مس
   marketSellPrice: number; // قیمت مرجع فروش مس
+  pendingApprovalsCount: number; // مجموع کل معاملات منتظر تأیید مدیرعامل در کل سیستم
 }
 
 export type FilterStatus = 'all' | 'has_cash' | 'has_stock' | 'has_asset';

@@ -79,12 +79,12 @@ export const DepositWithdrawModal: React.FC<DepositWithdrawModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/70 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-md my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className={`p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between ${
-          isDeposit ? 'bg-emerald-50/80' : 'bg-rose-50/80'
+        {/* Header (Sticky at top) */}
+        <div className={`p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between shrink-0 z-10 ${
+          isDeposit ? 'bg-emerald-50/90' : 'bg-rose-50/90'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl text-white flex items-center justify-center shadow-xs ${
@@ -106,14 +106,16 @@ export const DepositWithdrawModal: React.FC<DepositWithdrawModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
+            title="بستن پنجره"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {/* Form Body - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="p-5 space-y-4 flex-1">
           
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-medium leading-relaxed">
@@ -234,12 +236,14 @@ export const DepositWithdrawModal: React.FC<DepositWithdrawModalProps> = ({
             </div>
           </div>
 
-          {/* Footer Actions */}
-          <div className="pt-3 border-t border-stone-200 flex items-center justify-end gap-2.5">
+          </div>
+
+          {/* Footer Actions (Fixed at bottom) */}
+          <div className="p-4 border-t border-stone-200 bg-stone-50/90 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
             >
               انصراف
             </button>

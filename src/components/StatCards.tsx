@@ -14,18 +14,53 @@ import {
 } from 'lucide-react';
 import { OverallStats } from '../types';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
 
 interface StatCardsProps {
   stats: OverallStats;
+  userRole?: 'admin' | 'staff' | 'client';
   onOpenMarketPrice?: () => void;
+  onOpenApprovals?: () => void;
 }
 
-export const StatCards: React.FC<StatCardsProps> = ({ stats, onOpenMarketPrice }) => {
+export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin', onOpenMarketPrice, onOpenApprovals }) => {
   const isProfitPositive = stats.totalRealizedProfit >= 0;
+  const pendingApprovalsCount = stats.pendingApprovalsCount || 0;
 
   return (
     <div className="space-y-3">
       
+      {/* Pending Approvals Notice Banner */}
+      {pendingApprovalsCount > 0 && (
+        <div className="bg-amber-500 text-stone-950 rounded-xl p-3.5 sm:p-4 shadow-sm border border-amber-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-stone-950 text-amber-400 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm sm:text-base flex items-center gap-2">
+                <span>تعداد {pendingApprovalsCount} معامله خرید/فروش مس در انتظار تأیید مدیرعامل است.</span>
+              </div>
+              <p className="text-xs text-stone-900 mt-0.5">
+                {userRole === 'admin' 
+                  ? 'جهت اعمال در دفاتر مالی و انبار، لطفاً معاملات را در کارتابل بررسی و تأیید فرمایید.' 
+                  : 'این معاملات به کارتابل مدیرعامل ارسال شده و پس از تأیید نهایی ایشان در دفاتر ثبت خواهند شد.'}
+              </p>
+            </div>
+          </div>
+          {userRole === 'admin' && onOpenApprovals && (
+            <button
+              type="button"
+              onClick={onOpenApprovals}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 hover:bg-stone-900 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
+            >
+              <span>ورود به کارتابل تأییدات</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Top Banner: Market Price Bar */}
       <div className="bg-stone-900 text-white rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-3">

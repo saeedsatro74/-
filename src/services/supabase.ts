@@ -32,10 +32,20 @@ export interface TransactionRow {
   cogs: number | null;
   profit: number | null;
   profit_percentage: number | null;
+  cash_balance_before?: number | null;
   cash_balance_after: number | null;
+  copper_stock_before?: number | null;
   copper_stock_after: number | null;
   notes: string | null;
   created_at: string;
+  // CEO Approval Fields
+  approval_status?: string | null;
+  registered_by?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
+  receipt_number?: string | null;
+  // Cheque Fields
   payment_method?: string | null;
   cheque_number?: string | null;
   cheque_due_date?: string | null;
@@ -81,10 +91,18 @@ export function toTransaction(row: TransactionRow): Transaction {
     cogs: row.cogs !== null ? Number(row.cogs) : undefined,
     profit: row.profit !== null ? Number(row.profit) : undefined,
     profitPercentage: row.profit_percentage !== null ? Number(row.profit_percentage) : undefined,
+    cashBalanceBefore: row.cash_balance_before !== undefined && row.cash_balance_before !== null ? Number(row.cash_balance_before) : undefined,
     cashBalanceAfter: row.cash_balance_after !== null ? Number(row.cash_balance_after) : undefined,
+    copperStockBefore: row.copper_stock_before !== undefined && row.copper_stock_before !== null ? Number(row.copper_stock_before) : undefined,
     copperStockAfter: row.copper_stock_after !== null ? Number(row.copper_stock_after) : undefined,
     notes: row.notes || undefined,
     createdAt: row.created_at,
+    approvalStatus: (row.approval_status as any) || 'approved',
+    registeredBy: row.registered_by || undefined,
+    approvedBy: row.approved_by || undefined,
+    approvedAt: row.approved_at || undefined,
+    rejectionReason: row.rejection_reason || undefined,
+    receiptNumber: row.receipt_number || undefined,
     paymentMethod: (row.payment_method as any) || undefined,
     chequeNumber: row.cheque_number || undefined,
     chequeDueDate: row.cheque_due_date || undefined,
@@ -106,10 +124,18 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     cogs: tx.cogs !== undefined && tx.cogs !== null ? Number(tx.cogs) : null,
     profit: tx.profit !== undefined && tx.profit !== null ? Number(tx.profit) : null,
     profit_percentage: tx.profitPercentage !== undefined && tx.profitPercentage !== null ? Number(tx.profitPercentage) : null,
+    cash_balance_before: tx.cashBalanceBefore !== undefined && tx.cashBalanceBefore !== null ? Number(tx.cashBalanceBefore) : null,
     cash_balance_after: tx.cashBalanceAfter !== undefined && tx.cashBalanceAfter !== null ? Number(tx.cashBalanceAfter) : null,
+    copper_stock_before: tx.copperStockBefore !== undefined && tx.copperStockBefore !== null ? Number(tx.copperStockBefore) : null,
     copper_stock_after: tx.copperStockAfter !== undefined && tx.copperStockAfter !== null ? Number(tx.copperStockAfter) : null,
     notes: tx.notes || null,
     created_at: tx.createdAt || new Date().toISOString(),
+    approval_status: tx.approvalStatus || 'approved',
+    registered_by: tx.registeredBy || null,
+    approved_by: tx.approvedBy || null,
+    approved_at: tx.approvedAt || null,
+    rejection_reason: tx.rejectionReason || null,
+    receipt_number: tx.receiptNumber || null,
     payment_method: tx.paymentMethod || null,
     cheque_number: tx.chequeNumber || null,
     cheque_due_date: tx.chequeDueDate || null,

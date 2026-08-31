@@ -1,5 +1,5 @@
 /**
- * Persian (Jalali / Solar Hijri) date utilities
+ * Persian (Jalali / Solar Hijri) date and time utilities
  */
 
 export function getTodayJalaliString(): string {
@@ -19,6 +19,30 @@ export function getTodayJalaliString(): string {
   }
 }
 
+export function getCurrentPersianTimeString(): string {
+  try {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  } catch {
+    return '12:00';
+  }
+}
+
+export function getPersianDateTimeString(dateStr?: string): string {
+  const d = dateStr || getTodayJalaliString();
+  const t = getCurrentPersianTimeString();
+  return `${d} ساعت ${t}`;
+}
+
+export function generateReceiptNumber(type = 'tx'): string {
+  const jalali = getTodayJalaliString().replace(/\//g, '').slice(2); // e.g. "031210"
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+  const prefix = type === 'buy' ? 'REC-BUY' : type === 'sell' ? 'REC-SEL' : 'REC';
+  return `${prefix}-${jalali}-${randomSuffix}`;
+}
+
 export function formatPersianDateDisplay(dateStr: string): string {
   if (!dateStr) return '-';
   return dateStr;
@@ -36,3 +60,4 @@ export function getPersianFullDate(): string {
     return 'امروز';
   }
 }
+
