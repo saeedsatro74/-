@@ -11,6 +11,8 @@ import {
   getStoredMarketPrice,
   getStoredMarketPrices,
   getStoredCompanyBankInfo,
+  getStoredCompanyCopperStock,
+  saveStoredCompanyCopperStock,
   saveCompanyBankInfo,
   savePeople, 
   saveTransactions, 
@@ -39,7 +41,10 @@ import {
   dbDeleteTransaction, 
   dbSaveMarketPrice,
   dbSaveMarketPrices,
+  dbSaveCompanyCopperStock,
   dbClearAllCloudData,
+  toTransaction,
+  toPerson,
   supabase
 } from './services/supabase';
 import { Header } from './components/Header';
@@ -60,9 +65,12 @@ import { PendingApprovalsModal } from './components/PendingApprovalsModal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { CompanyBankModal } from './components/CompanyBankModal';
+import { CompanyCopperStockCard } from './components/CompanyCopperStockCard';
+import { CompanyCopperStockModal } from './components/CompanyCopperStockModal';
 import { SupportChatWidget } from './components/SupportChatWidget';
 import { LoginScreen } from './components/LoginScreen';
 import { ClientPortalView } from './components/ClientPortalView';
+import { CopperChartView } from './components/CopperChartView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
 import { formatToman } from './utils/formatters';
@@ -99,6 +107,7 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart'>('dashboard');
 
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -166,6 +175,19 @@ export default function App() {
   const [isCompanyBankModalOpen, setIsCompanyBankModalOpen] = useState(false);
   const [companyBankInfo, setCompanyBankInfo] = useState<CompanyBankInfo>(() => getStoredCompanyBankInfo());
 
+  // Company Copper Stock State
+  const [companyCopperStockKg, setCompanyCopperStockKg] = useState<number>(() => getStoredCompanyCopperStock());
+  const [isCompanyCopperStockModalOpen, setIsCompanyCopperStockModalOpen] = useState(false);
+
+  const handleSaveCompanyCopperStock = async (newStockKg: number) => {
+    setCompanyCopperStockKg(newStockKg);
+    saveStoredCompanyCopperStock(newStockKg);
+    if (isCloudConnected) {
+      await dbSaveCompanyCopperStock(newStockKg);
+    }
+    showToast(`موجودی مس شرکت با موفقیت بروزرسانی گردید.`);
+  };
+
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
@@ -184,11 +206,34 @@ export default function App() {
         if (cloudResult.isConnected) {
           setIsCloudConnected(true);
           
-          // Load live data from Supabase directly
-          const replayed = replayAllTransactions(cloudResult.people, cloudResult.transactions);
+          // Load live data from Supabase directly & merge local pending approvals
+          const storedTxs = getStoredTransactions();
+          const mergedTxs = cloudResult.transactions.map((mTx) => {
+            const localMatch = storedTxs.find((p) => p.id === mTx.id);
+            if (
+              localMatch && 
+              localMatch.approvalStatus && 
+              localMatch.approvalStatus !== 'approved' && 
+              mTx.approvalStatus === 'approved'
+            ) {
+              return { ...mTx, ...localMatch, cashBalanceAfter: mTx.cashBalanceAfter, copperStockAfter: mTx.copperStockAfter };
+            }
+            return mTx;
+          });
+          const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
+          const localOnlyPending = storedTxs.filter(
+            (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved'
+          );
+          const combined = [...localOnlyPending, ...mergedTxs];
+
+          const replayed = replayAllTransactions(cloudResult.people, combined);
           setPeople(cloudResult.people);
           setTransactions(replayed);
           setMarketPrices(cloudResult.marketPrices);
+          if (cloudResult.companyCopperStock !== undefined) {
+            setCompanyCopperStockKg(cloudResult.companyCopperStock);
+            saveStoredCompanyCopperStock(cloudResult.companyCopperStock);
+          }
           savePeople(cloudResult.people);
           saveTransactions(replayed);
           saveMarketPrices(cloudResult.marketPrices);
@@ -255,24 +300,26 @@ export default function App() {
           // Refresh transactions
           const { data } = await supabase.from('transactions').select('*');
           if (data) {
-            const mapped = data.map((r: any) => ({
-              id: r.id,
-              personId: r.person_id,
-              date: r.date,
-              type: r.type as Transaction['type'],
-              amount: Number(r.amount) || 0,
-              weightKg: r.weight_kg !== null ? Number(r.weight_kg) : undefined,
-              unitPrice: r.unit_price !== null ? Number(r.unit_price) : undefined,
-              cogs: r.cogs !== null ? Number(r.cogs) : undefined,
-              profit: r.profit !== null ? Number(r.profit) : undefined,
-              profitPercentage: r.profit_percentage !== null ? Number(r.profit_percentage) : undefined,
-              cashBalanceAfter: r.cash_balance_after !== null ? Number(r.cash_balance_after) : undefined,
-              copperStockAfter: r.copper_stock_after !== null ? Number(r.copper_stock_after) : undefined,
-              notes: r.notes || undefined,
-              createdAt: r.created_at,
-            }));
+            const mapped = data.map(toTransaction);
             setTransactions((prevTxs) => {
-              const replayed = replayAllTransactions(people, mapped);
+              const merged = mapped.map((mTx) => {
+                const localMatch = prevTxs.find((p) => p.id === mTx.id);
+                if (
+                  localMatch && 
+                  localMatch.approvalStatus && 
+                  localMatch.approvalStatus !== 'approved' && 
+                  mTx.approvalStatus === 'approved'
+                ) {
+                  return { ...mTx, ...localMatch, cashBalanceAfter: mTx.cashBalanceAfter, copperStockAfter: mTx.copperStockAfter };
+                }
+                return mTx;
+              });
+              const remoteIds = new Set(mapped.map((m) => m.id));
+              const localOnlyPending = prevTxs.filter(
+                (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved'
+              );
+              const combined = [...localOnlyPending, ...merged];
+              const replayed = replayAllTransactions(people, combined);
               saveTransactions(replayed);
               return replayed;
             });
@@ -513,6 +560,10 @@ export default function App() {
 
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(data.personId, replayed);
+    
+    // Decrease company copper stock
+    const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
+    await handleSaveCompanyCopperStock(newStock);
 
     showToast(`سند خرید ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
     setReceiptModalTx(newTx);
@@ -606,6 +657,12 @@ export default function App() {
 
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(personId, replayed);
+
+    // Decrease company copper stock
+    if (data.type === 'buy' && data.weightKg) {
+      const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
+      await handleSaveCompanyCopperStock(newStock);
+    }
 
     let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
     if (data.type === 'deposit') msg = 'درخواست شارژ حساب ثبت گردید. به زودی شماره حساب اختصاصی توسط مدیرعامل برای شما ارسال می‌شود.';
@@ -715,6 +772,13 @@ export default function App() {
 
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
+
+    // Restore company copper stock if previous status wasn't rejected
+    if (targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+      const newStock = companyCopperStockKg + targetTx.weightKg;
+      await handleSaveCompanyCopperStock(newStock);
+    }
+
     showToast(`معامله مس رد شد و تأثیری در موجودی نخواهد داشت.`);
   };
 
@@ -782,9 +846,26 @@ export default function App() {
   };
 
   const handleSaveEditedTransaction = async (updatedTx: Transaction) => {
+    const oldTx = transactions.find((t) => t.id === updatedTx.id);
     const updated = transactions.map((t) => (t.id === updatedTx.id ? updatedTx : t));
     const replayed = await updateTransactions(updated);
     await syncPersonLedgerToCloud(updatedTx.personId, replayed);
+
+    // Adjust company copper stock if the weight of a buy transaction was modified
+    if (oldTx && oldTx.type === 'buy' && oldTx.approvalStatus !== 'rejected') {
+      const oldWeight = oldTx.weightKg || 0;
+      const newWeight = (updatedTx.type === 'buy' && updatedTx.approvalStatus !== 'rejected') ? (updatedTx.weightKg || 0) : 0;
+      const diff = newWeight - oldWeight;
+      if (diff !== 0) {
+        const newStock = Math.max(0, companyCopperStockKg - diff);
+        await handleSaveCompanyCopperStock(newStock);
+      }
+    } else if (updatedTx.type === 'buy' && updatedTx.approvalStatus !== 'rejected' && (!oldTx || oldTx.type !== 'buy' || oldTx.approvalStatus === 'rejected')) {
+      // If it transitioned into a valid buy transaction
+      const newStock = Math.max(0, companyCopperStockKg - (updatedTx.weightKg || 0));
+      await handleSaveCompanyCopperStock(newStock);
+    }
+
     setEditingTransaction(null);
     showToast('سند با موفقیت ویرایش شد و در پایگاه‌داده همگام گردید.');
   };
@@ -817,6 +898,13 @@ export default function App() {
       const updatedTxs = transactions.filter((t) => t.id !== id);
       const replayed = await updateTransactions(updatedTxs);
       await dbDeleteTransaction(id);
+      
+      // Restore company copper stock if previous status wasn't rejected and type is buy
+      if (targetTx && targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+        const newStock = companyCopperStockKg + targetTx.weightKg;
+        await handleSaveCompanyCopperStock(newStock);
+      }
+
       if (personId) {
         await syncPersonLedgerToCloud(personId, replayed);
       }
@@ -856,6 +944,7 @@ export default function App() {
     localStorage.removeItem('waateh_auth_session');
     setAuthSession(null);
     setIsAuthenticated(false);
+    setActiveView('dashboard');
   };
 
   const handleLoginSuccess = (session?: AuthSession) => {
@@ -905,6 +994,7 @@ export default function App() {
             summary={clientSummary}
             transactions={transactions}
             marketPrices={marketPrices}
+            companyCopperStockKg={companyCopperStockKg}
             companyBankInfo={companyBankInfo}
             onChangePassword={() => setIsChangePassModalOpen(true)}
             onOpenStatement={() => setStatementPersonId(clientPerson.id)}
@@ -912,6 +1002,8 @@ export default function App() {
             onSubmitRequest={handleSaveClientRequest}
             onSubmitTopupReceipt={handleSubmitTopupReceipt}
             onLogout={handleLogout}
+            onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
+            activeView={activeView}
           />
 
           {/* Client Statement / Cardex Modal */}
@@ -974,6 +1066,8 @@ export default function App() {
         onAddPurchase={() => handleOpenBuyCopper()}
         onAddSale={() => handleOpenSellCopper()}
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
+        onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
+        activeView={activeView}
         onOpenFactoryReset={() => setIsFactoryResetModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
         pendingApprovalsCount={overallStats.pendingApprovalsCount || 0}
@@ -981,6 +1075,7 @@ export default function App() {
         onChangePassword={() => setIsChangePassModalOpen(true)}
         onLogout={handleLogout}
         totalStockKg={overallStats.totalCopperStockKg}
+        companyCopperStockKg={companyCopperStockKg}
         totalCash={overallStats.totalCashBalance}
         marketPrice={marketPrices.buyPrice}
         marketBuyPrice={marketPrices.buyPrice}
@@ -994,27 +1089,41 @@ export default function App() {
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
         
-        {/* Statistical Asset Cards */}
-        <StatCards 
-          stats={overallStats} 
-          userRole={authSession?.role || 'admin'}
-          onOpenMarketPrice={() => setIsMarketPriceOpen(true)} 
-          onOpenApprovals={authSession?.role === 'admin' ? () => setIsApprovalsModalOpen(true) : undefined}
-        />
+        {activeView === 'copper-chart' ? (
+          <CopperChartView onBack={() => setActiveView('dashboard')} userRole={authSession?.role || 'admin'} />
+        ) : (
+          <>
+            {/* Company Copper Stock Ingot Banner Card */}
+            <CompanyCopperStockCard
+              companyCopperStockKg={companyCopperStockKg}
+              marketPrices={marketPrices}
+              userRole={authSession?.role || 'admin'}
+              onOpenEditStockModal={authSession?.role === 'admin' ? () => setIsCompanyCopperStockModalOpen(true) : undefined}
+            />
 
-        {/* Primary People and Copper Wallets Table */}
-        <PeopleTable
-          summaries={summaries}
-          onSelectPerson={(personId) => setSelectedPersonId(personId)}
-          onEditPerson={handleOpenEditPerson}
-          onDeletePerson={handlePromptDeletePerson}
-          onAddDeposit={(personId) => handleOpenDeposit(personId)}
-          onAddWithdrawal={(personId) => handleOpenWithdrawal(personId)}
-          onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
-          onAddSale={(personId) => handleOpenSellCopper(personId)}
-          onAddNewPerson={handleOpenAddPerson}
-          onOpenStatement={(personId) => setStatementPersonId(personId)}
-        />
+            {/* Statistical Asset Cards */}
+            <StatCards 
+              stats={overallStats} 
+              userRole={authSession?.role || 'admin'}
+              onOpenMarketPrice={() => setIsMarketPriceOpen(true)} 
+              onOpenApprovals={authSession?.role === 'admin' ? () => setIsApprovalsModalOpen(true) : undefined}
+            />
+
+            {/* Primary People and Copper Wallets Table */}
+            <PeopleTable
+              summaries={summaries}
+              onSelectPerson={(personId) => setSelectedPersonId(personId)}
+              onEditPerson={handleOpenEditPerson}
+              onDeletePerson={handlePromptDeletePerson}
+              onAddDeposit={(personId) => handleOpenDeposit(personId)}
+              onAddWithdrawal={(personId) => handleOpenWithdrawal(personId)}
+              onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
+              onAddSale={(personId) => handleOpenSellCopper(personId)}
+              onAddNewPerson={handleOpenAddPerson}
+              onOpenStatement={(personId) => setStatementPersonId(personId)}
+            />
+          </>
+        )}
 
       </main>
 
@@ -1207,6 +1316,15 @@ export default function App() {
           saveCompanyBankInfo(updated);
           showToast('اطلاعات کارت و شماره شبای شرکت بروزرسانی شد.');
         }}
+      />
+
+      {/* Company Copper Stock Modal */}
+      <CompanyCopperStockModal
+        isOpen={isCompanyCopperStockModalOpen}
+        onClose={() => setIsCompanyCopperStockModalOpen(false)}
+        currentStockKg={companyCopperStockKg}
+        marketPrices={marketPrices}
+        onSaveStockKg={handleSaveCompanyCopperStock}
       />
 
       {/* Floating Support Chat Widget */}

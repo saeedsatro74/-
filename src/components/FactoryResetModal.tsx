@@ -107,7 +107,7 @@ export const FactoryResetModal: React.FC<FactoryResetModalProps> = ({
             <ul className="list-disc list-inside space-y-1.5 text-xs text-rose-800 pr-1 leading-relaxed">
               <li>تمامی <b>اشخاص و طرف‌های حساب</b> کلا حذف می‌شوند.</li>
               <li>تمامی <b>تراکنش‌های مالی، خرید، فروش، واریز و برداشت</b> کلا پاک می‌گردند.</li>
-              <li>تمامی <b>مانده حساب‌های ریالی و موجودی انبار مس</b> صفر مطلق می‌شوند.</li>
+              <li>تمامی <b>مانده حساب‌های ریالی و کیف‌های مس مشتریان</b> صفر مطلق می‌شوند.</li>
               <li>داده‌ها هم از حافظه محلی و هم از <b>دیتابیس ابری (Supabase)</b> کاملاً حذف خواهند شد.</li>
             </ul>
           </div>

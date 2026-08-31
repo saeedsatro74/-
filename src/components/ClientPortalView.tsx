@@ -35,17 +35,22 @@ import { getPersianFullDate } from '../utils/persianDate';
 import { ClientRequestModal } from './ClientRequestModal';
 import { SupportChatWidget } from './SupportChatWidget';
 import { getStoredCompanyBankInfo, DEFAULT_COMPANY_BANK_INFO } from '../utils/storage';
+import { CompanyCopperStockCard } from './CompanyCopperStockCard';
+import { CopperChartView } from './CopperChartView';
 
 interface ClientPortalViewProps {
   person: Person;
   summary: PersonWalletSummary;
   transactions: Transaction[];
   marketPrices: MarketPrices;
+  companyCopperStockKg?: number;
   companyBankInfo?: CompanyBankInfo;
   onChangePassword: () => void;
   onOpenStatement: () => void;
   onViewReceipt: (tx: Transaction) => void;
   onLogout: () => void;
+  onOpenCopperChart?: () => void;
+  activeView?: 'dashboard' | 'copper-chart';
   onSubmitRequest?: (data: {
     type: TransactionType;
     amount: number;
@@ -63,11 +68,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   summary,
   transactions,
   marketPrices,
+  companyCopperStockKg = 2000,
   companyBankInfo,
   onChangePassword,
   onOpenStatement,
   onViewReceipt,
   onLogout,
+  onOpenCopperChart,
+  activeView = 'dashboard',
   onSubmitRequest,
   onSubmitTopupReceipt,
 }) => {
@@ -158,6 +166,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Currently active topup transaction for 4-step wizard
   const activeTopupTx = step2Txs[0] || step1Txs[0] || step3Txs[0] || null;
 
+  const hasPendingDeposit = clientTxList.some(
+    (t) => t.type === 'deposit' && t.approvalStatus !== 'approved' && t.approvalStatus !== 'rejected'
+  );
+
   const authSession: AuthSession = {
     role: 'client',
     personId: person.id,
@@ -192,6 +204,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onOpenCopperChart && (
+              <button
+                type="button"
+                onClick={onOpenCopperChart}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                  activeView === 'copper-chart'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-md'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                }`}
+                title="مشاهده چارت زنده قیمت جهانی مس در TradingView"
+              >
+                <TrendingUp className={`w-4 h-4 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
+                <span>چارت جهانی مس</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onChangePassword}
@@ -219,8 +247,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {/* Main Content Area */}
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1">
         
-        {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT */}
-        {step2Txs.length > 0 && (
+        {activeView === 'copper-chart' ? (
+          <CopperChartView onBack={() => onOpenCopperChart?.()} userRole="client" />
+        ) : (
+          <>
+            {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT */}
+            {step2Txs.length > 0 && (
           <div className="space-y-3">
             {step2Txs.map((tx) => (
               <div
@@ -313,10 +345,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
             <button
               type="button"
+              disabled={hasPendingDeposit}
               onClick={() => handleOpenRequest('deposit')}
-              className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+              className={`p-3 rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 group ${
+                hasPendingDeposit
+                  ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+              }`}
             >
-              <ArrowDownLeft className="w-5 h-5 text-emerald-200 group-hover:scale-110 transition-transform" />
+              <ArrowDownLeft className={`w-5 h-5 group-hover:scale-110 transition-transform ${hasPendingDeposit ? 'text-stone-600' : 'text-emerald-200'}`} />
               <span>شارژ / واریز حساب</span>
             </button>
 
@@ -340,13 +377,25 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
             <button
               type="button"
+              disabled={companyCopperStockKg <= 0}
               onClick={() => handleOpenRequest('buy')}
-              className="p-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+              className={`p-3 rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 group ${
+                companyCopperStockKg <= 0
+                  ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
+                  : 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
+              }`}
             >
-              <ShoppingBag className="w-5 h-5 text-amber-200 group-hover:scale-110 transition-transform" />
+              <ShoppingBag className={`w-5 h-5 group-hover:scale-110 transition-transform ${companyCopperStockKg <= 0 ? 'text-stone-600' : 'text-amber-200'}`} />
               <span>درخواست خرید مس</span>
             </button>
           </div>
+
+          {hasPendingDeposit && (
+            <div className="bg-amber-950/40 border border-amber-800/40 text-amber-200 text-xs p-3 rounded-xl flex items-center gap-2 font-bold mt-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>شما یک درخواست شارژ در جریان دارید. تا تعیین تکلیف نهایی آن، امکان ثبت درخواست شارژ جدید وجود ندارد.</span>
+            </div>
+          )}
         </div>
 
         {/* Date and Rates Info Bar */}
@@ -373,6 +422,15 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </button>
         </div>
 
+        {/* Company Available Copper Stock Card */}
+        <CompanyCopperStockCard
+          companyCopperStockKg={companyCopperStockKg}
+          marketPrices={marketPrices}
+          userRole="client"
+          clientSummary={summary}
+          onOpenBuyModal={() => handleOpenRequest('buy')}
+        />
+
         {/* Big Asset Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
@@ -394,7 +452,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           {/* Card 2: Copper Stock */}
           <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200 space-y-2">
             <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-              <span>موجودی مس در انبار</span>
+              <span>موجودی مس شما</span>
               <Layers className="w-4 h-4 text-amber-600" />
             </div>
             <div className="text-2xl font-black font-mono tracking-tight text-amber-700">
@@ -549,6 +607,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           )}
 
         </div>
+          </>
+        )}
 
       </main>
 
@@ -739,9 +799,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           person={person}
           summary={summary}
           marketPrices={marketPrices}
+          companyCopperStockKg={companyCopperStockKg}
           companyBankInfo={bankInfo}
           initialType={activeRequestType}
           activeTopupTx={activeTopupTx}
+          hasPendingDeposit={hasPendingDeposit}
           onSubmitRequest={onSubmitRequest}
           onSubmitTopupReceipt={onSubmitTopupReceipt}
         />

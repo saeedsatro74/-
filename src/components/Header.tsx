@@ -26,6 +26,8 @@ interface HeaderProps {
   onAddPurchase: () => void;
   onAddSale: () => void;
   onOpenMarketPrice: () => void;
+  onOpenCopperChart: () => void;
+  activeView?: 'dashboard' | 'copper-chart';
   onOpenFactoryReset?: () => void;
   onOpenApprovalsModal?: () => void;
   pendingApprovalsCount?: number;
@@ -35,6 +37,7 @@ interface HeaderProps {
   onChangePassword?: () => void;
   onLogout?: () => void;
   totalStockKg: number;
+  companyCopperStockKg: number;
   totalCash: number;
   marketPrice: number;
   marketBuyPrice?: number;
@@ -52,6 +55,8 @@ export const Header: React.FC<HeaderProps> = ({
   onAddPurchase,
   onAddSale,
   onOpenMarketPrice,
+  onOpenCopperChart,
+  activeView = 'dashboard',
   onOpenFactoryReset,
   onOpenApprovalsModal,
   pendingApprovalsCount = 0,
@@ -61,6 +66,7 @@ export const Header: React.FC<HeaderProps> = ({
   onChangePassword,
   onLogout,
   totalStockKg,
+  companyCopperStockKg,
   marketPrice,
   marketBuyPrice,
   marketSellPrice,
@@ -111,11 +117,13 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}>
                     {userRole === 'admin' ? '🛡️ مدیرعامل' : userRole === 'staff' ? '💼 حسابدار مس' : '👤 مشتری'}
                   </span>                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 mt-0.5">
                   <Calendar className="w-3.5 h-3.5 text-stone-400" />
                   <span>{persianDate}</span>
                   <span className="text-stone-300">•</span>
-                  <span>موجودی انبار: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
+                  <span>انبار شرکت: <b className="font-bold text-amber-700">{formatWeight(companyCopperStockKg)}</b></span>
+                  <span className="text-stone-300">•</span>
+                  <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
                 </div>
               </div>
             </div>
@@ -163,6 +171,18 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               <button
                 type="button"
+                onClick={onOpenCopperChart}
+                className={`p-1.5 border rounded-lg cursor-pointer flex items-center justify-center ${
+                  activeView === 'copper-chart'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                }`}
+                title="مشاهده چارت زنده قیمت جهانی مس"
+              >
+                <TrendingUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
                 onClick={onOpenMarketPrice}
                 className="px-2.5 py-1.5 text-stone-800 bg-stone-100 border border-stone-200 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 title="تنظیم نرخ مس"
@@ -175,6 +195,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Quick Action Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
+            
+            {/* Global Copper Chart Button */}
+            <button
+              id="btn-copper-chart-header"
+              type="button"
+              onClick={onOpenCopperChart}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
+                activeView === 'copper-chart'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-md'
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+              }`}
+              title="مشاهده چارت زنده قیمت جهانی مس در TradingView"
+            >
+              <TrendingUp className={`w-4 h-4 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
+              <span>چارت جهانی مس</span>
+            </button>
             
             {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}
             {userRole === 'admin' && onOpenApprovalsModal && (

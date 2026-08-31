@@ -411,7 +411,7 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
               </p>
             ) : status === 'pending' ? (
               <p className="text-amber-800 font-medium">
-                ⏳ <strong className="font-bold">سند پیش‌نویس / در انتظار تأیید:</strong> این سند تا زمان تأیید رسمی توسط مدیرعامل، در مانده حساب ریالی و موجودی انبار طرف حساب اعمال نمی‌شود.
+                ⏳ <strong className="font-bold">سند پیش‌نویس / در انتظار تأیید:</strong> این سند تا زمان تأیید رسمی توسط مدیرعامل، در مانده حساب ریالی و مانده مس کیف پول طرف حساب اعمال نمی‌شود.
               </p>
             ) : (
               <p className="text-rose-800 font-medium">

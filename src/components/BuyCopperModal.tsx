@@ -143,7 +143,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
           <div className="p-3 bg-amber-50/90 border border-amber-300/80 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
             <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>فرآیند نظارت مدیرعامل:</strong> با ثبت این فرم، سند در وضعیت <span className="bg-amber-200/80 text-amber-950 font-bold px-1.5 py-0.5 rounded">در انتظار تأیید</span> قرار می‌گیرد و پس از تأیید مدیرعامل به کیف پول و موجودی انبار اضافه خواهد شد.
+              <strong>فرآیند نظارت مدیرعامل:</strong> با ثبت این فرم، سند در وضعیت <span className="bg-amber-200/80 text-amber-950 font-bold px-1.5 py-0.5 rounded">در انتظار تأیید</span> قرار می‌گیرد و پس از تأیید مدیرعامل به کیف پول مس و حساب شخص اعمال خواهد شد.
             </p>
           </div>
           

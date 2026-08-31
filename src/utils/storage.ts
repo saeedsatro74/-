@@ -11,7 +11,32 @@ const STORAGE_KEYS = {
   COMPANY_BANK_INFO: 'waateh_company_bank_info_v1',
   COMPANY_BANK_ACCOUNTS: 'waateh_company_bank_accounts_v1',
   CHAT_MESSAGES: 'waateh_chat_messages_v1',
+  COMPANY_COPPER_STOCK: 'waateh_company_copper_stock_v1',
 };
+
+export const DEFAULT_COMPANY_COPPER_STOCK_KG = 2000; // Default 2 Tons of copper
+
+export function getStoredCompanyCopperStock(): number {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.COMPANY_COPPER_STOCK);
+    if (data !== null) {
+      const parsed = Number(data);
+      if (!isNaN(parsed) && parsed >= 0) return parsed;
+    }
+    localStorage.setItem(STORAGE_KEYS.COMPANY_COPPER_STOCK, String(DEFAULT_COMPANY_COPPER_STOCK_KG));
+    return DEFAULT_COMPANY_COPPER_STOCK_KG;
+  } catch {
+    return DEFAULT_COMPANY_COPPER_STOCK_KG;
+  }
+}
+
+export function saveStoredCompanyCopperStock(stockKg: number): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COMPANY_COPPER_STOCK, String(stockKg));
+  } catch (err) {
+    console.warn('Failed to save company copper stock:', err);
+  }
+}
 
 export const DEFAULT_COMPANY_BANK_INFO: CompanyBankInfo = {
   id: 'bank-1',

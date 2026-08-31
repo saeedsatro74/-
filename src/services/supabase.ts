@@ -45,13 +45,20 @@ export interface TransactionRow {
   approved_at?: string | null;
   rejection_reason?: string | null;
   receipt_number?: string | null;
-  // Cheque Fields
+  // Cheque & Topup Fields
   payment_method?: string | null;
   cheque_number?: string | null;
   cheque_due_date?: string | null;
   cheque_bank?: string | null;
   cheque_status?: string | null;
   cheque_cleared_date?: string | null;
+  receipt_image_url?: string | null;
+  assigned_bank_account_id?: string | null;
+  admin_bank_note?: string | null;
+  assigned_bank_name?: string | null;
+  assigned_owner_name?: string | null;
+  assigned_card_number?: string | null;
+  assigned_iban_number?: string | null;
 }
 
 export interface AppSettingRow {
@@ -111,6 +118,12 @@ export function toTransaction(row: TransactionRow): Transaction {
     chequeBank: row.cheque_bank || undefined,
     chequeStatus: (row.cheque_status as any) || undefined,
     chequeClearedDate: row.cheque_cleared_date || undefined,
+    receiptImageUrl: row.receipt_image_url || undefined,
+    assignedBankName: (row as any).assigned_bank_name || undefined,
+    assignedOwnerName: (row as any).assigned_owner_name || undefined,
+    assignedCardNumber: (row as any).assigned_card_number || undefined,
+    assignedIbanNumber: (row as any).assigned_iban_number || undefined,
+    assignedBankNote: row.admin_bank_note || undefined,
   };
 }
 
@@ -144,6 +157,13 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     cheque_bank: tx.chequeBank || null,
     cheque_status: tx.chequeStatus || null,
     cheque_cleared_date: tx.chequeClearedDate || null,
+    receipt_image_url: tx.receiptImageUrl || null,
+    assigned_bank_account_id: (tx as any).assignedAccountId || null,
+    admin_bank_note: tx.assignedBankNote || null,
+    assigned_bank_name: tx.assignedBankName || null,
+    assigned_owner_name: tx.assignedOwnerName || null,
+    assigned_card_number: tx.assignedCardNumber || null,
+    assigned_iban_number: tx.assignedIbanNumber || null,
   };
 }
 
@@ -195,16 +215,18 @@ export async function fetchAllFromSupabase(): Promise<{
   transactions: Transaction[];
   marketPrice: number;
   marketPrices: MarketPrices;
+  companyCopperStock?: number;
   isConnected: boolean;
   error?: string;
 }> {
   try {
-    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes] = await Promise.all([
+    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes, stockRes] = await Promise.all([
       supabase.from('people').select('*').order('created_at', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: true }),
       supabase.from('app_settings').select('*').eq('key', 'market_copper_price').maybeSingle(),
       supabase.from('app_settings').select('*').eq('key', 'market_buy_price').maybeSingle(),
       supabase.from('app_settings').select('*').eq('key', 'market_sell_price').maybeSingle(),
+      supabase.from('app_settings').select('*').eq('key', 'company_copper_stock').maybeSingle(),
     ]);
 
     if (peopleRes.error) {
@@ -237,11 +259,17 @@ export async function fetchAllFromSupabase(): Promise<{
       sellPrice = Math.max(0, buyPrice - 150000);
     }
 
+    let companyCopperStock: number | undefined;
+    if (stockRes.data && stockRes.data.value !== null) {
+      companyCopperStock = Number(stockRes.data.value);
+    }
+
     return {
       people,
       transactions,
       marketPrice: buyPrice,
       marketPrices: { buyPrice, sellPrice },
+      companyCopperStock,
       isConnected: true,
     };
   } catch (err: any) {
@@ -399,6 +427,25 @@ export async function dbSaveMarketPrice(price: number): Promise<boolean> {
     buyPrice: price,
     sellPrice: Math.max(0, price - 150000),
   });
+}
+
+/**
+ * Save company copper stock in app_settings table
+ */
+export async function dbSaveCompanyCopperStock(stockKg: number): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'company_copper_stock', value: stockKg }, { onConflict: 'key' });
+    if (error) {
+      console.error('Error saving company copper stock:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Supabase dbSaveCompanyCopperStock error:', err);
+    return false;
+  }
 }
 
 /**

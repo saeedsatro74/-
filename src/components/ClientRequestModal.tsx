@@ -37,9 +37,11 @@ interface ClientRequestModalProps {
   person: Person;
   summary: PersonWalletSummary;
   marketPrices: MarketPrices;
+  companyCopperStockKg?: number;
   companyBankInfo?: CompanyBankInfo;
   initialType?: TransactionType;
   activeTopupTx?: Transaction | null;
+  hasPendingDeposit?: boolean;
   onSubmitRequest: (data: {
     type: TransactionType;
     amount: number;
@@ -63,8 +65,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   person,
   summary,
   marketPrices,
+  companyCopperStockKg = 2000,
   initialType = 'deposit',
   activeTopupTx,
+  hasPendingDeposit = false,
   onSubmitRequest,
   onSubmitTopupReceipt,
 }) => {
@@ -237,6 +241,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       }
       if (unitPrice <= 0) {
         setError('لطفاً قیمت خرید هر کیلوگرم را وارد کنید.');
+        return;
+      }
+      if (weightKg > companyCopperStockKg) {
+        setError(
+          `موجودی مس آماده تحویل شرکت کافی نیست! موجودی انبار شرکت: ${formatWeight(
+            companyCopperStockKg
+          )} (${(companyCopperStockKg / 1000).toFixed(3)} تن) می‌باشد.`
+        );
         return;
       }
       const totalCalculated = Math.round(weightKg * unitPrice);
@@ -463,58 +475,75 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 {/* CASE A: STEP 1 FRESH FORM (No active topup request) */}
                 {/* ------------------------------------------------------------- */}
                 {!activeTopupTx && (
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4.5 space-y-1.5">
-                      <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
-                        <Building2 className="w-5 h-5 text-emerald-700" />
-                        <span>مرحله ۱: ثبت مبلغ درخواستی جهت دریافت شماره حساب</span>
-                      </div>
-                      <p className="text-xs text-emerald-900 leading-relaxed">
-                        مبلغ مدنظر برای شارژ حساب را وارد نمایید. پس از ثبت، درخواست به مدیرعامل ارسال می‌گردد تا شماره حساب اختصاصی شرکت برای شما صادر شود.
+                  hasPendingDeposit ? (
+                    <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-950 space-y-3 font-bold text-center">
+                      <AlertTriangle className="w-8 h-8 text-amber-600 mx-auto animate-bounce" />
+                      <h4 className="text-sm">شما یک درخواست شارژ در جریان دارید!</h4>
+                      <p className="text-xs font-normal text-amber-800 leading-relaxed">
+                        کاربر گرامی، با توجه به اینکه یک درخواست افزایش موجودی (شارژ حساب) تأیید نشده یا در حال بررسی در سیستم دارید، امکان ثبت درخواست شارژ جدید به صورت همزمان وجود ندارد. لطفاً منتظر تعیین تکلیف درخواست قبلی خود بمانید.
                       </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-stone-800 mb-2">
-                        مبلغ درخواستی جهت شارژ حساب (تومان) <span className="text-rose-500">*</span>
-                      </label>
-                      <NumericInput
-                        value={amount}
-                        onChange={(val) => {
-                          setAmount(val);
-                          setError('');
-                        }}
-                        placeholder="مثال: 50,000,000"
-                        unitLabel="تومان"
-                        showWordHelper={true}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-stone-800 mb-2">
-                        توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="هرگونه توضیح در مورد این واریزی..."
-                        className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none"
-                      />
-                    </div>
-
-                    <div className="p-4 border-t border-stone-200 bg-stone-50 rounded-2xl flex items-center justify-between">
-                      <span className="text-xs text-stone-500">پس از ثبت، مدیرعامل شماره حساب جهت واریز وجه را ارسال می‌کند.</span>
                       <button
-                        type="submit"
-                        className="px-6 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                        type="button"
+                        onClick={onClose}
+                        className="mt-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-xl transition-colors cursor-pointer font-bold"
                       >
-                        <Send className="w-4 h-4" />
-                        <span>ثبت درخواست و دریافت شماره حساب</span>
+                        متوجه شدم
                       </button>
                     </div>
-                  </form>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4.5 space-y-1.5">
+                        <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
+                          <Building2 className="w-5 h-5 text-emerald-700" />
+                          <span>مرحله ۱: ثبت مبلغ درخواستی جهت دریافت شماره حساب</span>
+                        </div>
+                        <p className="text-xs text-emerald-900 leading-relaxed">
+                          مبلغ مدنظر برای شارژ حساب را وارد نمایید. پس از ثبت، درخواست به مدیرعامل ارسال می‌گردد تا شماره حساب اختصاصی شرکت برای شما صادر شود.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-stone-800 mb-2">
+                          مبلغ درخواستی جهت شارژ حساب (تومان) <span className="text-rose-500">*</span>
+                        </label>
+                        <NumericInput
+                          value={amount}
+                          onChange={(val) => {
+                            setAmount(val);
+                            setError('');
+                          }}
+                          placeholder="مثال: 50,000,000"
+                          unitLabel="تومان"
+                          showWordHelper={true}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-stone-800 mb-2">
+                          توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          placeholder="هرگونه توضیح در مورد این واریزی..."
+                          className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none"
+                        />
+                      </div>
+
+                      <div className="p-4 border-t border-stone-200 bg-stone-50 rounded-2xl flex items-center justify-between">
+                        <span className="text-xs text-stone-500">پس از ثبت، مدیرعامل شماره حساب جهت واریز وجه را ارسال می‌کند.</span>
+                        <button
+                          type="submit"
+                          className="px-6 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>ثبت درخواست و دریافت شماره حساب</span>
+                        </button>
+                      </div>
+                    </form>
+                  )
                 )}
 
                 {/* ------------------------------------------------------------- */}
@@ -949,11 +978,81 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             {/* ======================================================== */}
             {requestType === 'buy' && (
               <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Company Copper Stock Available Banner */}
+                <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white p-4 rounded-2xl border border-amber-600/40 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-200 font-bold flex items-center gap-1.5">
+                      <ShoppingBag className="w-4 h-4 text-amber-400" />
+                      موجودی مس آماده تحویل شرکت:
+                    </span>
+                    <span className="font-mono font-black text-amber-300 text-sm">
+                      {formatWeight(companyCopperStockKg)} ({(companyCopperStockKg / 1000).toFixed(3)} تن)
+                    </span>
+                  </div>
+
+                  {unitPrice > 0 && (
+                    <div className="flex items-center justify-between text-[11px] text-stone-300 pt-1.5 border-t border-amber-900/60">
+                      <span>حداکثر مس قابل سفارش با موجودی ریالی شما ({formatToman(summary.cashBalance)}):</span>
+                      <b className="font-mono text-emerald-300 font-bold">
+                        {Math.min(
+                          companyCopperStockKg,
+                          Math.floor((summary.cashBalance / unitPrice) * 100) / 100
+                        )}{' '}
+                        کیلوگرم
+                      </b>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-stone-800 mb-2">
-                      وزن مس برای خرید (کیلوگرم) <span className="text-rose-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-bold text-stone-800">
+                        وزن مس برای خرید (کیلوگرم) <span className="text-rose-500">*</span>
+                      </label>
+                      {/* Quick Percentage selection buttons */}
+                      {unitPrice > 0 && summary.cashBalance > 0 && (
+                        <div className="flex items-center gap-1 text-[10px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
+                              const target = Math.min(companyCopperStockKg, maxAfford * 0.25);
+                              setWeightKg(Math.round(target * 100) / 100);
+                              setError('');
+                            }}
+                            className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-md transition-colors cursor-pointer"
+                          >
+                            ۲۵٪
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
+                              const target = Math.min(companyCopperStockKg, maxAfford * 0.50);
+                              setWeightKg(Math.round(target * 100) / 100);
+                              setError('');
+                            }}
+                            className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-md transition-colors cursor-pointer"
+                          >
+                            ۵۰٪
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
+                              const target = Math.min(companyCopperStockKg, maxAfford);
+                              setWeightKg(Math.round(target * 100) / 100);
+                              setError('');
+                            }}
+                            className="px-1.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors cursor-pointer"
+                          >
+                            حداکثر
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <NumericInput
                       value={weightKg}
                       onChange={(val) => {
@@ -994,11 +1093,16 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 </div>
 
                 {weightKg > 0 && unitPrice > 0 && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-xs">
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <span className="text-amber-900 font-bold">مبلغ کل فاکتور خرید:</span>
-                    <span className="font-extrabold text-amber-950 font-mono text-base">
-                      {formatNumber(Math.round(weightKg * unitPrice))} تومان
-                    </span>
+                    <div className="text-right sm:text-left">
+                      <span className="font-extrabold text-amber-950 font-mono text-base block">
+                        {formatNumber(Math.round(weightKg * unitPrice))} تومان
+                      </span>
+                      <span className="text-[10px] text-amber-800">
+                        ({(weightKg / 1000).toFixed(3)} تن مس با نرخ {formatNumber(unitPrice)} تومان/کیلو)
+                      </span>
+                    </div>
                   </div>
                 )}
 
