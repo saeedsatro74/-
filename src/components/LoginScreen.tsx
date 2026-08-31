@@ -52,8 +52,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
           username: 'مدیرعامل',
           loginAt: new Date().toISOString(),
         };
-        localStorage.setItem('waateh_auth_session', JSON.stringify(session));
-        localStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+        sessionStorage.setItem('waateh_auth_session', JSON.stringify(session));
+        sessionStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+        localStorage.removeItem('waateh_auth_session');
+        localStorage.removeItem('waateh_auth_token');
         onLoginSuccess(session);
       } else {
         setMgmtError('رمز عبور مدیرعامل نادرست است.');
@@ -67,8 +69,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
           username: 'حسابدار مس',
           loginAt: new Date().toISOString(),
         };
-        localStorage.setItem('waateh_auth_session', JSON.stringify(session));
-        localStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+        sessionStorage.setItem('waateh_auth_session', JSON.stringify(session));
+        sessionStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+        localStorage.removeItem('waateh_auth_session');
+        localStorage.removeItem('waateh_auth_token');
         onLoginSuccess(session);
       } else {
         setMgmtError('رمز عبور حسابدار مس نادرست است.');
@@ -110,8 +114,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
         username: matchedPerson.name,
         loginAt: new Date().toISOString(),
       };
-      localStorage.setItem('waateh_auth_session', JSON.stringify(session));
-      localStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+      sessionStorage.setItem('waateh_auth_session', JSON.stringify(session));
+      sessionStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+      localStorage.removeItem('waateh_auth_session');
+      localStorage.removeItem('waateh_auth_token');
       onLoginSuccess(session);
     } else {
       setClientError('رمز عبور اختصاصی وارد شده نادرست است.');

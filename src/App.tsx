@@ -64,9 +64,14 @@ import { formatToman } from './utils/formatters';
 import { AuthSession } from './types';
 
 export default function App() {
-  // Auth State & Session
+  // Auth State & Session (Session-based auth: closing tab/browser or opening link in new session forces login)
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
-    const raw = localStorage.getItem('waateh_auth_session');
+    try {
+      localStorage.removeItem('waateh_auth_session');
+      localStorage.removeItem('waateh_auth_token');
+    } catch (e) {}
+
+    const raw = sessionStorage.getItem('waateh_auth_session');
     if (raw) {
       try {
         return JSON.parse(raw);
@@ -74,15 +79,11 @@ export default function App() {
         return null;
       }
     }
-    const token = localStorage.getItem('waateh_auth_token');
-    if (token) {
-      return { role: 'admin', username: 'مدیرعامل', loginAt: new Date().toISOString() };
-    }
     return null;
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem('waateh_auth_session') || !!localStorage.getItem('waateh_auth_token');
+    return !!sessionStorage.getItem('waateh_auth_session') || !!sessionStorage.getItem('waateh_auth_token');
   });
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -778,6 +779,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    sessionStorage.removeItem('waateh_auth_token');
+    sessionStorage.removeItem('waateh_auth_session');
     localStorage.removeItem('waateh_auth_token');
     localStorage.removeItem('waateh_auth_session');
     setAuthSession(null);
@@ -788,7 +791,7 @@ export default function App() {
     if (session) {
       setAuthSession(session);
     } else {
-      const raw = localStorage.getItem('waateh_auth_session');
+      const raw = sessionStorage.getItem('waateh_auth_session');
       if (raw) {
         try {
           setAuthSession(JSON.parse(raw));
