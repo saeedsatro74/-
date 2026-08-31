@@ -1,4 +1,4 @@
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices } from '../types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, CompanyBankInfo, ChatMessage } from '../types';
 
 const STORAGE_KEYS = {
   PEOPLE: 'copper_wallet_people_v2',
@@ -7,7 +7,65 @@ const STORAGE_KEYS = {
   MARKET_PRICES: 'copper_wallet_market_prices_v3',
   ADMIN_PASSWORD: 'waateh_admin_password_v1',
   STAFF_PASSWORD: 'waateh_staff_password_v1',
+  CLIENT_PASSWORDS: 'waateh_client_passwords_v1',
+  COMPANY_BANK_INFO: 'waateh_company_bank_info_v1',
+  CHAT_MESSAGES: 'waateh_chat_messages_v1',
 };
+
+export const DEFAULT_COMPANY_BANK_INFO: CompanyBankInfo = {
+  ownerName: 'شرکت بازرگانی مس واته (مدیریت رضایی)',
+  bankName: 'بانک ملی ایران',
+  cardNumber: '۶۰۳۷-۹۹۷۹-۱۲۳۴-۵۶۷۸',
+  ibanNumber: 'IR980170000000123456789001',
+  rawCardNumber: '6037997912345678',
+  formattedIban: 'IR98 0170 0000 0012 3456 7890 01',
+};
+
+export function getStoredCompanyBankInfo(): CompanyBankInfo {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.COMPANY_BANK_INFO);
+    if (data) {
+      return JSON.parse(data);
+    }
+    localStorage.setItem(STORAGE_KEYS.COMPANY_BANK_INFO, JSON.stringify(DEFAULT_COMPANY_BANK_INFO));
+    return DEFAULT_COMPANY_BANK_INFO;
+  } catch {
+    return DEFAULT_COMPANY_BANK_INFO;
+  }
+}
+
+export function saveCompanyBankInfo(info: CompanyBankInfo): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COMPANY_BANK_INFO, JSON.stringify(info));
+  } catch (e) {
+    console.error('Failed to save company bank info', e);
+  }
+}
+
+export function getStoredChatMessages(): ChatMessage[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CHAT_MESSAGES);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveChatMessages(messages: ChatMessage[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.CHAT_MESSAGES, JSON.stringify(messages));
+  } catch (e) {
+    console.error('Failed to save chat messages', e);
+  }
+}
+
+export function addChatMessage(msg: ChatMessage): ChatMessage[] {
+  const all = getStoredChatMessages();
+  const updated = [...all, msg];
+  saveChatMessages(updated);
+  return updated;
+}
+
 
 export const DEFAULT_ADMIN_PASSWORD = 'milad@68';
 export const DEFAULT_STAFF_PASSWORD = 'staff123';
@@ -41,6 +99,30 @@ export function saveStaffPassword(pass: string): void {
     localStorage.setItem(STORAGE_KEYS.STAFF_PASSWORD, pass.trim());
   } catch (e) {
     console.error('Failed to save staff password', e);
+  }
+}
+
+export function getStoredClientPasswords(): Record<string, string> {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.CLIENT_PASSWORDS);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getClientPassword(personId: string): string | undefined {
+  const map = getStoredClientPasswords();
+  return map[personId];
+}
+
+export function saveClientPassword(personId: string, pass: string): void {
+  try {
+    const map = getStoredClientPasswords();
+    map[personId] = pass.trim();
+    localStorage.setItem(STORAGE_KEYS.CLIENT_PASSWORDS, JSON.stringify(map));
+  } catch (e) {
+    console.error('Failed to save client password', e);
   }
 }
 
@@ -306,11 +388,15 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 export function getStoredPeople(): Person[] {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.PEOPLE);
+    const peopleList: Person[] = data ? JSON.parse(data) : INITIAL_PEOPLE;
     if (!data) {
       localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(INITIAL_PEOPLE));
-      return INITIAL_PEOPLE;
     }
-    return JSON.parse(data);
+    const clientPassMap = getStoredClientPasswords();
+    return peopleList.map((p) => {
+      const storedPass = clientPassMap[p.id] || p.password;
+      return storedPass ? { ...p, password: storedPass } : p;
+    });
   } catch {
     return INITIAL_PEOPLE;
   }
@@ -318,6 +404,19 @@ export function getStoredPeople(): Person[] {
 
 export function savePeople(people: Person[]): void {
   localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(people));
+  try {
+    const map = getStoredClientPasswords();
+    let updated = false;
+    for (const p of people) {
+      if (p.password) {
+        map[p.id] = p.password.trim();
+        updated = true;
+      }
+    }
+    if (updated) {
+      localStorage.setItem(STORAGE_KEYS.CLIENT_PASSWORDS, JSON.stringify(map));
+    }
+  } catch (e) {}
 }
 
 export function getStoredTransactions(): Transaction[] {
@@ -408,6 +507,7 @@ export function resetToSampleData(): { people: Person[]; transactions: Transacti
 export function clearAllData(): void {
   localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+  localStorage.removeItem(STORAGE_KEYS.CLIENT_PASSWORDS);
 }
 
 /**

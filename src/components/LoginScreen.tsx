@@ -14,7 +14,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { Person, AuthSession, UserRole } from '../types';
-import { getStoredPeople, getStoredAdminPassword, getStoredStaffPassword } from '../utils/storage';
+import { getStoredPeople, getStoredAdminPassword, getStoredStaffPassword, getClientPassword } from '../utils/storage';
 
 interface LoginScreenProps {
   people?: Person[];
@@ -92,7 +92,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
     }
 
     // Find person by phone (from prop or localStorage)
-    const allPeople = (people && people.length > 0) ? people : getStoredPeople();
+    const storedPeople = getStoredPeople();
+    const allPeople = (people && people.length > 0) ? people : storedPeople;
     const matchedPerson = allPeople.find((p) => {
       if (!p.phone) return false;
       const pClean = p.phone.replace(/\D/g, '');
@@ -104,10 +105,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
       return;
     }
 
-    // Check custom password if set, or initial default password ('1234')
-    const expectedPass = matchedPerson.password || '1234';
+    const customPass = matchedPerson.password || getClientPassword(matchedPerson.id);
+    const inputPass = clientPassword.trim();
+
+    let isAuthorized = false;
+    if (customPass) {
+      // Custom password set -> ONLY custom password matches!
+      isAuthorized = inputPass === customPass.trim();
+    } else {
+      // Default password -> 1234 OR last 4 digits of phone
+      const pClean = matchedPerson.phone ? matchedPerson.phone.replace(/\D/g, '') : '';
+      const last4 = pClean.length >= 4 ? pClean.slice(-4) : null;
+      isAuthorized = inputPass === '1234' || (last4 !== null && inputPass === last4);
+    }
     
-    if (clientPassword.trim() === expectedPass) {
+    if (isAuthorized) {
       const session: AuthSession = {
         role: 'client',
         personId: matchedPerson.id,

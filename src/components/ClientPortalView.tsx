@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   User, 
   Wallet, 
@@ -16,21 +16,39 @@ import {
   Phone,
   CheckCircle2,
   Clock,
-  ExternalLink
+  ExternalLink,
+  PlusCircle,
+  Building2,
+  CreditCard,
+  Copy,
+  Check,
+  Send
 } from 'lucide-react';
-import { Person, Transaction, PersonWalletSummary, MarketPrices } from '../types';
+import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
 import { getPersianFullDate } from '../utils/persianDate';
+import { ClientRequestModal } from './ClientRequestModal';
+import { getStoredCompanyBankInfo, DEFAULT_COMPANY_BANK_INFO } from '../utils/storage';
 
 interface ClientPortalViewProps {
   person: Person;
   summary: PersonWalletSummary;
   transactions: Transaction[];
   marketPrices: MarketPrices;
+  companyBankInfo?: CompanyBankInfo;
   onChangePassword: () => void;
   onOpenStatement: () => void;
   onViewReceipt: (tx: Transaction) => void;
   onLogout: () => void;
+  onSubmitRequest?: (data: {
+    type: TransactionType;
+    amount: number;
+    weightKg?: number;
+    unitPrice?: number;
+    notes?: string;
+    paymentMethod?: PaymentMethod;
+    receiptImageUrl?: string;
+  }) => void;
 }
 
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
@@ -38,14 +56,34 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   summary,
   transactions,
   marketPrices,
+  companyBankInfo,
   onChangePassword,
   onOpenStatement,
   onViewReceipt,
   onLogout,
+  onSubmitRequest,
 }) => {
+  const bankInfo = companyBankInfo || getStoredCompanyBankInfo() || DEFAULT_COMPANY_BANK_INFO;
   const persianDate = getPersianFullDate();
   const buyRate = marketPrices.buyPrice;
   const sellRate = marketPrices.sellPrice;
+
+
+  // Request modal state
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [activeRequestType, setActiveRequestType] = useState<TransactionType>('deposit');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleOpenRequest = (type: TransactionType) => {
+    setActiveRequestType(type);
+    setIsRequestModalOpen(true);
+  };
+
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   // Filter approved vs pending transactions
   const clientTxList = transactions.filter((t) => t.personId === person.id);
@@ -106,6 +144,62 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {/* Main Content Area */}
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1">
         
+        {/* Quick Action Buttons for Client Requests */}
+        <div className="bg-stone-900 rounded-2xl p-4 sm:p-5 text-white shadow-md space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800 pb-3">
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold flex items-center gap-2">
+                <Send className="w-4 h-4 text-amber-400" />
+                <span>ثبت درخواست‌های مالی و معاملاتی</span>
+              </h2>
+              <p className="text-xs text-stone-400 mt-0.5">
+                شارژ حساب، برداشت پول، یا درخواست خرید و فروش مس مستقیم با مدیرعامل
+              </p>
+            </div>
+            <span className="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg font-semibold w-fit">
+              تأیید سریع توسط مدیرعامل
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('deposit')}
+              className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+            >
+              <ArrowDownLeft className="w-5 h-5 text-emerald-200 group-hover:scale-110 transition-transform" />
+              <span>شارژ / واریز حساب</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('withdrawal')}
+              className="p-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+            >
+              <ArrowUpRight className="w-5 h-5 text-rose-200 group-hover:scale-110 transition-transform" />
+              <span>برداشت موجودی</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('sell')}
+              className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+            >
+              <TrendingUp className="w-5 h-5 text-blue-200 group-hover:scale-110 transition-transform" />
+              <span>درخواست فروش مس</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('buy')}
+              className="p-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+            >
+              <ShoppingBag className="w-5 h-5 text-amber-200 group-hover:scale-110 transition-transform" />
+              <span>درخواست خرید مس</span>
+            </button>
+          </div>
+        </div>
+
         {/* Date and Rates Info Bar */}
         <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-stone-500">
@@ -129,6 +223,64 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <span>چاپ صورت‌حساب رسمی و کاردکس</span>
           </button>
         </div>
+
+        {/* Company Bank Credentials Display Card */}
+        <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5">
+            <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-xs sm:text-sm">
+              <Building2 className="w-4 h-4 text-emerald-700" />
+              <span>اطلاعات حساب بانکی شرکت مس واته (جهت واریز وجه و شارژ حساب)</span>
+            </div>
+            <span className="text-xs text-emerald-800 font-bold hidden sm:inline">
+              صاحب حساب: {bankInfo.ownerName}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Card Number */}
+            <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-emerald-200/60 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div>
+                  <span className="text-[11px] text-stone-500 block">شماره کارت شرکت ({bankInfo.bankName})</span>
+                  <span className="font-mono text-sm font-black text-stone-900 tracking-wider">
+                    {bankInfo.cardNumber}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(bankInfo.rawCardNumber || bankInfo.cardNumber, 'card')}
+                className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                {copiedField === 'card' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedField === 'card' ? 'کپی شد!' : 'کپی کارت'}</span>
+              </button>
+            </div>
+
+            {/* IBAN Number */}
+            <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-emerald-200/60 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <Building2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <div>
+                  <span className="text-[11px] text-stone-500 block">شماره شبا حساب شرکت</span>
+                  <span className="font-mono text-xs font-black text-stone-900">
+                    {bankInfo.formattedIban || bankInfo.ibanNumber}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(bankInfo.ibanNumber, 'iban')}
+                className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                {copiedField === 'iban' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedField === 'iban' ? 'کپی شد!' : 'کپی شبا'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
 
         {/* Big Asset Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -201,14 +353,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
         {/* Uncleared Cheque Warning */}
         {summary.hasUnclearedCheques && (
-          <div className="p-4 bg-rose-50 border border-rose-300 rounded-2xl flex items-start gap-3 text-xs shadow-xs">
-            <Clock className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-3 text-xs shadow-xs">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-sm text-rose-950">
-                اطلاعیه مهم: خرید مس جدید برای حساب شما موقتاً مسدود است
+              <div className="font-bold text-sm text-amber-950">
+                اطلاعیه مهم: چک در انتظار پاس شدن در حساب شما
               </div>
-              <div className="text-rose-800 mt-1 leading-relaxed">
-                حساب شما دارای <b>{summary.pendingChequesCount} فقره چک در انتظار پاس شدن</b> به ارزش <b>{formatToman(summary.pendingChequesTotalAmount)}</b> می‌باشد. طبق قوانین سامانه، تا زمان وصول و تسویه نهایی چک‌ها، امکان ثبت فاکتور خرید جدید مس مقدور نمی‌باشد.
+              <div className="text-amber-800 mt-1 leading-relaxed">
+                حساب شما دارای <b>{summary.pendingChequesCount} فقره چک در انتظار پاس شدن</b> به ارزش <b>{formatToman(summary.pendingChequesTotalAmount)}</b> می‌باشد. خرید مس جدید فقط تا سقف موجودی نقدی فعلی (<b>{formatToman(summary.cashBalance)}</b>) مقدور است.
               </div>
             </div>
           </div>
@@ -220,10 +372,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <div className="font-bold text-sm text-amber-950">
-                شما {pendingTxList.length} معامله در انتظار تأیید نهایی مدیرعامل دارید:
+                شما {pendingTxList.length} درخواست در انتظار تأیید نهایی مدیرعامل دارید:
               </div>
               <div className="text-xs text-amber-800 mt-1">
-                این معاملات توسط مسئول مس ثبت شده و پس از بررسی و مهر مدیرعامل، در مانده موجودی و کاردکس شما قطعی خواهند شد.
+                این درخواست‌ها پس از بررسی و تأیید مدیرعامل، در مانده موجودی و کاردکس شما قطعی خواهند شد.
               </div>
             </div>
           </div>
@@ -260,6 +412,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     <th className="py-3 px-4">وزن مس</th>
                     <th className="py-3 px-4">قیمت واحد</th>
                     <th className="py-3 px-4">مبلغ کل (تومان)</th>
+                    <th className="py-3 px-4">ثبت‌کننده / توضیحات</th>
                     <th className="py-3 px-4">وضعیت سند</th>
                     <th className="py-3 px-4 text-center">رسید معامله</th>
                   </tr>
@@ -311,6 +464,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         <td className="py-3.5 px-4 font-mono font-black text-stone-900 text-sm">
                           {formatNumber(tx.amount)} تومان
                         </td>
+                        <td className="py-3.5 px-4 text-stone-600 max-w-xs truncate">
+                          {tx.registeredBy && (
+                            <span className="text-[11px] font-semibold text-stone-700 block">
+                              {tx.registeredBy}
+                            </span>
+                          )}
+                          {tx.notes || '—'}
+                        </td>
                         <td className="py-3.5 px-4">
                           {isPending ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md font-semibold text-[11px]">
@@ -351,6 +512,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
       </main>
 
+      {/* Client Request Modal */}
+      {onSubmitRequest && (
+        <ClientRequestModal
+          isOpen={isRequestModalOpen}
+          onClose={() => setIsRequestModalOpen(false)}
+          person={person}
+          summary={summary}
+          marketPrices={marketPrices}
+          companyBankInfo={bankInfo}
+          initialType={activeRequestType}
+          onSubmitRequest={onSubmitRequest}
+        />
+      )}
+
       {/* Client Footer */}
       <footer className="border-t border-stone-200 bg-white py-4 text-center text-xs text-stone-500">
         سامانه امن مدیریت معاملات مس واته • تمامی اطلاعات شما به صورت کدگذاری شده و اختصاصی محافظت می‌شود.
@@ -359,3 +534,4 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     </div>
   );
 };
+

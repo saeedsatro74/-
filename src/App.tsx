@@ -4,18 +4,21 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices } from './types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo } from './types';
 import { 
   getStoredPeople, 
   getStoredTransactions, 
   getStoredMarketPrice,
   getStoredMarketPrices,
+  getStoredCompanyBankInfo,
+  saveCompanyBankInfo,
   savePeople, 
   saveTransactions, 
   saveMarketPrice,
   saveMarketPrices,
   saveAdminPassword,
   saveStaffPassword,
+  saveClientPassword,
   clearAllData,
   calculatePersonSummary, 
   calculateOverallStats,
@@ -56,6 +59,8 @@ import { AccountStatementModal } from './components/AccountStatementModal';
 import { PendingApprovalsModal } from './components/PendingApprovalsModal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { CompanyBankModal } from './components/CompanyBankModal';
+import { SupportChatWidget } from './components/SupportChatWidget';
 import { LoginScreen } from './components/LoginScreen';
 import { ClientPortalView } from './components/ClientPortalView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
@@ -85,8 +90,6 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return !!sessionStorage.getItem('waateh_auth_session') || !!sessionStorage.getItem('waateh_auth_token');
   });
-
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   // Core State
   const [people, setPeople] = useState<Person[]>([]);
@@ -160,6 +163,8 @@ export default function App() {
 
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [isChangePassModalOpen, setIsChangePassModalOpen] = useState(false);
+  const [isCompanyBankModalOpen, setIsCompanyBankModalOpen] = useState(false);
+  const [companyBankInfo, setCompanyBankInfo] = useState<CompanyBankInfo>(() => getStoredCompanyBankInfo());
 
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -384,15 +389,19 @@ export default function App() {
   };
 
   const handleSavePersonPassword = async (personId: string, newPass: string) => {
+    const cleanPass = newPass.trim();
     setIsSyncing(true);
-    const updatedPeople = people.map((p) => p.id === personId ? { ...p, password: newPass } : p);
-    updatePeople(updatedPeople);
+    saveClientPassword(personId, cleanPass);
+    const updatedPeople = people.map((p) => (p.id === personId ? { ...p, password: cleanPass } : p));
+    setPeople(updatedPeople);
+    savePeople(updatedPeople);
+
     const target = updatedPeople.find((p) => p.id === personId);
     if (target) {
       await dbUpsertPerson(target);
     }
     setIsSyncing(false);
-    showToast('رمز عبور حساب کاربر با موفقیت تغییر کرد.');
+    showToast('رمز عبور حساب کاربر با موفقیت بروزرسانی گردید.');
   };
 
   const handlePromptDeletePerson = (personId: string) => {
@@ -558,6 +567,53 @@ export default function App() {
 
     showToast(`حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
     setReceiptModalTx(newTx);
+  };
+
+  // --- Handlers for Client Self-Service Requests ---
+  const handleSaveClientRequest = async (data: {
+    type: TransactionType;
+    amount: number;
+    weightKg?: number;
+    unitPrice?: number;
+    notes?: string;
+    paymentMethod?: PaymentMethod;
+    receiptImageUrl?: string;
+  }) => {
+    if (!authSession?.personId) return;
+    const personId = authSession.personId;
+    const clientPerson = people.find((p) => p.id === personId);
+    const pSummary = summaries.find((s) => s.person.id === personId);
+    const registeredBy = `درخواست مشتری (${clientPerson?.name || ''})`;
+
+    const newTx: Transaction = {
+      id: `tx-${Date.now()}`,
+      personId,
+      date: getTodayJalaliString(),
+      type: data.type,
+      amount: data.amount,
+      weightKg: data.weightKg,
+      unitPrice: data.unitPrice,
+      notes: data.notes,
+      approvalStatus: 'pending',
+      registeredBy,
+      receiptNumber: generateReceiptNumber(data.type),
+      cashBalanceBefore: pSummary?.cashBalance ?? 0,
+      copperStockBefore: pSummary?.copperStockKg ?? 0,
+      paymentMethod: data.paymentMethod,
+      receiptImageUrl: data.receiptImageUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    const replayed = await updateTransactions([...transactions, newTx]);
+    await syncPersonLedgerToCloud(personId, replayed);
+
+    let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
+    if (data.type === 'deposit') msg = 'درخواست شارژ حساب شما با موفقیت ثبت گردید و در صف بررسی مدیر قرار گرفت.';
+    if (data.type === 'withdrawal') msg = 'درخواست برداشت موجودی ثبت شد. پس از واریز وجه توسط مدیریت، تایید نهایی می‌شود.';
+    if (data.type === 'sell') msg = 'درخواست فروش مس ثبت شد و جهت تایید به مدیرعامل ارسال گردید.';
+    if (data.type === 'buy') msg = 'درخواست خرید مس با موفقیت ثبت گردید.';
+
+    showToast(msg);
   };
 
   // --- Manager CEO Approval & Rejection Handlers ---
@@ -802,19 +858,7 @@ export default function App() {
   };
 
   const handleSaveClientPassword = async (personId: string, newPass: string) => {
-    // Update state & localStorage & Supabase
-    setPeople((prev) => {
-      const updated = prev.map((p) => (p.id === personId ? { ...p, password: newPass } : p));
-      savePeople(updated);
-      return updated;
-    });
-
-    const targetPerson = people.find((p) => p.id === personId);
-    if (targetPerson) {
-      await dbUpsertPerson({ ...targetPerson, password: newPass });
-    }
-
-    showToast('رمز عبور حساب کاربری شما با موفقیت به‌روزرسانی شد.');
+    return handleSavePersonPassword(personId, newPass);
   };
 
   if (!isAuthenticated) {
@@ -846,9 +890,11 @@ export default function App() {
             summary={clientSummary}
             transactions={transactions}
             marketPrices={marketPrices}
-            onChangePassword={() => setIsChangePasswordOpen(true)}
+            companyBankInfo={companyBankInfo}
+            onChangePassword={() => setIsChangePassModalOpen(true)}
             onOpenStatement={() => setStatementPersonId(clientPerson.id)}
             onViewReceipt={(tx) => setReceiptModalTx(tx)}
+            onSubmitRequest={handleSaveClientRequest}
             onLogout={handleLogout}
           />
 
@@ -876,11 +922,14 @@ export default function App() {
           )}
 
           {/* Change Password Modal */}
-          {isChangePasswordOpen && (
+          {isChangePassModalOpen && (
             <ChangePasswordModal
+              role="client"
               person={clientPerson}
-              onClose={() => setIsChangePasswordOpen(false)}
-              onSavePassword={handleSaveClientPassword}
+              onClose={() => setIsChangePassModalOpen(false)}
+              onSavePassword={(personId, newPass) => {
+                handleSavePersonPassword(personId, newPass);
+              }}
             />
           )}
 
@@ -912,6 +961,7 @@ export default function App() {
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
         pendingApprovalsCount={overallStats.pendingApprovalsCount || 0}
+        onOpenBankModal={() => setIsCompanyBankModalOpen(true)}
         onChangePassword={() => setIsChangePassModalOpen(true)}
         onLogout={handleLogout}
         totalStockKg={overallStats.totalCopperStockKg}
@@ -1133,6 +1183,22 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Company Bank Credentials Modal */}
+      <CompanyBankModal
+        isOpen={isCompanyBankModalOpen}
+        onClose={() => setIsCompanyBankModalOpen(false)}
+        bankInfo={companyBankInfo}
+        initialInfo={companyBankInfo}
+        onSave={(updated) => {
+          setCompanyBankInfo(updated);
+          saveCompanyBankInfo(updated);
+          showToast('اطلاعات کارت و شماره شبای شرکت بروزرسانی شد.');
+        }}
+      />
+
+      {/* Floating Support Chat Widget */}
+      <SupportChatWidget authSession={authSession} people={people} />
 
       {/* Toast Notification Alert */}
       {toast && (

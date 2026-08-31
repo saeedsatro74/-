@@ -12,7 +12,7 @@ import {
   User
 } from 'lucide-react';
 import { Person } from '../types';
-import { getStoredAdminPassword, getStoredStaffPassword } from '../utils/storage';
+import { getStoredAdminPassword, getStoredStaffPassword, getClientPassword } from '../utils/storage';
 
 interface ChangePasswordModalProps {
   person?: Person | null;
@@ -66,27 +66,30 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     // Verify current password based on context
     if (isRoleAdmin) {
       const storedAdmin = getStoredAdminPassword();
-      if (cleanCurrent !== storedAdmin && cleanCurrent !== 'milad@68' && cleanCurrent !== 'admin123') {
+      if (cleanCurrent !== storedAdmin) {
         setError('رمز عبور فعلی مدیرعامل نادرست است.');
         return;
       }
     } else if (isRoleStaff) {
       const storedStaff = getStoredStaffPassword();
-      if (cleanCurrent !== storedStaff && cleanCurrent !== 'staff123' && cleanCurrent !== 'operator' && cleanCurrent !== '123456') {
+      if (cleanCurrent !== storedStaff) {
         setError('رمز عبور فعلی حسابدار مس نادرست است.');
         return;
       }
     } else if (person) {
-      const cleanPhone = person.phone ? person.phone.replace(/\D/g, '') : '';
-      const defaultPass = person.password || (cleanPhone.length >= 4 ? cleanPhone.slice(-4) : '1234');
-      
-      if (person.password && cleanCurrent !== person.password) {
-        setError('رمز عبور فعلی وارد شده نادرست است.');
-        return;
-      }
-      if (!person.password && cleanCurrent !== defaultPass && cleanCurrent !== '1234') {
-        setError('رمز عبور پیش‌فرض (۴ رقم آخر شماره یا 1234) نادرست است.');
-        return;
+      const customPass = person.password || getClientPassword(person.id);
+      if (customPass) {
+        if (cleanCurrent !== customPass.trim()) {
+          setError('رمز عبور فعلی وارد شده نادرست است.');
+          return;
+        }
+      } else {
+        const cleanPhone = person.phone ? person.phone.replace(/\D/g, '') : '';
+        const last4 = cleanPhone.length >= 4 ? cleanPhone.slice(-4) : null;
+        if (cleanCurrent !== '1234' && (last4 === null || cleanCurrent !== last4)) {
+          setError('رمز عبور پیش‌فرض (۴ رقم آخر شماره یا 1234) نادرست است.');
+          return;
+        }
       }
     }
 

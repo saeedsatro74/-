@@ -29,6 +29,7 @@ interface HeaderProps {
   onOpenDataModal: () => void;
   onOpenApprovalsModal?: () => void;
   pendingApprovalsCount?: number;
+  onOpenBankModal?: () => void;
   onOpenChequesModal?: () => void;
   pendingChequesCount?: number;
   onChangePassword?: () => void;
@@ -54,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDataModal,
   onOpenApprovalsModal,
   pendingApprovalsCount = 0,
+  onOpenBankModal,
   onOpenChequesModal,
   pendingChequesCount = 0,
   onChangePassword,
@@ -197,7 +199,18 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Cheque Management Button */}
+            {/* CEO Bank Credentials Edit Button */}
+            {userRole === 'admin' && onOpenBankModal && (
+              <button
+                type="button"
+                onClick={onOpenBankModal}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition-colors cursor-pointer"
+                title="ویرایش شماره شبا و شماره کارت شرکت توسط مدیرعامل"
+              >
+                <CreditCard className="w-4 h-4 text-emerald-700" />
+                <span>حساب بانکی شرکت</span>
+              </button>
+            )}
             {onOpenChequesModal && (
               <button
                 id="btn-cheques-header"

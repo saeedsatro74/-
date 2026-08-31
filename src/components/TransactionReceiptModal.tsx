@@ -368,6 +368,23 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
 
           </div>
 
+          {/* Bank Receipt Attachment if uploaded */}
+          {transaction.receiptImageUrl && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2">
+              <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-emerald-700" />
+                <span>تصویر فیش / رسید بانکی واریزی ضمیمه شده:</span>
+              </span>
+              <div className="flex justify-center p-2 bg-white rounded-lg border border-emerald-200">
+                <img
+                  src={transaction.receiptImageUrl}
+                  alt="رسید بانکی واریزی"
+                  className="max-h-64 object-contain rounded-md border border-stone-200 shadow-2xs"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Notes or Rejection Reason */}
           {transaction.notes && (
             <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">

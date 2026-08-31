@@ -77,14 +77,6 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
       setError('لطفاً فرد مورد نظر را انتخاب کنید.');
       return;
     }
-    if (hasUnclearedCheques) {
-      setError(
-        `امکان ثبت خرید برای این شخص وجود ندارد! این طرف حساب دارای ${pendingChequesCount} فقره چک پاس‌نشده به مبلغ ${formatToman(
-          pendingChequesAmount
-        )} است. طبق قوانین سیستم، تا زمان وصول و پاس شدن تمام چک‌ها، خرید مس برای این شخص مسدود است.`
-      );
-      return;
-    }
     if (weightKg <= 0) {
       setError('لطفاً مقدار مس (وزن به کیلوگرم) را به درستی وارد کنید.');
       return;
@@ -97,7 +89,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
       setError(
         `موجودی ریالی شخص کافی نیست! موجودی فعلی: ${formatToman(currentCash)}، مبلغ کل فاکتور خرید: ${formatToman(
           calculatedTotal
-        )}. برای ثبت این خرید باید ابتدا حداقل مبلغ ${formatToman(cashDeficit)} واریز شود.`
+        )}. خرید مس فقط تا سقف موجودی نقدی فعلی امکان‌پذیر است.`
       );
       return;
     }
@@ -186,10 +178,10 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                 <option value="" disabled>-- انتخاب کنید --</option>
                 {people.map((p) => {
                   const pSummary = summaries.find((s) => s.person.id === p.id);
-                  const blocked = pSummary?.hasUnclearedCheques;
+                  const hasCheques = pSummary?.hasUnclearedCheques;
                   return (
                     <option key={p.id} value={p.id}>
-                      {p.name} {blocked ? '⛔ (دارای چک پاس‌نشده - مسدود)' : pSummary ? `(موجودی ریالی: ${formatNumber(pSummary.cashBalance)} تومان)` : ''}
+                      {p.name} {hasCheques ? '⚠️ (دارای چک پاس‌نشده - خرید محدود به نقد)' : pSummary ? `(موجودی ریالی: ${formatNumber(pSummary.cashBalance)} تومان)` : ''}
                     </option>
                   );
                 })}
@@ -197,15 +189,15 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             </div>
           </div>
 
-          {/* Uncleared Cheque Critical Warning */}
+          {/* Uncleared Cheque Info Warning */}
           {hasUnclearedCheques && (
-            <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-xs space-y-1.5">
-              <div className="flex items-center gap-1.5 text-rose-900 font-bold">
-                <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
-                <span>خرید برای این شخص به دلیل چک پاس‌نشده مسدود است!</span>
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 text-amber-900 font-bold">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>اطلاعیه: این شخص دارای چک پاس‌نشده است</span>
               </div>
-              <p className="text-rose-800 leading-relaxed">
-                این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. تا زمان تایید پاس شدن چک در سامانه، ثبت هرگونه فاکتور خرید جدید غیرفعال است.
+              <p className="text-amber-800 leading-relaxed">
+                این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. خرید مس فقط تا سقف موجودی نقدی فعلی (<b>{formatToman(currentCash)}</b>) امکان‌پذیر است.
               </p>
             </div>
           )}
@@ -407,9 +399,9 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={hasInsufficientCash || hasUnclearedCheques}
+              disabled={hasInsufficientCash}
               className={`px-5 py-2 text-sm font-bold text-white rounded-lg transition-colors shadow-xs flex items-center gap-1.5 ${
-                hasInsufficientCash || hasUnclearedCheques
+                hasInsufficientCash
                   ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
                   : 'bg-amber-700 hover:bg-amber-800 active:bg-amber-900 cursor-pointer'
               }`}

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Person, Transaction, MarketPrices } from '../types';
-import { DEFAULT_MARKET_BUY_PRICE, DEFAULT_MARKET_SELL_PRICE, DEFAULT_MARKET_COPPER_PRICE } from '../utils/storage';
+import { DEFAULT_MARKET_BUY_PRICE, DEFAULT_MARKET_SELL_PRICE, DEFAULT_MARKET_COPPER_PRICE, getClientPassword } from '../utils/storage';
 
 // Supabase URL & Public Anon Key
 export const SUPABASE_URL = 
@@ -60,12 +60,14 @@ export interface AppSettingRow {
 }
 
 export function toPerson(row: PersonRow): Person {
+  const storedPass = getClientPassword(row.id);
   return {
     id: row.id,
     name: row.name,
     phone: row.phone || undefined,
     notes: row.notes || undefined,
     createdAt: row.created_at,
+    password: storedPass || undefined,
   };
 }
 

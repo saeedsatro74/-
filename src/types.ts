@@ -46,6 +46,7 @@ export interface Transaction {
   approvedAt?: string; // e.g. "1403/12/10 ساعت 14:35"
   rejectionReason?: string; // e.g. "قیمت خرید اشتباه وارد شده است."
   receiptNumber?: string; // e.g. "REC-140312-8419"
+  receiptImageUrl?: string; // Base64 data URL of uploaded bank receipt photo
   // Cheque System Fields
   paymentMethod?: PaymentMethod; // 'cash' | 'cheque' (default 'cash')
   chequeNumber?: string; // شماره صیادی یا سریال چک
@@ -107,3 +108,25 @@ export type FilterStatus = 'all' | 'has_cash' | 'has_stock' | 'has_asset';
 
 export type SortField = 'name' | 'cash' | 'stock' | 'copperValue' | 'totalAsset' | 'profit' | 'date';
 export type SortOrder = 'asc' | 'desc';
+
+export interface CompanyBankInfo {
+  bankName: string;
+  ownerName: string;
+  cardNumber: string; // e.g. "6037-9918-1234-5678"
+  ibanNumber: string; // e.g. "IR120170000000123456789012"
+  rawCardNumber?: string;
+  formattedIban?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  personId: string; // The client ID this chat belongs to
+  senderRole: UserRole; // 'admin' | 'staff' | 'client'
+  senderName: string;
+  text: string;
+  createdAt: string; // ISO date or formatted time
+  isReadByAdmin?: boolean;
+  isReadByClient?: boolean;
+  imageUrl?: string;
+}
+
