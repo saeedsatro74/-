@@ -2,7 +2,14 @@ export type TransactionType = 'deposit' | 'withdrawal' | 'buy' | 'sell' | 'adjus
 
 export type PaymentMethod = 'cash' | 'cheque';
 export type ChequeStatus = 'pending' | 'cleared' | 'bounced';
-export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 
+  | 'draft' 
+  | 'pending' 
+  | 'topup_step1_pending_bank'     // مرحله ۱: ثبت درخواست شارژ توسط مشتری، منتظر اختصاص شماره حساب/شبا توسط مدیرعامل
+  | 'topup_step2_awaiting_receipt'   // مرحله ۲: اختصاص شماره حساب/شبا توسط مدیرعامل، منتظر واریز و بارگذاری فیش توسط مشتری
+  | 'topup_step3_pending_approval'   // مرحله ۳: بارگذاری فیش واریزی و کد پیگیری توسط مشتری، منتظر بررسی نهایی مدیرعامل
+  | 'approved'                       // مرحله ۴: تأیید نهایی توسط مدیرعامل و شارژ موجودی کیف پول
+  | 'rejected';
 
 export type UserRole = 'admin' | 'staff' | 'client';
 
@@ -40,13 +47,19 @@ export interface Transaction {
   notes?: string;
   createdAt: string;
   // CEO Approval Workflow Fields
-  approvalStatus?: ApprovalStatus; // 'draft' | 'pending' | 'approved' | 'rejected'
-  registeredBy?: string; // e.g. "مسئول مس"
+  approvalStatus?: ApprovalStatus; // 'draft' | 'pending' | 'topup_step1_pending_bank' | ...
+  registeredBy?: string; // e.g. "مسئول مس" or "مشتری"
   approvedBy?: string; // e.g. "مدیرعامل"
   approvedAt?: string; // e.g. "1403/12/10 ساعت 14:35"
   rejectionReason?: string; // e.g. "قیمت خرید اشتباه وارد شده است."
   receiptNumber?: string; // e.g. "REC-140312-8419"
   receiptImageUrl?: string; // Base64 data URL of uploaded bank receipt photo
+  // 4-Step Top-up Assigned Bank Details
+  assignedBankName?: string;
+  assignedOwnerName?: string;
+  assignedCardNumber?: string;
+  assignedIbanNumber?: string;
+  assignedBankNote?: string;
   // Cheque System Fields
   paymentMethod?: PaymentMethod; // 'cash' | 'cheque' (default 'cash')
   chequeNumber?: string; // شماره صیادی یا سریال چک
@@ -109,14 +122,18 @@ export type FilterStatus = 'all' | 'has_cash' | 'has_stock' | 'has_asset';
 export type SortField = 'name' | 'cash' | 'stock' | 'copperValue' | 'totalAsset' | 'profit' | 'date';
 export type SortOrder = 'asc' | 'desc';
 
-export interface CompanyBankInfo {
-  bankName: string;
-  ownerName: string;
-  cardNumber: string; // e.g. "6037-9918-1234-5678"
-  ibanNumber: string; // e.g. "IR120170000000123456789012"
+export interface CompanyBankAccount {
+  id: string;
+  bankName: string; // e.g. "بانک ملی ایران"
+  ownerName: string; // e.g. "شرکت بازرگانی مس واته (مدیریت رضایی)"
+  cardNumber: string; // e.g. "6037-9979-1234-5678"
+  ibanNumber: string; // e.g. "IR980170000000123456789001"
   rawCardNumber?: string;
   formattedIban?: string;
+  isDefault?: boolean;
 }
+
+export interface CompanyBankInfo extends CompanyBankAccount {}
 
 export interface ChatMessage {
   id: string;

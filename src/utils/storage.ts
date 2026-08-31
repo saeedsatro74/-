@@ -1,4 +1,4 @@
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, CompanyBankInfo, ChatMessage } from '../types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, CompanyBankInfo, CompanyBankAccount, ChatMessage } from '../types';
 
 const STORAGE_KEYS = {
   PEOPLE: 'copper_wallet_people_v2',
@@ -9,17 +9,68 @@ const STORAGE_KEYS = {
   STAFF_PASSWORD: 'waateh_staff_password_v1',
   CLIENT_PASSWORDS: 'waateh_client_passwords_v1',
   COMPANY_BANK_INFO: 'waateh_company_bank_info_v1',
+  COMPANY_BANK_ACCOUNTS: 'waateh_company_bank_accounts_v1',
   CHAT_MESSAGES: 'waateh_chat_messages_v1',
 };
 
 export const DEFAULT_COMPANY_BANK_INFO: CompanyBankInfo = {
+  id: 'bank-1',
   ownerName: 'شرکت بازرگانی مس واته (مدیریت رضایی)',
   bankName: 'بانک ملی ایران',
   cardNumber: '۶۰۳۷-۹۹۷۹-۱۲۳۴-۵۶۷۸',
   ibanNumber: 'IR980170000000123456789001',
   rawCardNumber: '6037997912345678',
   formattedIban: 'IR98 0170 0000 0012 3456 7890 01',
+  isDefault: true,
 };
+
+export const DEFAULT_COMPANY_BANK_ACCOUNTS: CompanyBankAccount[] = [
+  DEFAULT_COMPANY_BANK_INFO,
+  {
+    id: 'bank-2',
+    bankName: 'بانک پاسارگاد',
+    ownerName: 'بازرگانی مس واته (مدیریت رضایی)',
+    cardNumber: '۵۰۲۲-۲۹۱۰-۸۸۷۷-۶۶۵۵',
+    ibanNumber: 'IR450570000000008877665501',
+    rawCardNumber: '5022291088776655',
+    formattedIban: 'IR45 0570 0000 0000 8877 6655 01',
+  },
+  {
+    id: 'bank-3',
+    bankName: 'بانک سامان (حساب تجاری مس)',
+    ownerName: 'شرکت بازرگانی مس واته',
+    cardNumber: '۶۲۱۹-۸۶۱۰-۳۳۴۴-۵۵۶۶',
+    ibanNumber: 'IR120560000000003344556601',
+    rawCardNumber: '6219861033445566',
+    formattedIban: 'IR12 0560 0000 0000 3344 5566 01',
+  },
+];
+
+export function getStoredCompanyBankAccounts(): CompanyBankAccount[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.COMPANY_BANK_ACCOUNTS);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    localStorage.setItem(STORAGE_KEYS.COMPANY_BANK_ACCOUNTS, JSON.stringify(DEFAULT_COMPANY_BANK_ACCOUNTS));
+    return DEFAULT_COMPANY_BANK_ACCOUNTS;
+  } catch {
+    return DEFAULT_COMPANY_BANK_ACCOUNTS;
+  }
+}
+
+export function saveCompanyBankAccounts(accounts: CompanyBankAccount[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COMPANY_BANK_ACCOUNTS, JSON.stringify(accounts));
+    if (accounts.length > 0) {
+      const defaultAcc = accounts.find((a) => a.isDefault) || accounts[0];
+      saveCompanyBankInfo(defaultAcc);
+    }
+  } catch (e) {
+    console.error('Failed to save company bank accounts', e);
+  }
+}
 
 export function getStoredCompanyBankInfo(): CompanyBankInfo {
   try {
@@ -560,7 +611,7 @@ export function replayAndCalculatePersonLedger(
     tx.copperStockBefore = Number(runningCopperStockKg.toFixed(3));
 
     // Track pending transactions awaiting CEO approval
-    if (status === 'pending') {
+    if (status === 'pending' || status === 'topup_step1_pending_bank' || status === 'topup_step3_pending_approval') {
       pendingApprovalsCount += 1;
     }
 

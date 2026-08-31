@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo } from './types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, CompanyBankAccount } from './types';
 import { 
   getStoredPeople, 
   getStoredTransactions, 
@@ -54,7 +54,7 @@ import { AdjustmentModal } from './components/AdjustmentModal';
 import { MarketPriceModal } from './components/MarketPriceModal';
 import { TransactionEditModal } from './components/TransactionEditModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
-import { DataBackupModal } from './components/DataBackupModal';
+import { FactoryResetModal } from './components/FactoryResetModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 import { PendingApprovalsModal } from './components/PendingApprovalsModal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
@@ -161,7 +161,7 @@ export default function App() {
     message: '',
   });
 
-  const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+  const [isFactoryResetModalOpen, setIsFactoryResetModalOpen] = useState(false);
   const [isChangePassModalOpen, setIsChangePassModalOpen] = useState(false);
   const [isCompanyBankModalOpen, setIsCompanyBankModalOpen] = useState(false);
   const [companyBankInfo, setCompanyBankInfo] = useState<CompanyBankInfo>(() => getStoredCompanyBankInfo());
@@ -594,7 +594,7 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.unitPrice,
       notes: data.notes,
-      approvalStatus: 'pending',
+      approvalStatus: data.type === 'deposit' ? 'topup_step1_pending_bank' : 'pending',
       registeredBy,
       receiptNumber: generateReceiptNumber(data.type),
       cashBalanceBefore: pSummary?.cashBalance ?? 0,
@@ -608,12 +608,69 @@ export default function App() {
     await syncPersonLedgerToCloud(personId, replayed);
 
     let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
-    if (data.type === 'deposit') msg = 'درخواست شارژ حساب شما با موفقیت ثبت گردید و در صف بررسی مدیر قرار گرفت.';
+    if (data.type === 'deposit') msg = 'درخواست شارژ حساب ثبت گردید. به زودی شماره حساب اختصاصی توسط مدیرعامل برای شما ارسال می‌شود.';
     if (data.type === 'withdrawal') msg = 'درخواست برداشت موجودی ثبت شد. پس از واریز وجه توسط مدیریت، تایید نهایی می‌شود.';
     if (data.type === 'sell') msg = 'درخواست فروش مس ثبت شد و جهت تایید به مدیرعامل ارسال گردید.';
     if (data.type === 'buy') msg = 'درخواست خرید مس با موفقیت ثبت گردید.';
 
     showToast(msg);
+  };
+
+  const handleAssignBankToTransaction = async (
+    txId: string,
+    bankDetails: CompanyBankAccount,
+    note?: string,
+    approverName: string = 'مدیرعامل'
+  ) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    const updatedTxs = transactions.map((t) => {
+      if (t.id === txId) {
+        return {
+          ...t,
+          approvalStatus: 'topup_step2_awaiting_receipt' as const,
+          assignedBankName: bankDetails.bankName,
+          assignedOwnerName: bankDetails.ownerName,
+          assignedCardNumber: bankDetails.cardNumber,
+          assignedIbanNumber: bankDetails.ibanNumber,
+          assignedBankNote: note || undefined,
+          approvedBy: approverName,
+        };
+      }
+      return t;
+    });
+
+    const replayed = await updateTransactions(updatedTxs);
+    await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    showToast(`شماره حساب (${bankDetails.bankName}) جهت واریز وجه برای مشتری ارسال گردید.`);
+  };
+
+  const handleSubmitTopupReceipt = async (
+    txId: string,
+    receiptImageUrl: string,
+    receiptNumber: string,
+    notes?: string
+  ) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    const updatedTxs = transactions.map((t) => {
+      if (t.id === txId) {
+        return {
+          ...t,
+          approvalStatus: 'topup_step3_pending_approval' as const,
+          receiptImageUrl,
+          receiptNumber,
+          notes: notes ? `${t.notes || ''} | ${notes}` : t.notes,
+        };
+      }
+      return t;
+    });
+
+    const replayed = await updateTransactions(updatedTxs);
+    await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    showToast('عکس فیش و کد پیگیری با موفقیت جهت تأیید نهایی برای مدیرعامل ارسال شد.');
   };
 
   // --- Manager CEO Approval & Rejection Handlers ---
@@ -768,54 +825,12 @@ export default function App() {
     setIsSyncing(false);
   };
 
-  // --- Restore / Reset ---
-  const handleRestoreData = async (newPeople: Person[], newTransactions: Transaction[], newMarketPrice?: number) => {
-    setIsSyncing(true);
-    updatePeople(newPeople);
-    if (newMarketPrice) {
-      const prices: MarketPrices = {
-        buyPrice: newMarketPrice,
-        sellPrice: Math.max(0, newMarketPrice - 150000),
-      };
-      setMarketPrices(prices);
-      saveMarketPrices(prices);
-      await dbSaveMarketPrices(prices);
-    }
-    const replayed = await updateTransactions(newTransactions, newPeople);
-    for (const p of newPeople) {
-      await dbUpsertPerson(p);
-    }
-    await dbBatchUpsertTransactions(replayed);
-    setIsSyncing(false);
-    setIsDataModalOpen(false);
-    showToast('اطلاعات پشتیبان با موفقیت در سرور بازیابی شد.');
-  };
-
-  const handleResetToSample = async () => {
-    setIsSyncing(true);
-    const sample = resetToSampleData();
-    const defaultPrices: MarketPrices = {
-      buyPrice: DEFAULT_MARKET_BUY_PRICE,
-      sellPrice: DEFAULT_MARKET_SELL_PRICE,
-    };
-    setPeople(sample.people);
-    setTransactions(sample.transactions);
-    setMarketPrices(defaultPrices);
-    saveMarketPrices(defaultPrices);
-
-    // Sync sample to cloud
-    for (const p of sample.people) {
-      await dbUpsertPerson(p);
-    }
-    await dbBatchUpsertTransactions(sample.transactions);
-    await dbSaveMarketPrices(defaultPrices);
-
-    setIsSyncing(false);
-    setIsDataModalOpen(false);
-    showToast('داده‌های نمونه اولیه در سرور بازنشانی شدند.');
-  };
-
+  // --- Factory Reset ---
   const handleFactoryReset = async () => {
+    if (authSession?.role !== 'admin') {
+      showToast('حذف کلی داده‌ها فقط توسط مدیرعامل امکان‌پذیر است.', 'error');
+      return;
+    }
     setIsSyncing(true);
     clearAllData();
     setPeople([]);
@@ -830,8 +845,8 @@ export default function App() {
     await dbClearAllCloudData();
 
     setIsSyncing(false);
-    setIsDataModalOpen(false);
-    showToast('تمامی اطلاعات از سرور پاک شدند و سیستم به حالت خام بازنشانی شد.');
+    setIsFactoryResetModalOpen(false);
+    showToast('تمامی اطلاعات از دیتابیس ابر و دستگاه پاک شدند و سیستم کاملاً به حالت خام بازنشانی شد.');
   };
 
   const handleLogout = () => {
@@ -895,6 +910,7 @@ export default function App() {
             onOpenStatement={() => setStatementPersonId(clientPerson.id)}
             onViewReceipt={(tx) => setReceiptModalTx(tx)}
             onSubmitRequest={handleSaveClientRequest}
+            onSubmitTopupReceipt={handleSubmitTopupReceipt}
             onLogout={handleLogout}
           />
 
@@ -958,7 +974,7 @@ export default function App() {
         onAddPurchase={() => handleOpenBuyCopper()}
         onAddSale={() => handleOpenSellCopper()}
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
-        onOpenDataModal={() => setIsDataModalOpen(true)}
+        onOpenFactoryReset={() => setIsFactoryResetModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
         pendingApprovalsCount={overallStats.pendingApprovalsCount || 0}
         onOpenBankModal={() => setIsCompanyBankModalOpen(true)}
@@ -1062,6 +1078,7 @@ export default function App() {
         onReject={handleRejectTransaction}
         onBulkApprove={handleBulkApprove}
         onViewReceipt={(tx) => setReceiptModalTx(tx)}
+        onAssignBank={handleAssignBankToTransaction}
       />
 
       {/* Official Transaction Receipt Modal */}
@@ -1151,17 +1168,12 @@ export default function App() {
         onConfirm={handleExecuteDelete}
       />
 
-      {/* Backup & Export Modal */}
-      <DataBackupModal
-        isOpen={isDataModalOpen}
-        onClose={() => setIsDataModalOpen(false)}
-        people={people}
-        transactions={transactions}
-        marketPrice={marketPrice}
-        summaries={summaries}
-        onRestoreData={handleRestoreData}
-        onResetToSample={handleResetToSample}
-        onFactoryReset={handleFactoryReset}
+      {/* Factory Reset Modal (CEO / Manager Only) */}
+      <FactoryResetModal
+        isOpen={isFactoryResetModalOpen}
+        onClose={() => setIsFactoryResetModalOpen(false)}
+        onConfirmReset={handleFactoryReset}
+        userRole={authSession?.role || 'admin'}
       />
 
       {/* Change Password Modal for CEO / Staff / Client */}

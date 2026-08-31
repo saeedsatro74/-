@@ -147,6 +147,44 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
   };
 }
 
+/**
+ * Base transaction row without newly added schema columns
+ * Used as a fallback when the remote Supabase table does not have extended columns.
+ */
+export function toBaseTransactionRow(tx: Transaction): Record<string, any> {
+  return {
+    id: tx.id,
+    person_id: tx.personId,
+    date: tx.date,
+    type: tx.type,
+    amount: Number(tx.amount) || 0,
+    weight_kg: tx.weightKg !== undefined && tx.weightKg !== null ? Number(tx.weightKg) : null,
+    unit_price: tx.unitPrice !== undefined && tx.unitPrice !== null ? Number(tx.unitPrice) : null,
+    cogs: tx.cogs !== undefined && tx.cogs !== null ? Number(tx.cogs) : null,
+    profit: tx.profit !== undefined && tx.profit !== null ? Number(tx.profit) : null,
+    profit_percentage: tx.profitPercentage !== undefined && tx.profitPercentage !== null ? Number(tx.profitPercentage) : null,
+    cash_balance_after: tx.cashBalanceAfter !== undefined && tx.cashBalanceAfter !== null ? Number(tx.cashBalanceAfter) : null,
+    copper_stock_after: tx.copperStockAfter !== undefined && tx.copperStockAfter !== null ? Number(tx.copperStockAfter) : null,
+    notes: tx.notes || null,
+    created_at: tx.createdAt || new Date().toISOString(),
+  };
+}
+
+let isExtendedSchemaSupported = true;
+
+function isSchemaColumnError(error: any): boolean {
+  if (!error) return false;
+  return (
+    error.code === 'PGRST204' ||
+    error.code === '42703' ||
+    (typeof error.message === 'string' && (
+      error.message.includes('Could not find') ||
+      error.message.includes('column') ||
+      error.message.includes('schema cache')
+    ))
+  );
+}
+
 // --- Supabase Cloud Operations ---
 
 /**
@@ -259,9 +297,20 @@ export async function dbDeletePerson(personId: string): Promise<boolean> {
  */
 export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
   try {
-    const row = toTransactionRow(tx);
+    const row = isExtendedSchemaSupported ? toTransactionRow(tx) : toBaseTransactionRow(tx);
     const { error } = await supabase.from('transactions').upsert(row, { onConflict: 'id' });
     if (error) {
+      if (isSchemaColumnError(error)) {
+        isExtendedSchemaSupported = false;
+        console.warn('Supabase transactions table missing extended columns; falling back to base schema fields...', error.message);
+        const baseRow = toBaseTransactionRow(tx);
+        const { error: retryErr } = await supabase.from('transactions').upsert(baseRow, { onConflict: 'id' });
+        if (retryErr) {
+          console.error('Error upserting transaction (base schema):', retryErr);
+          return false;
+        }
+        return true;
+      }
       console.error('Error upserting transaction:', error);
       return false;
     }
@@ -278,9 +327,20 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
 export async function dbBatchUpsertTransactions(txList: Transaction[]): Promise<boolean> {
   if (txList.length === 0) return true;
   try {
-    const rows = txList.map(toTransactionRow);
+    const rows = isExtendedSchemaSupported ? txList.map(toTransactionRow) : txList.map(toBaseTransactionRow);
     const { error } = await supabase.from('transactions').upsert(rows, { onConflict: 'id' });
     if (error) {
+      if (isSchemaColumnError(error)) {
+        isExtendedSchemaSupported = false;
+        console.warn('Supabase transactions table missing extended columns; falling back to base schema fields for batch upsert...', error.message);
+        const baseRows = txList.map(toBaseTransactionRow);
+        const { error: retryErr } = await supabase.from('transactions').upsert(baseRows, { onConflict: 'id' });
+        if (retryErr) {
+          console.error('Error batch upserting transactions (base schema):', retryErr);
+          return false;
+        }
+        return true;
+      }
       console.error('Error batch upserting transactions:', error);
       return false;
     }
@@ -382,8 +442,14 @@ export async function seedSupabaseIfEmpty(
       await supabase.from('people').insert(peopleRows);
 
       // 2. Insert transactions
-      const txRows = initialTransactions.map(toTransactionRow);
-      await supabase.from('transactions').insert(txRows);
+      const txRows = isExtendedSchemaSupported ? initialTransactions.map(toTransactionRow) : initialTransactions.map(toBaseTransactionRow);
+      const { error: txErr } = await supabase.from('transactions').insert(txRows);
+      if (txErr && isSchemaColumnError(txErr)) {
+        isExtendedSchemaSupported = false;
+        console.warn('Supabase transactions table missing extended columns during seed; inserting base schema fields...');
+        const baseRows = initialTransactions.map(toBaseTransactionRow);
+        await supabase.from('transactions').insert(baseRows);
+      }
 
       // 3. Insert price setting
       await supabase.from('app_settings').upsert({ key: 'market_copper_price', value: marketPrice });
