@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, TrendingUp, Info } from 'lucide-react';
 
 interface CopperChartViewProps {
@@ -6,8 +6,37 @@ interface CopperChartViewProps {
   userRole?: 'admin' | 'staff' | 'client';
 }
 
+interface SymbolOption {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string;
+}
+
+const SYMBOL_OPTIONS: SymbolOption[] = [
+  {
+    id: 'capitalcom',
+    name: 'قرارداد آتی مس (CFD)',
+    symbol: 'CAPITALCOM:COPPER',
+    description: 'تحت قرارداد آتی COMEX (توصیه شده - بدون تحریم یا لایسنس)',
+  },
+  {
+    id: 'oanda',
+    name: 'اسپات جهانی مس (XCU/USD)',
+    symbol: 'OANDA:XCUUSD',
+    description: 'بر اساس ارزش لحظه‌ای مس بازار فارکس و CFD',
+  },
+  {
+    id: 'forexcom',
+    name: 'شاخص مس آمریکا (Forex.com)',
+    symbol: 'FOREXCOM:COPPERS',
+    description: 'نرخ لحظه‌ای مس آمریکا جهت مقایسه و تحلیل تکنیکال',
+  }
+];
+
 export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRole }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedOption, setSelectedOption] = useState<SymbolOption>(SYMBOL_OPTIONS[0]);
 
   useEffect(() => {
     const scriptId = 'tradingview-widget-script';
@@ -20,7 +49,7 @@ export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRo
         try {
           new (window as any).TradingView.widget({
             autosize: true,
-            symbol: "COMEX:HG1!",
+            symbol: selectedOption.symbol,
             interval: "D",
             timezone: "Asia/Tehran",
             theme: "light",
@@ -66,10 +95,10 @@ export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRo
         containerRef.current.innerHTML = '';
       }
     };
-  }, []);
+  }, [selectedOption]);
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[750px] w-full animate-in fade-in duration-200">
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[780px] w-full animate-in fade-in duration-200">
       {/* View Header */}
       <div className="p-4 sm:p-5 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-stone-50">
         <div className="flex items-center gap-3">
@@ -78,7 +107,9 @@ export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRo
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-stone-900">قیمت جهانی مس</h2>
-            <p className="text-xs text-stone-500 font-mono tracking-wide">Copper Futures - COMEX: HG1!</p>
+            <p className="text-xs text-stone-500 font-mono tracking-wide">
+              Copper Futures - {selectedOption.symbol} ({selectedOption.name})
+            </p>
           </div>
         </div>
         
@@ -90,6 +121,29 @@ export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRo
           <ArrowRight className="w-4 h-4" />
           <span>بازگشت به داشبورد</span>
         </button>
+      </div>
+
+      {/* Symbol Switcher / Multi-source selector */}
+      <div className="bg-stone-100/60 p-3 sm:px-5 border-b border-stone-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {SYMBOL_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setSelectedOption(opt)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                selectedOption.id === opt.id
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-white text-stone-600 hover:text-stone-900 border border-stone-200'
+              }`}
+            >
+              {opt.name}
+            </button>
+          ))}
+        </div>
+        <div className="text-[11px] text-stone-500 font-medium">
+          <span className="text-amber-800 font-bold">منبع فعال: </span>
+          <span>{selectedOption.description}</span>
+        </div>
       </div>
 
       {/* Widget Container */}
@@ -109,7 +163,7 @@ export const CopperChartView: React.FC<CopperChartViewProps> = ({ onBack, userRo
         <div className="mt-3 p-3 bg-stone-100 border border-stone-200 rounded-xl flex items-start gap-2.5 text-[11px] text-stone-600 leading-relaxed">
           <Info className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
           <div>
-            نماد <strong>COMEX:HG1!</strong> نشان‌دهنده قراردادهای آتی مس بازار بورس کالا شیکاگو (COMEX) است. شما می‌توانید از ابزارهای بالای نمودار برای تغییر بازه زمانی (مثل روزانه 1D، هفتگی 1W، ماهانه 1M) و ابزارهای ترسیمی سمت چپ برای بررسی دقیق‌تر تحلیل تکنیکال نمودار استفاده فرمایید.
+            <strong>دلیل تغییر نماد خام COMEX:</strong> بورس شیکاگو (COMEX) نمایش مستقیم و خام نماد <strong>HG1!</strong> را در وب‌سایت‌های ثالث به لایسنس پولی و احراز هویت سنگین منوط کرده است. به همین علت، برای حفظ پایداری و عدم نمایش خطای لایسنس، از نمادهای معادل قرارداد مابه‌التفاوت (CFD) رسمی مانند <strong>{selectedOption.symbol}</strong> استفاده کرده‌ایم که قیمت را بدون هیچ تأخیر یا اشتراکی و به طور رایگان و تعاملی نمایش می‌دهد.
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { 
   ShoppingBag, 
   TrendingUp, 
+  Calculator,
   UserPlus, 
   Calendar,
   Layers,
@@ -211,7 +212,8 @@ export const Header: React.FC<HeaderProps> = ({
               <TrendingUp className={`w-4 h-4 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
               <span>چارت جهانی مس</span>
             </button>
-            
+
+
             {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}
             {userRole === 'admin' && onOpenApprovalsModal && (
               <button

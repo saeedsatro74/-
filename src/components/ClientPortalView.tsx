@@ -7,6 +7,7 @@ import {
   LogOut, 
   KeyRound, 
   TrendingUp, 
+  Calculator,
   ShoppingBag, 
   ArrowDownLeft, 
   ArrowUpRight,
@@ -219,6 +220,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <span>چارت جهانی مس</span>
               </button>
             )}
+
+
 
             <button
               type="button"
