@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   X,
   KeyRound,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -28,7 +29,8 @@ interface HeaderProps {
   onAddSale: () => void;
   onOpenMarketPrice: () => void;
   onOpenCopperChart: () => void;
-  activeView?: 'dashboard' | 'copper-chart';
+  onOpenAiAnalysis?: () => void;
+  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis';
   onOpenFactoryReset?: () => void;
   onOpenApprovalsModal?: () => void;
   pendingApprovalsCount?: number;
@@ -57,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAddSale,
   onOpenMarketPrice,
   onOpenCopperChart,
+  onOpenAiAnalysis,
   activeView = 'dashboard',
   onOpenFactoryReset,
   onOpenApprovalsModal,
@@ -182,6 +185,20 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <TrendingUp className="w-4 h-4" />
               </button>
+              {onOpenAiAnalysis && (
+                <button
+                  type="button"
+                  onClick={onOpenAiAnalysis}
+                  className={`p-1.5 border rounded-lg cursor-pointer flex items-center justify-center ${
+                    activeView === 'ai-analysis'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                  }`}
+                  title="مشاهده تحلیل هوشمند جمنای"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onOpenMarketPrice}
@@ -212,6 +229,24 @@ export const Header: React.FC<HeaderProps> = ({
               <TrendingUp className={`w-4 h-4 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
               <span>چارت جهانی مس</span>
             </button>
+
+            {/* AI Smart Analysis Button */}
+            {onOpenAiAnalysis && (
+              <button
+                id="btn-ai-analysis-header"
+                type="button"
+                onClick={onOpenAiAnalysis}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
+                  activeView === 'ai-analysis'
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-md'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                }`}
+                title="مشاهده تحلیل هوشمند بازار مس با هوش مصنوعی جمنای"
+              >
+                <Sparkles className={`w-4 h-4 ${activeView === 'ai-analysis' ? 'text-white' : 'text-amber-500'}`} />
+                <span>تحلیل هوشمند جمنای</span>
+              </button>
+            )}
 
 
             {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}

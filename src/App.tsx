@@ -71,6 +71,7 @@ import { SupportChatWidget } from './components/SupportChatWidget';
 import { LoginScreen } from './components/LoginScreen';
 import { ClientPortalView } from './components/ClientPortalView';
 import { CopperChartView } from './components/CopperChartView';
+import { AiAnalysisView } from './components/AiAnalysisView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
 import { formatToman } from './utils/formatters';
@@ -107,7 +108,7 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart' | 'ai-analysis'>('dashboard');
 
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -1003,6 +1004,7 @@ export default function App() {
             onSubmitTopupReceipt={handleSubmitTopupReceipt}
             onLogout={handleLogout}
             onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
+            onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
             activeView={activeView}
           />
 
@@ -1013,8 +1015,7 @@ export default function App() {
               onClose={() => setStatementPersonId(null)}
               person={clientPerson}
               transactions={transactions}
-              marketPrices={marketPrices}
-              summary={clientSummary}
+              marketCopperPrice={marketPrices.buyPrice}
             />
           )}
 
@@ -1025,7 +1026,6 @@ export default function App() {
               onClose={() => setReceiptModalTx(null)}
               transaction={receiptModalTx}
               person={clientPerson}
-              marketPrice={marketPrices.buyPrice}
             />
           )}
 
@@ -1067,6 +1067,7 @@ export default function App() {
         onAddSale={() => handleOpenSellCopper()}
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
         onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
+        onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
         activeView={activeView}
         onOpenFactoryReset={() => setIsFactoryResetModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
@@ -1091,6 +1092,15 @@ export default function App() {
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => setActiveView('dashboard')} userRole={authSession?.role || 'admin'} />
+        ) : activeView === 'ai-analysis' ? (
+          <AiAnalysisView
+            onBack={() => setActiveView('dashboard')}
+            overallStats={overallStats}
+            peopleCount={people.length}
+            activeStockPeople={summaries.filter((s) => s.copperStockKg > 0).length}
+            companyStock={companyCopperStockKg}
+            livePrices={null}
+          />
         ) : (
           <>
             {/* Company Copper Stock Ingot Banner Card */}

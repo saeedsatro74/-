@@ -28,7 +28,8 @@ import {
   AlertCircle,
   MessageSquare,
   Image as ImageIcon,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
@@ -38,6 +39,7 @@ import { SupportChatWidget } from './SupportChatWidget';
 import { getStoredCompanyBankInfo, DEFAULT_COMPANY_BANK_INFO } from '../utils/storage';
 import { CompanyCopperStockCard } from './CompanyCopperStockCard';
 import { CopperChartView } from './CopperChartView';
+import { AiAnalysisView } from './AiAnalysisView';
 
 interface ClientPortalViewProps {
   person: Person;
@@ -51,7 +53,8 @@ interface ClientPortalViewProps {
   onViewReceipt: (tx: Transaction) => void;
   onLogout: () => void;
   onOpenCopperChart?: () => void;
-  activeView?: 'dashboard' | 'copper-chart';
+  onOpenAiAnalysis?: () => void;
+  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis';
   onSubmitRequest?: (data: {
     type: TransactionType;
     amount: number;
@@ -76,6 +79,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   onViewReceipt,
   onLogout,
   onOpenCopperChart,
+  onOpenAiAnalysis,
   activeView = 'dashboard',
   onSubmitRequest,
   onSubmitTopupReceipt,
@@ -221,6 +225,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </button>
             )}
 
+            {onOpenAiAnalysis && (
+              <button
+                type="button"
+                onClick={onOpenAiAnalysis}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                  activeView === 'ai-analysis'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-md'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                }`}
+                title="مشاهده تحلیل هوشمند بازار مس با هوش مصنوعی جمنای"
+              >
+                <Sparkles className={`w-4 h-4 ${activeView === 'ai-analysis' ? 'text-white' : 'text-amber-500'}`} />
+                <span>تحلیل هوشمند جمنای</span>
+              </button>
+            )}
+
 
 
             <button
@@ -252,6 +272,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => onOpenCopperChart?.()} userRole="client" />
+        ) : activeView === 'ai-analysis' ? (
+          <AiAnalysisView 
+            onBack={() => onOpenAiAnalysis?.()} 
+            overallStats={{
+              totalCashBalance: summary.cashBalance,
+              totalCopperStockKg: summary.copperStockKg,
+              totalCopperMarketValue: summary.copperMarketValue,
+              totalAssetValue: summary.totalAssetValue,
+              totalRealizedProfit: summary.realizedProfit,
+              pendingApprovalsCount: 0
+            }}
+            peopleCount={1}
+            activeStockPeople={1}
+            companyStock={companyCopperStockKg}
+            livePrices={marketPrices}
+          />
         ) : (
           <>
             {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT */}
