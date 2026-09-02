@@ -21,15 +21,51 @@ interface StatCardsProps {
   userRole?: 'admin' | 'staff' | 'client';
   onOpenMarketPrice?: () => void;
   onOpenApprovals?: () => void;
+  companyCopperStockKg?: number;
+  onOpenEditCompanyStock?: () => void;
 }
 
-export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin', onOpenMarketPrice, onOpenApprovals }) => {
+export const StatCards: React.FC<StatCardsProps> = ({ 
+  stats, 
+  userRole = 'admin', 
+  onOpenMarketPrice, 
+  onOpenApprovals,
+  companyCopperStockKg = 0,
+  onOpenEditCompanyStock
+}) => {
   const isProfitPositive = stats.totalRealizedProfit >= 0;
   const pendingApprovalsCount = stats.pendingApprovalsCount || 0;
 
   return (
     <div className="space-y-3">
       
+      {/* Zero Company Copper Stock Alert Banner (CEO Only) */}
+      {userRole === 'admin' && companyCopperStockKg === 0 && onOpenEditCompanyStock && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-stone-950 rounded-xl p-3.5 sm:p-4 shadow-sm border border-amber-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-stone-950 text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+              <Boxes className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-black text-sm sm:text-base flex items-center gap-2">
+                <span>موجودی مس انبار شرکت در حال حاضر «۰ کیلوگرم» است!</span>
+              </div>
+              <p className="text-xs text-stone-900 font-medium mt-0.5">
+                جهت ثبت موجودی اولیه یا شارژ مس فیزیکی آماده تحویل در انبار مرکزی، دکمه روبرو را بزنید.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenEditCompanyStock}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-black text-white bg-stone-950 hover:bg-stone-900 rounded-xl transition-all cursor-pointer shrink-0 shadow-md ring-2 ring-stone-900/30 hover:scale-[1.02]"
+          >
+            <Boxes className="w-4 h-4 text-amber-400" />
+            <span>+ وارد کردن موجودی مس انبار</span>
+          </button>
+        </div>
+      )}
+
       {/* Pending Approvals Notice Banner */}
       {pendingApprovalsCount > 0 && (
         <div className="bg-amber-500 text-stone-950 rounded-xl p-3.5 sm:p-4 shadow-sm border border-amber-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
@@ -91,10 +127,10 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 2. مجموع مس موجود در انبار */}
         <div 
           id="card-stat-stock"
-          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-400"
+          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-400 group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">مجموع مس موجود</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">مجموع مس مشتریان</span>
             <div className="w-6 h-6 rounded-md bg-amber-100/80 text-amber-800 flex items-center justify-center">
               <Boxes className="w-3.5 h-3.5" />
             </div>
@@ -104,8 +140,21 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
               {formatWeight(stats.totalCopperStockKg, false)}
               <span className="text-[10px] font-normal text-stone-500 mr-0.5">ک‌گ</span>
             </div>
-            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
-              {stats.activeStockPeopleCount} نفر دارای موجودی مس
+            <div className="text-[9px] sm:text-[10px] text-stone-500 flex items-center justify-between mt-0.5 pt-1 border-t border-stone-100">
+              <span>انبار شرکت:</span>
+              {userRole === 'admin' && onOpenEditCompanyStock ? (
+                <button
+                  type="button"
+                  onClick={onOpenEditCompanyStock}
+                  className="font-bold font-mono text-amber-900 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-1 py-0.2 rounded border border-amber-200 cursor-pointer flex items-center gap-0.5 transition-colors"
+                  title="کلیک برای تنظیم موجودی انبار شرکت"
+                >
+                  <span>{formatWeight(companyCopperStockKg, false)}</span>
+                  <Edit2 className="w-2.5 h-2.5 text-amber-600" />
+                </button>
+              ) : (
+                <span className="font-bold font-mono text-stone-700">{formatWeight(companyCopperStockKg, false)}</span>
+              )}
             </div>
           </div>
         </div>

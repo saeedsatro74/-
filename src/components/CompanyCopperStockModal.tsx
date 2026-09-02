@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, Layers, PlusCircle, CheckCircle2, RefreshCw, Sparkles, Building2 } from 'lucide-react';
-import { formatNumber, formatToman } from '../utils/formatters';
+import React, { useState, useEffect } from 'react';
+import { X, Layers, PlusCircle, CheckCircle2, RefreshCw, Sparkles, Building2, Boxes } from 'lucide-react';
+import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
 import { MarketPrices } from '../types';
 import { NumericInput } from './NumericInput';
 
@@ -22,6 +22,12 @@ export const CompanyCopperStockModal: React.FC<CompanyCopperStockModalProps> = (
   const [stockInputKg, setStockInputKg] = useState<number>(currentStockKg);
   const [mode, setMode] = useState<'set' | 'add'>('set');
   const [addKg, setAddKg] = useState<number>(500);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStockInputKg(currentStockKg);
+    }
+  }, [isOpen, currentStockKg]);
 
   if (!isOpen) return null;
 

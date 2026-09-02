@@ -6,6 +6,7 @@ import {
   UserPlus, 
   Calendar,
   Layers,
+  Boxes,
   ArrowDownLeft,
   Tag,
   Edit2,
@@ -16,7 +17,8 @@ import {
   X,
   KeyRound,
   Trash2,
-  Sparkles
+  Sparkles,
+  Plus
 } from 'lucide-react';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -124,18 +126,22 @@ export const Header: React.FC<HeaderProps> = ({
                   <Calendar className="w-3.5 h-3.5 text-stone-400" />
                   <span>{persianDate}</span>
                   <span className="text-stone-300">•</span>
-                  <span>انبار شرکت: {userRole === 'admin' ? (
-                    <button
-                      type="button"
-                      onClick={onOpenEditCompanyStock}
-                      className="font-bold text-stone-800 hover:text-stone-900 hover:underline cursor-pointer focus:outline-hidden"
-                      title="کلیک کنید جهت ویرایش یا شارژ موجودی انبار شرکت"
-                    >
-                      {formatWeight(companyCopperStockKg)}
-                    </button>
-                  ) : (
-                    <b className="font-bold text-stone-800">{formatWeight(companyCopperStockKg)}</b>
-                  )}</span>
+                  <span>
+                    انبار مس شرکت: {userRole === 'admin' && onOpenEditCompanyStock ? (
+                      <button
+                        type="button"
+                        onClick={onOpenEditCompanyStock}
+                        className="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded-md cursor-pointer transition-colors"
+                        title="کلیک کنید جهت ورود، ویرایش یا شارژ موجودی انبار مس شرکت"
+                      >
+                        <Boxes className="w-3 h-3 text-amber-700" />
+                        <span>{formatWeight(companyCopperStockKg)}</span>
+                        <Edit2 className="w-2.5 h-2.5 text-amber-600" />
+                      </button>
+                    ) : (
+                      <b className="font-bold text-stone-800">{formatWeight(companyCopperStockKg)}</b>
+                    )}
+                  </span>
                   <span className="text-stone-300">•</span>
                   <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
                 </div>
@@ -145,6 +151,17 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile Data & Approvals Buttons */}
             {!isPersonSelected && (
               <div className="lg:hidden flex items-center gap-1.5">
+                {userRole === 'admin' && onOpenEditCompanyStock && (
+                  <button
+                    type="button"
+                    onClick={onOpenEditCompanyStock}
+                    className="px-2 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg flex items-center gap-1 cursor-pointer"
+                    title="تنظیم و شارژ موجودی انبار مس شرکت"
+                  >
+                    <Boxes className="w-3.5 h-3.5 text-amber-700" />
+                    <span>انبار شرکت ({formatWeight(companyCopperStockKg, false)})</span>
+                  </button>
+                )}
                 {onChangePassword && (
                   <button
                     type="button"
@@ -261,6 +278,32 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
+
+              {/* Company Copper Warehouse Stock Button - ONLY for CEO / Admin */}
+              {userRole === 'admin' && onOpenEditCompanyStock && (
+                <button
+                  id="btn-company-copper-stock-header"
+                  type="button"
+                  onClick={onOpenEditCompanyStock}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
+                    companyCopperStockKg === 0
+                      ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 border-amber-600 ring-2 ring-amber-300 animate-pulse'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-950 border-amber-300'
+                  }`}
+                  title="تنظیم، ورود و شارژ موجودی مس انبار شرکت"
+                >
+                  <Boxes className="w-4 h-4 text-amber-800" />
+                  <span>انبار مس شرکت:</span>
+                  <span className="font-mono font-black">{formatWeight(companyCopperStockKg)}</span>
+                  {companyCopperStockKg === 0 ? (
+                    <span className="bg-stone-950 text-amber-300 text-[10px] px-1.5 py-0.5 rounded font-black mr-1">
+                      + ورود موجودی
+                    </span>
+                  ) : (
+                    <Edit2 className="w-3 h-3 text-amber-700 mr-0.5" />
+                  )}
+                </button>
+              )}
 
               {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}
               {userRole === 'admin' && onOpenApprovalsModal && (

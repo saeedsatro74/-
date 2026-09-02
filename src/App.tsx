@@ -1156,6 +1156,8 @@ export default function App() {
               userRole={authSession?.role || 'admin'}
               onOpenMarketPrice={() => setIsMarketPriceOpen(true)} 
               onOpenApprovals={authSession?.role === 'admin' ? () => setIsApprovalsModalOpen(true) : undefined}
+              companyCopperStockKg={companyCopperStockKg}
+              onOpenEditCompanyStock={() => setIsCompanyCopperStockModalOpen(true)}
             />
 
             {/* Primary People and Copper Wallets Table */}
