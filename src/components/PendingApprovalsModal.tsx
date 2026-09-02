@@ -513,7 +513,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                     {tx.assignedBankName && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 mb-3 space-y-1">
                         <div className="font-bold flex items-center justify-between">
-                          <span>شماره حساب اختصاص‌یافته توسط مدیر: {tx.assignedBankName} ({tx.assignedOwnerName})</span>
+                          <span>شماره حساب اختصاص‌یافته به مشتری: {tx.assignedBankName} ({tx.assignedOwnerName})</span>
                           <span className="font-mono">{tx.assignedCardNumber}</span>
                         </div>
                         {tx.assignedIbanNumber && (
@@ -536,7 +536,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                             onClick={() => setPreviewImageUrl(tx.receiptImageUrl || null)}
                           />
                           <div>
-                            <span className="text-xs font-bold text-emerald-950 block">عکس رسید واریزی بانکی مشتری</span>
+                            <span className="text-xs font-bold text-emerald-950 block">عکس رسید واریزی بانکی مشتری (مرحله ۳)</span>
                             <span className="text-[11px] text-emerald-700 font-mono">کد پیگیری/فیش: {tx.receiptNumber || 'ثبت شده'}</span>
                           </div>
                         </div>
@@ -548,6 +548,36 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                           <Info className="w-3.5 h-3.5" />
                           <span>مشاهده کامل عکس فیش</span>
                         </button>
+                      </div>
+                    )}
+
+                    {/* Step Warning / Helper Banners for Topup */}
+                    {tx.type === 'deposit' && (
+                      <div className="mb-3">
+                        {(status === 'topup_step1_pending_bank' || status === 'pending') && (
+                          <div className="p-2.5 bg-amber-100/80 border border-amber-300 text-amber-900 rounded-lg text-xs font-medium flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0 animate-ping" />
+                            <span>
+                              <b>مرحله ۱ از ۴:</b> مشتری درخواست شارژ داده است. لطفاً ابتدا روی <b>«انتخاب و ارسال شماره حساب»</b> کلیک کنید. تا زمان ارسال فیش توسط مشتری و تأیید نهایی آن در مرحله ۴، موجودی به حساب افزوده نمی‌شود.
+                            </span>
+                          </div>
+                        )}
+                        {status === 'topup_step2_awaiting_receipt' && (
+                          <div className="p-2.5 bg-blue-100/80 border border-blue-300 text-blue-950 rounded-lg text-xs font-medium flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                            <span>
+                              <b>مرحله ۲ از ۴:</b> شماره حساب برای مشتری ارسال شده است. اکنون در انتظار واریز وجه و ارسال عکس فیش توسط مشتری هستید.
+                            </span>
+                          </div>
+                        )}
+                        {status === 'topup_step3_pending_approval' && (
+                          <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-lg text-xs font-bold flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0 animate-ping" />
+                            <span>
+                              <b>مرحله ۳ از ۴ (آماده تایید نهایی):</b> عکس فیش و کد رهگیری توسط مشتری بارگذاری شد. پس از بررسی حساب بانکی و مطابقت فیش، دکمه <b>«تأیید فیش و شارژ نهایی حساب»</b> را بزنید.
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -589,30 +619,75 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
 
                         {/* STEP 1: CEO Assign Bank Account Button */}
                         {(status === 'topup_step1_pending_bank' || (tx.type === 'deposit' && status === 'pending')) && (
-                          <button
-                            type="button"
-                            onClick={() => handleStartAssignBank(tx)}
-                            className="px-3.5 py-1.5 text-xs font-black text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Building2 className="w-3.5 h-3.5" />
-                            <span>انتخاب و ارسال شماره حساب</span>
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartReject(tx.id)}
+                              className="px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>رد درخواست</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleStartAssignBank(tx)}
+                              className="px-3.5 py-1.5 text-xs font-black text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Building2 className="w-3.5 h-3.5" />
+                              <span>مرحله ۲: انتخاب و ارسال شماره حساب</span>
+                            </button>
+                          </>
                         )}
 
-                        {/* STEP 2: CEO Change Bank Account Button */}
+                        {/* STEP 2: CEO Change Bank Account or Reject */}
                         {status === 'topup_step2_awaiting_receipt' && (
-                          <button
-                            type="button"
-                            onClick={() => handleStartAssignBank(tx)}
-                            className="px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-amber-700" />
-                            <span>تغییر شماره حساب</span>
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartReject(tx.id)}
+                              className="px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>رد درخواست</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleStartAssignBank(tx)}
+                              className="px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Building2 className="w-3.5 h-3.5 text-amber-700" />
+                              <span>تغییر شماره حساب ارسال‌شده</span>
+                            </button>
+                          </>
                         )}
 
-                        {/* STEP 3 & Pending Approval: Final CEO Approval */}
-                        {(status === 'pending' || status === 'topup_step1_pending_bank' || status === 'topup_step2_awaiting_receipt' || status === 'topup_step3_pending_approval') && (
+                        {/* STEP 3: Receipt Uploaded -> CEO Step 4 Final Approval */}
+                        {status === 'topup_step3_pending_approval' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartReject(tx.id)}
+                              className="px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>رد فیش / درخواست</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => executeApprove(tx.id)}
+                              className="px-4 py-1.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer animate-pulse"
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                              <span>مرحله ۴: تأیید فیش و شارژ نهایی حساب</span>
+                            </button>
+                          </>
+                        )}
+
+                        {/* Other non-deposit pending transactions (buy, sell, withdrawal) */}
+                        {tx.type !== 'deposit' && status === 'pending' && (
                           <>
                             <button
                               type="button"
@@ -634,9 +709,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                                   ? 'تأیید نهایی و کسر از موجودی' 
                                   : tx.type === 'sell' 
                                   ? 'تأیید نهایی و واریز به حساب' 
-                                  : tx.type === 'withdrawal' 
-                                  ? 'تأیید نهایی و تسویه وجه' 
-                                  : 'تأیید نهایی و شارژ حساب'}
+                                  : 'تأیید نهایی و تسویه وجه'}
                               </span>
                             </button>
                           </>

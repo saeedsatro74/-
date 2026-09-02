@@ -19,6 +19,7 @@ import {
   Info,
   Tag,
   CheckCircle2,
+  XCircle,
   FileSpreadsheet
 } from 'lucide-react';
 import { PersonWalletSummary, Transaction, Person } from '../types';
@@ -448,31 +449,48 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                             {tx.date}
                           </td>
 
-                          {/* Type */}
+                          {/* Type & Approval Status Badge */}
                           <td className="py-3 px-3 whitespace-nowrap">
                             <div className="flex flex-col gap-1">
                               <div>{getTransactionBadge(tx.type)}</div>
-                              {(tx.type === 'buy' || tx.type === 'sell') && (
-                                <div>
-                                  {tx.approvalStatus === 'pending' && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping inline-block" />
-                                      در انتظار تأیید
-                                    </span>
-                                  )}
-                                  {tx.approvalStatus === 'approved' && (
-                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                      تأیید مدیرعامل
-                                    </span>
-                                  )}
-                                  {tx.approvalStatus === 'rejected' && (
-                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                                      رد شده
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              <div>
+                                {tx.approvalStatus === 'topup_step1_pending_bank' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping inline-block" />
+                                    مرحله ۱: منتظر شماره حساب
+                                  </span>
+                                )}
+                                {tx.approvalStatus === 'topup_step2_awaiting_receipt' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />
+                                    مرحله ۲: منتظر فیش واریز
+                                  </span>
+                                )}
+                                {tx.approvalStatus === 'topup_step3_pending_approval' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-ping inline-block" />
+                                    مرحله ۳: فیش ارسال شد (منتظر تایید)
+                                  </span>
+                                )}
+                                {tx.approvalStatus === 'pending' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping inline-block" />
+                                    در انتظار تأیید مدیر
+                                  </span>
+                                )}
+                                {(!tx.approvalStatus || tx.approvalStatus === 'approved') && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    تأیید نهایی شده
+                                  </span>
+                                )}
+                                {tx.approvalStatus === 'rejected' && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                                    <XCircle className="w-2.5 h-2.5 text-rose-600" />
+                                    رد شده
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
 
@@ -528,12 +546,24 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
 
                           {/* Cash Balance After */}
                           <td className="py-3 px-3 text-left font-mono font-bold text-stone-900 bg-stone-50/50">
-                            {formatNumber(tx.cashBalanceAfter || 0)}
+                            {tx.approvalStatus && tx.approvalStatus !== 'approved' ? (
+                              <span className="text-[10px] font-sans font-normal text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 block whitespace-nowrap">
+                                در انتظار تأیید نهایی
+                              </span>
+                            ) : (
+                              formatNumber(tx.cashBalanceAfter || 0)
+                            )}
                           </td>
 
                           {/* Copper Stock After */}
                           <td className="py-3 px-3 text-center font-mono font-bold text-amber-900 bg-amber-50/30">
-                            {formatWeight(tx.copperStockAfter || 0, false)}
+                            {tx.approvalStatus && tx.approvalStatus !== 'approved' ? (
+                              <span className="text-[10px] font-sans font-normal text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 block whitespace-nowrap">
+                                در انتظار تأیید
+                              </span>
+                            ) : (
+                              formatWeight(tx.copperStockAfter || 0, false)
+                            )}
                           </td>
 
                           {/* Notes */}

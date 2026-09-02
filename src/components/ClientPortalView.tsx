@@ -672,12 +672,27 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           {isApproved ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3" />
-                              تأیید شده
+                              تأیید و اعمال شده
                             </span>
                           ) : isRejected ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                               <XCircle className="w-3 h-3" />
                               رد شده
+                            </span>
+                          ) : tx.approvalStatus === 'topup_step1_pending_bank' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                              <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                              مرحله ۱: منتظر شماره حساب
+                            </span>
+                          ) : tx.approvalStatus === 'topup_step2_awaiting_receipt' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
+                              <Clock className="w-3 h-3 text-blue-600" />
+                              مرحله ۲: منتظر واریز و ارسال فیش
+                            </span>
+                          ) : tx.approvalStatus === 'topup_step3_pending_approval' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
+                              <Clock className="w-3 h-3 text-purple-600" />
+                              مرحله ۳: فیش ارسال شد (در انتظار تأیید مدیر)
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
@@ -698,13 +713,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           {formatNumber(tx.amount)} تومان
                         </td>
                         <td className="p-3 font-mono text-stone-700 whitespace-nowrap">
-                          {tx.cashBalanceAfter !== undefined ? formatNumber(tx.cashBalanceAfter) : (
-                            <span className="text-[11px] text-amber-700 italic font-sans font-medium">پس از تأیید مدیر</span>
+                          {isApproved ? (
+                            formatNumber(tx.cashBalanceAfter || 0)
+                          ) : (
+                            <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-sans font-medium whitespace-nowrap">
+                              پس از تأیید فیش در مرحله ۴
+                            </span>
                           )}
                         </td>
                         <td className="p-3 font-mono text-stone-700 whitespace-nowrap">
-                          {tx.copperStockAfter !== undefined ? formatWeight(tx.copperStockAfter) : (
-                            <span className="text-[11px] text-amber-700 italic font-sans font-medium">پس از تأیید مدیر</span>
+                          {isApproved ? (
+                            formatWeight(tx.copperStockAfter || 0)
+                          ) : (
+                            <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-sans font-medium whitespace-nowrap">
+                              پس از تأیید مدیر
+                            </span>
                           )}
                         </td>
                         <td className="p-3 text-center whitespace-nowrap">
