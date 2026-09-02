@@ -39,20 +39,15 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [success, setSuccess] = useState(false);
 
   const isRoleAdmin = role === 'admin';
-  const isRoleStaff = role === 'staff';
   const isRoleClient = role === 'client' || !!person;
 
   // Determine modal header info
   const title = isRoleAdmin 
     ? 'تغییر رمز عبور مدیرعامل' 
-    : isRoleStaff 
-    ? 'تغییر رمز عبور حسابدار مس' 
     : 'تغییر رمز عبور حساب مشتری';
 
   const subtitle = isRoleAdmin
     ? 'پنل مدیریت کل و کارتابل تأییدات'
-    : isRoleStaff
-    ? 'پنل ثبت فاکتورها و عملیات حسابداری مس'
     : (person?.name || 'پورتال اختصاصی طرف‌حساب');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,12 +63,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       const storedAdmin = getStoredAdminPassword();
       if (cleanCurrent !== storedAdmin) {
         setError('رمز عبور فعلی مدیرعامل نادرست است.');
-        return;
-      }
-    } else if (isRoleStaff) {
-      const storedStaff = getStoredStaffPassword();
-      if (cleanCurrent !== storedStaff) {
-        setError('رمز عبور فعلی حسابدار مس نادرست است.');
         return;
       }
     } else if (person) {
@@ -106,8 +95,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     // Save based on role
     if (isRoleAdmin && onSaveAdminPassword) {
       onSaveAdminPassword(cleanNew);
-    } else if (isRoleStaff && onSaveStaffPassword) {
-      onSaveStaffPassword(cleanNew);
     } else if (person && onSavePassword) {
       onSavePassword(person.id, cleanNew);
     }
@@ -126,12 +113,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-2.5">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white ${
-              isRoleAdmin ? 'bg-amber-600' : isRoleStaff ? 'bg-blue-600' : 'bg-stone-900'
+              isRoleAdmin ? 'bg-amber-600' : 'bg-stone-900'
             }`}>
               {isRoleAdmin ? (
                 <ShieldCheck className="w-5 h-5" />
-              ) : isRoleStaff ? (
-                <Briefcase className="w-5 h-5" />
               ) : (
                 <KeyRound className="w-5 h-5" />
               )}
@@ -179,7 +164,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 {/* Current Password */}
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    {isRoleAdmin ? 'رمز عبور فعلی مدیرعامل' : isRoleStaff ? 'رمز عبور فعلی حسابدار مس' : 'رمز عبور فعلی (یا ۴ رقم آخر موبایل)'}
+                    {isRoleAdmin ? 'رمز عبور فعلی مدیرعامل' : 'رمز عبور فعلی (یا ۴ رقم آخر موبایل)'}
                   </label>
                   <div className="relative">
                     <input

@@ -142,12 +142,12 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
           </div>
 
           {/* Status Filter Tabs */}
-          <div className="flex items-center bg-stone-100 p-1 rounded-lg border border-stone-200/80 text-xs font-medium">
+          <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200/80 text-[10px] sm:text-xs font-medium max-w-full overflow-x-auto whitespace-nowrap">
             <button
               id="filter-all"
               type="button"
               onClick={() => setFilterStatus('all')}
-              className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 filterStatus === 'all'
                   ? 'bg-white text-stone-900 shadow-2xs font-semibold'
                   : 'text-stone-600 hover:text-stone-900'
@@ -159,7 +159,7 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
               id="filter-has-stock"
               type="button"
               onClick={() => setFilterStatus('has_stock')}
-              className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 filterStatus === 'has_stock'
                   ? 'bg-white text-amber-900 shadow-2xs font-semibold'
                   : 'text-stone-600 hover:text-stone-900'
@@ -171,7 +171,7 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
               id="filter-has-cash"
               type="button"
               onClick={() => setFilterStatus('has_cash')}
-              className={`px-3 py-1.5 rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 filterStatus === 'has_cash'
                   ? 'bg-white text-emerald-900 shadow-2xs font-semibold'
                   : 'text-stone-600 hover:text-stone-900'
@@ -439,12 +439,12 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
         </table>
       </div>
 
-      {/* Mobile Card View */}
-      <div className="lg:hidden divide-y divide-stone-200">
+      {/* Mobile Card View - Ultra High Density & Space Saving */}
+      <div className="lg:hidden divide-y divide-stone-150">
         {filteredAndSortedSummaries.length === 0 ? (
-          <div className="p-8 text-center text-stone-400">
-            <PackageCheck className="w-10 h-10 mx-auto text-stone-300 mb-2" />
-            <p className="font-medium text-stone-600">هیچ رکوردی یافت نشد</p>
+          <div className="p-6 text-center text-stone-400">
+            <PackageCheck className="w-8 h-8 mx-auto text-stone-300 mb-1" />
+            <p className="text-xs font-semibold text-stone-600">هیچ رکوردی یافت نشد</p>
           </div>
         ) : (
           filteredAndSortedSummaries.map((item) => {
@@ -452,104 +452,103 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
             return (
               <div 
                 key={item.person.id}
-                className="p-4 space-y-3 hover:bg-stone-50/70 transition-colors"
+                className="p-2.5 space-y-2 hover:bg-stone-50/70 transition-colors"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <div>
                     <h3 
                       onClick={() => onSelectPerson(item.person.id)}
-                      className="font-bold text-base text-stone-900 hover:text-amber-800 cursor-pointer"
+                      className="font-black text-xs sm:text-sm text-stone-900 hover:text-amber-800 cursor-pointer flex items-center gap-1.5"
                     >
                       {item.person.name}
+                      {item.person.phone && (
+                        <span className="text-[10px] text-stone-400 font-normal font-mono">({item.person.phone})</span>
+                      )}
                     </h3>
-                    {item.person.phone && (
-                      <p className="text-xs text-stone-500 font-mono mt-0.5">{item.person.phone}</p>
-                    )}
                   </div>
 
-                  <div className="text-left font-mono">
-                    <span className="text-xs text-stone-400 block font-sans">مجموع دارایی</span>
-                    <span className="font-extrabold text-sm text-amber-950">
-                      {formatNumber(item.totalAssetValue)} ت
+                  <div className="text-left font-mono shrink-0">
+                    <span className="font-extrabold text-xs text-amber-950">
+                      {formatNumber(item.totalAssetValue)} <span className="text-[9px] font-normal text-stone-500 font-sans">ت</span>
                     </span>
                   </div>
                 </div>
 
-                {/* Mobile Metrics Grid */}
-                <div className="grid grid-cols-2 gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200/80 text-xs">
-                  <div>
-                    <span className="text-stone-500 block">موجودی ریالی:</span>
-                    <span className="font-bold text-emerald-800 text-sm font-mono">{formatNumber(item.cashBalance)} ت</span>
+                {/* Inline High-Density Metrics Row */}
+                <div className="grid grid-cols-2 gap-1.5 bg-stone-50/80 px-2 py-1.5 rounded-lg border border-stone-200/50 text-[11px] font-medium text-stone-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-400">ریالی:</span>
+                    <span className="font-bold text-emerald-800 font-mono">{formatNumber(item.cashBalance)} ت</span>
                   </div>
-                  <div>
-                    <span className="text-stone-500 block">موجودی مس:</span>
-                    <span className="font-bold text-amber-900 text-sm font-mono">{formatWeight(item.copperStockKg)}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-400">مس:</span>
+                    <span className="font-bold text-amber-900 font-mono">{formatWeight(item.copperStockKg)}</span>
                   </div>
-                  <div>
-                    <span className="text-stone-500 block">ارزش روز مس:</span>
-                    <span className="font-medium text-stone-800 font-mono">{formatNumber(item.copperMarketValue)} ت</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-400">ارزش مس:</span>
+                    <span className="font-semibold text-stone-800 font-mono">{formatNumber(item.copperMarketValue)} ت</span>
                   </div>
-                  <div>
-                    <span className="text-stone-500 block">سود واقعی:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-stone-400">سود:</span>
                     <span className={`font-bold font-mono ${isProfitPos ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {item.realizedProfit > 0 ? '+' : ''}{formatNumber(item.realizedProfit)} ت
                     </span>
                   </div>
                 </div>
 
-                {/* Mobile Actions */}
-                <div className="flex items-center justify-between pt-1">
+                {/* Compact Actions Row */}
+                <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-stone-100">
                   <button
                     type="button"
                     onClick={() => onSelectPerson(item.person.id)}
-                    className="text-xs font-semibold text-stone-800 bg-stone-100 hover:bg-stone-200 px-3.5 py-1.5 rounded-lg flex items-center gap-1.5"
+                    className="text-[10px] font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-md flex items-center gap-1 shrink-0"
                   >
-                    <Eye className="w-3.5 h-3.5 text-stone-600" />
-                    <span>مشاهده پرونده و تراکنش‌ها</span>
+                    <Eye className="w-3 h-3 text-stone-500" />
+                    <span>پرونده و تراکنش‌ها</span>
                   </button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     {onOpenStatement && (
                       <button
                         type="button"
                         onClick={() => onOpenStatement(item.person.id)}
-                        className="p-1.5 text-stone-700 bg-stone-100 hover:bg-amber-100 rounded-lg"
-                        title="صورت‌حساب و PDF"
+                        className="p-1 text-stone-600 bg-stone-100 hover:bg-amber-100 rounded cursor-pointer"
+                        title="کاردکس"
                       >
-                        <FileText className="w-4 h-4 text-stone-600" />
+                        <FileText className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => onAddPurchase(item.person.id)}
-                      className="p-1.5 text-amber-800 bg-amber-50 rounded-lg"
+                      className="p-1 text-amber-800 bg-amber-50 rounded cursor-pointer"
                       title="خرید مس"
                     >
-                      <ShoppingBag className="w-4 h-4 text-amber-700" />
+                      <ShoppingBag className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => onAddSale(item.person.id)}
-                      className="p-1.5 text-blue-700 bg-blue-50 rounded-lg"
+                      className="p-1 text-blue-700 bg-blue-50 rounded cursor-pointer"
                       title="فروش مس"
                     >
-                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      <TrendingUp className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => onAddDeposit(item.person.id)}
-                      className="p-1.5 text-emerald-700 bg-emerald-50 rounded-lg"
+                      className="p-1 text-emerald-700 bg-emerald-50 rounded cursor-pointer"
                       title="واریز وجه"
                     >
-                      <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+                      <ArrowDownLeft className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => onEditPerson(item.person.id)}
-                      className="p-1.5 text-stone-500 bg-stone-100 rounded-lg"
+                      className="p-1 text-stone-400 bg-stone-100 hover:text-stone-700 rounded cursor-pointer"
                       title="ویرایش"
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

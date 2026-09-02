@@ -14,7 +14,7 @@ const STORAGE_KEYS = {
   COMPANY_COPPER_STOCK: 'waateh_company_copper_stock_v1',
 };
 
-export const DEFAULT_COMPANY_COPPER_STOCK_KG = 2000; // Default 2 Tons of copper
+export const DEFAULT_COMPANY_COPPER_STOCK_KG = 0; // Default starts at 0 kg of copper as requested
 
 export function getStoredCompanyCopperStock(): number {
   try {
@@ -581,9 +581,8 @@ export function resetToSampleData(): { people: Person[]; transactions: Transacti
 }
 
 export function clearAllData(): void {
-  localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify([]));
+  // Only wipe transactions so that customer accounts (people) and their login passwords remain intact
   localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
-  localStorage.removeItem(STORAGE_KEYS.CLIENT_PASSWORDS);
 }
 
 /**

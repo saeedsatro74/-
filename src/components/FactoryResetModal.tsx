@@ -104,11 +104,11 @@ export const FactoryResetModal: React.FC<FactoryResetModalProps> = ({
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
               <span>هشدار بسیار مهم: این عملیات غیرقابل بازگشت است!</span>
             </div>
-            <ul className="list-disc list-inside space-y-1.5 text-xs text-rose-800 pr-1 leading-relaxed">
-              <li>تمامی <b>اشخاص و طرف‌های حساب</b> کلا حذف می‌شوند.</li>
-              <li>تمامی <b>تراکنش‌های مالی، خرید، فروش، واریز و برداشت</b> کلا پاک می‌گردند.</li>
+            <ul className="list-disc list-inside space-y-1.5 text-xs text-rose-800 pr-1 leading-relaxed font-semibold">
+              <li>مشخصات، رمز عبور و حساب‌های کاربری <b>مشتریان (طرف‌های حساب) حفظ می‌گردند</b> تا نیازی به ثبت نام مجدد نباشد.</li>
+              <li>تمامی <b>تراکنش‌های مالی، تاریخچه فاکتورها، اسناد، خرید، فروش، واریز و برداشت</b> کلا پاک می‌گردند.</li>
               <li>تمامی <b>مانده حساب‌های ریالی و کیف‌های مس مشتریان</b> صفر مطلق می‌شوند.</li>
-              <li>داده‌ها هم از حافظه محلی و هم از <b>دیتابیس ابری (Supabase)</b> کاملاً حذف خواهند شد.</li>
+              <li>داده‌ها هم از حافظه محلی و هم از <b>دیتابیس ابری (Supabase)</b> کاملاً پاکسازی خواهند شد.</li>
             </ul>
           </div>
 

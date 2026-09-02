@@ -1,43 +1,33 @@
 @import "tailwindcss";
 
-/* B Nazanin Web Font definitions */
-@font-face {
-  font-family: 'B Nazanin';
-  src: local('B Nazanin'), local('BNazanin'), local('Nazanin'),
-       url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'B Nazanin';
-  src: local('B Nazanin Bold'), local('BNazanin-Bold'), local('Nazanin-Bold'), local('B Titr'),
-       url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.woff2') format('woff2');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
+/* Import Premium Modern Sans-Serif Vazirmatn Font directly from High-Speed Google Fonts CDN */
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 @layer base {
-  body, html, input, button, select, textarea {
-    font-family: 'B Nazanin', 'BNazanin', 'Nazanin', 'Vazirmatn', -apple-system, BlinkMacSystemFont, Tahoma, Arial, sans-serif !important;
+  html, body, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
   }
 
-  /* Custom scrollbar for clean UI */
+  body, html, input, button, select, textarea {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Tahoma, Arial, sans-serif !important;
+  }
+
+  /* Custom scrollbar for clean Digikala-like UI */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #f8f9fa;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 4px;
+    background: #e4e4e7;
+    border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: #cbd5e1;
   }
 }
 
@@ -50,4 +40,3 @@
     color: black !important;
   }
 }
-

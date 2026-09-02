@@ -19,7 +19,6 @@ import {
   saveMarketPrice,
   saveMarketPrices,
   saveAdminPassword,
-  saveStaffPassword,
   saveClientPassword,
   clearAllData,
   calculatePersonSummary, 
@@ -922,7 +921,10 @@ export default function App() {
     }
     setIsSyncing(true);
     clearAllData();
-    setPeople([]);
+    // Reset company copper stock and save
+    setCompanyCopperStockKg(0);
+    saveStoredCompanyCopperStock(0);
+    // Keeps the people (customers) state intact as requested, only resetting transactions
     setTransactions([]);
     setMarketPrices({
       buyPrice: DEFAULT_MARKET_BUY_PRICE,
@@ -930,12 +932,12 @@ export default function App() {
     });
     setSelectedPersonId(null);
 
-    // Wipe all rows from Cloud
+    // Wipe all rows from Cloud except people
     await dbClearAllCloudData();
 
     setIsSyncing(false);
     setIsFactoryResetModalOpen(false);
-    showToast('تمامی اطلاعات از دیتابیس ابر و دستگاه پاک شدند و سیستم کاملاً به حالت خام بازنشانی شد.');
+    showToast('تمامی تراکنش‌ها، خرید و فروش‌ها و موجودی‌ها صفر شدند، اما مشخصات و حساب مشتریان به طور کامل حفظ گردیدند.');
   };
 
   const handleLogout = () => {
@@ -1085,10 +1087,12 @@ export default function App() {
         isSyncing={isSyncing}
         userRole={authSession?.role || 'admin'}
         currentUsername={authSession?.username}
+        onOpenEditCompanyStock={() => setIsCompanyCopperStockModalOpen(true)}
+        isPersonSelected={!!selectedPersonId}
       />
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+      <main className="max-w-7xl mx-auto px-2 sm:px-4 py-3 flex-1 w-full space-y-3">
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => setActiveView('dashboard')} userRole={authSession?.role || 'admin'} />
@@ -1103,14 +1107,6 @@ export default function App() {
           />
         ) : (
           <>
-            {/* Company Copper Stock Ingot Banner Card */}
-            <CompanyCopperStockCard
-              companyCopperStockKg={companyCopperStockKg}
-              marketPrices={marketPrices}
-              userRole={authSession?.role || 'admin'}
-              onOpenEditStockModal={authSession?.role === 'admin' ? () => setIsCompanyCopperStockModalOpen(true) : undefined}
-            />
-
             {/* Statistical Asset Cards */}
             <StatCards 
               stats={overallStats} 
@@ -1295,7 +1291,7 @@ export default function App() {
         userRole={authSession?.role || 'admin'}
       />
 
-      {/* Change Password Modal for CEO / Staff / Client */}
+      {/* Change Password Modal for CEO / Client */}
       {isChangePassModalOpen && (
         <ChangePasswordModal
           role={authSession?.role || 'admin'}
@@ -1304,10 +1300,6 @@ export default function App() {
           onSaveAdminPassword={(newPass) => {
             saveAdminPassword(newPass);
             showToast('رمز عبور مدیرعامل با موفقیت بروزرسانی شد.');
-          }}
-          onSaveStaffPassword={(newPass) => {
-            saveStaffPassword(newPass);
-            showToast('رمز عبور حسابدار مس با موفقیت بروزرسانی شد.');
           }}
           onSavePassword={(personId, newPass) => {
             handleSavePersonPassword(personId, newPass);

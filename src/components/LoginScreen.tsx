@@ -22,7 +22,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'management' | 'client'>('management');
+  const [activeTab, setActiveTab] = useState<'management' | 'client'>('client');
 
   // Management Form State
   const [mgmtRole, setMgmtRole] = useState<'admin' | 'staff'>('admin');
@@ -161,7 +161,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-amber-600" />
-            <span>ورود مدیریت و پرسنل</span>
+            <span>ورود مدیریت</span>
           </button>
 
           <button
@@ -178,60 +178,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
           </button>
         </div>
 
-        {/* Tab 1: Management / Staff Login */}
+        {/* Tab 1: Management / CEO Login */}
         {activeTab === 'management' && (
           <form onSubmit={handleMgmtSubmit} className="p-6 space-y-4">
             
-            {/* Role Select (CEO vs Staff) */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-600 mb-1.5">
-                نقش کاربری
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMgmtRole('admin');
-                    setMgmtError('');
-                  }}
-                  className={`p-3 rounded-xl border text-right transition-all cursor-pointer ${
-                    mgmtRole === 'admin'
-                      ? 'border-amber-600 bg-amber-50/60 ring-2 ring-amber-500/20'
-                      : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-stone-900">مدیرعامل (کامل)</span>
-                    <ShieldCheck className={`w-4 h-4 ${mgmtRole === 'admin' ? 'text-amber-600' : 'text-stone-400'}`} />
-                  </div>
-                  <p className="text-[10px] text-stone-500">تأیید نهایی، تنظیم نرخ، سود/زیان</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMgmtRole('staff');
-                    setMgmtError('');
-                  }}
-                  className={`p-3 rounded-xl border text-right transition-all cursor-pointer ${
-                    mgmtRole === 'staff'
-                      ? 'border-blue-600 bg-blue-50/60 ring-2 ring-blue-500/20'
-                      : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-stone-900">حسابدار مس</span>
-                    <Briefcase className={`w-4 h-4 ${mgmtRole === 'staff' ? 'text-blue-600' : 'text-stone-400'}`} />
-                  </div>
-                  <p className="text-[10px] text-stone-500">ثبت فاکتورها (ارسال به تأیید مدیرعامل)</p>
-                </button>
-              </div>
-            </div>
-
             {/* Password Input */}
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                رمز عبور {mgmtRole === 'admin' ? 'مدیرعامل' : 'حسابدار مس'}
+                رمز عبور مدیرعامل
               </label>
               
               <div className="relative">
@@ -245,7 +199,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
                     setMgmtPassword(e.target.value);
                     if (mgmtError) setMgmtError('');
                   }}
-                  placeholder={mgmtRole === 'admin' ? 'رمز عبور مدیرعامل...' : 'رمز عبور حسابدار مس...'}
+                  placeholder="رمز عبور مدیرعامل..."
                   autoFocus
                   className={`w-full pr-10 pl-10 py-3 text-sm rounded-xl border bg-stone-50 text-stone-900 focus:outline-none focus:bg-white transition-all font-mono ${
                     mgmtError 

@@ -81,6 +81,11 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     initialType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice
   );
   
+  // Buy copper multi-step wizard states
+  const [buyStep, setBuyStep] = useState<1 | 2>(1);
+  const [buyInputMode, setBuyInputMode] = useState<'weight' | 'budget'>('weight');
+  const [buyBudget, setBuyBudget] = useState<number>(0);
+  
   // Withdrawal specific
   const [clientCardNumber, setClientCardNumber] = useState('');
   const [clientBankName, setClientBankName] = useState('');
@@ -235,33 +240,75 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
     // --- BUY COPPER REQUEST ---
     if (requestType === 'buy') {
-      if (weightKg <= 0) {
-        setError('لطفاً مقدار مس برای خرید به کیلوگرم را وارد کنید.');
-        return;
-      }
-      if (unitPrice <= 0) {
-        setError('لطفاً قیمت خرید هر کیلوگرم را وارد کنید.');
-        return;
-      }
-      if (weightKg > companyCopperStockKg) {
-        setError(
-          `موجودی مس آماده تحویل شرکت کافی نیست! موجودی انبار شرکت: ${formatWeight(
-            companyCopperStockKg
-          )} (${(companyCopperStockKg / 1000).toFixed(3)} تن) می‌باشد.`
-        );
-        return;
-      }
-      const totalCalculated = Math.round(weightKg * unitPrice);
-      if (totalCalculated > summary.cashBalance) {
-        setError(
-          `موجودی ریالی شما کافی نیست! موجودی فعلی: ${formatToman(summary.cashBalance)}، مبلغ فاکتور: ${formatToman(
-            totalCalculated
-          )}.`
-        );
+      const curPrice = marketPrices.buyPrice;
+      if (curPrice <= 0) {
+        setError('قیمت مرجع روز نامعتبر است.');
         return;
       }
 
-      let finalNotes = `درخواست خرید ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)}`;
+      if (buyStep === 1) {
+        // Validation for step 1
+        if (buyInputMode === 'weight') {
+          if (weightKg <= 0) {
+            setError('لطفاً وزن مس مورد نظر خود را به کیلوگرم وارد کنید.');
+            return;
+          }
+          if (weightKg > companyCopperStockKg) {
+            setError(
+              `موجودی مس آماده تحویل شرکت کافی نیست! موجودی انبار شرکت: ${formatWeight(
+                companyCopperStockKg
+              )} کیلوگرم می‌باشد.`
+            );
+            return;
+          }
+          const totalAmount = Math.round(weightKg * curPrice);
+          if (totalAmount > summary.cashBalance) {
+            setError(
+              `موجودی ریالی شما کافی نیست! موجودی فعلی: ${formatToman(summary.cashBalance)}، مبلغ کل فاکتور: ${formatToman(
+                totalAmount
+              )}.`
+            );
+            return;
+          }
+          setAmount(totalAmount);
+          setUnitPrice(curPrice);
+          setBuyStep(2);
+        } else {
+          if (buyBudget <= 0) {
+            setError('لطفاً مبلغ بودجه خود را به تومان وارد کنید.');
+            return;
+          }
+          if (buyBudget > summary.cashBalance) {
+            setError(
+              `مبلغ بودجه وارد شده (${formatToman(buyBudget)}) بیشتر از موجودی ریالی فعلی شما (${formatToman(
+                summary.cashBalance
+              )}) می‌باشد.`
+            );
+            return;
+          }
+          const calculatedWeight = Math.round((buyBudget / curPrice) * 100) / 100;
+          if (calculatedWeight > companyCopperStockKg) {
+            setError(
+              `موجودی مس آماده تحویل شرکت برای این مبلغ کافی نیست! موجودی انبار شرکت: ${formatWeight(
+                companyCopperStockKg
+              )} کیلوگرم (ارزش معادل: ${formatToman(Math.round(companyCopperStockKg * curPrice))}) می‌باشد.`
+            );
+            return;
+          }
+          setWeightKg(calculatedWeight);
+          setAmount(buyBudget);
+          setUnitPrice(curPrice);
+          setBuyStep(2);
+        }
+        return;
+      }
+
+      // Step 2 submission
+      const totalCalculated = amount;
+      let finalNotes = buyInputMode === 'weight'
+        ? `درخواست خرید ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)} (بر اساس وزن)`
+        : `درخواست خرید مس با بودجه ${formatToman(amount)} معادل ${formatWeight(weightKg)} کیلوگرم (بر اساس بودجه)`;
+
       if (notes.trim()) finalNotes += ` | توضیحات: ${notes.trim()}`;
 
       onSubmitRequest({
@@ -974,167 +1021,343 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             )}
 
             {/* ======================================================== */}
-            {/* BUY COPPER FORM CONTENT */}
+            {/* BUY COPPER FORM CONTENT (TWO-STEP MODE) */}
             {/* ======================================================== */}
             {requestType === 'buy' && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 
-                {/* Company Copper Stock Available Banner */}
-                <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white p-4 rounded-2xl border border-amber-600/40 shadow-sm space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-amber-200 font-bold flex items-center gap-1.5">
-                      <ShoppingBag className="w-4 h-4 text-amber-400" />
-                      موجودی مس آماده تحویل شرکت:
-                    </span>
-                    <span className="font-mono font-black text-amber-300 text-sm">
-                      {formatWeight(companyCopperStockKg)} ({(companyCopperStockKg / 1000).toFixed(3)} تن)
-                    </span>
-                  </div>
-
-                  {unitPrice > 0 && (
-                    <div className="flex items-center justify-between text-[11px] text-stone-300 pt-1.5 border-t border-amber-900/60">
-                      <span>حداکثر مس قابل سفارش با موجودی ریالی شما ({formatToman(summary.cashBalance)}):</span>
-                      <b className="font-mono text-emerald-300 font-bold">
-                        {Math.min(
-                          companyCopperStockKg,
-                          Math.floor((summary.cashBalance / unitPrice) * 100) / 100
-                        )}{' '}
-                        کیلوگرم
-                      </b>
+                {/* STEP 1: Enter Weight or Budget */}
+                {buyStep === 1 && (
+                  <div className="space-y-4">
+                    {/* Company Copper Stock Available Banner */}
+                    <div className="bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 text-white p-4 rounded-2xl border border-amber-600/40 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-200 font-bold flex items-center gap-1.5">
+                          <ShoppingBag className="w-4 h-4 text-amber-400" />
+                          موجودی مس آماده تحویل شرکت:
+                        </span>
+                        <span className="font-mono font-black text-amber-300 text-sm">
+                          {formatWeight(companyCopperStockKg)} ({(companyCopperStockKg / 1000).toFixed(3)} تن)
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-stone-300 pt-1.5 border-t border-amber-900/60">
+                        <span>موجودی ریالی کیف پول شما:</span>
+                        <b className="font-mono text-emerald-300 font-bold">
+                          {formatToman(summary.cashBalance)}
+                        </b>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-bold text-stone-800">
-                        وزن مس برای خرید (کیلوگرم) <span className="text-rose-500">*</span>
-                      </label>
-                      {/* Quick Percentage selection buttons */}
-                      {unitPrice > 0 && summary.cashBalance > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
-                              const target = Math.min(companyCopperStockKg, maxAfford * 0.25);
-                              setWeightKg(Math.round(target * 100) / 100);
-                              setError('');
-                            }}
-                            className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-md transition-colors cursor-pointer"
-                          >
-                            ۲۵٪
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
-                              const target = Math.min(companyCopperStockKg, maxAfford * 0.50);
-                              setWeightKg(Math.round(target * 100) / 100);
-                              setError('');
-                            }}
-                            className="px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-md transition-colors cursor-pointer"
-                          >
-                            ۵۰٪
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const maxAfford = Math.floor((summary.cashBalance / unitPrice) * 100) / 100;
-                              const target = Math.min(companyCopperStockKg, maxAfford);
-                              setWeightKg(Math.round(target * 100) / 100);
-                              setError('');
-                            }}
-                            className="px-1.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors cursor-pointer"
-                          >
-                            حداکثر
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <NumericInput
-                      value={weightKg}
-                      onChange={(val) => {
-                        setWeightKg(val);
-                        setError('');
-                      }}
-                      placeholder="مثال: 30"
-                      unitLabel="کیلوگرم"
-                      allowDecimals={true}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-bold text-stone-800">
-                        قیمت هر کیلو مس (تومان) <span className="text-rose-500">*</span>
-                      </label>
+                    {/* Mode Segmented Controls */}
+                    <div className="bg-stone-100 p-1 rounded-xl flex gap-1 border border-stone-200">
                       <button
                         type="button"
-                        onClick={() => setUnitPrice(marketPrices.buyPrice)}
-                        className="text-[11px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+                        onClick={() => {
+                          setBuyInputMode('weight');
+                          setError('');
+                        }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
+                          buyInputMode === 'weight'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/50'
+                        }`}
                       >
-                        نرخ روز: {formatNumber(marketPrices.buyPrice)} ت
+                        خرید بر اساس وزن مس (کیلوگرم)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBuyInputMode('budget');
+                          setError('');
+                        }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer text-center ${
+                          buyInputMode === 'budget'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/50'
+                        }`}
+                      >
+                        خرید بر اساس بودجه (تومان)
                       </button>
                     </div>
-                    <NumericInput
-                      value={unitPrice}
-                      onChange={(val) => {
-                        setUnitPrice(val);
-                        setError('');
-                      }}
-                      placeholder="قیمت هر کیلو"
-                      unitLabel="تومان"
-                      required
-                    />
-                  </div>
-                </div>
 
-                {weightKg > 0 && unitPrice > 0 && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                    <span className="text-amber-900 font-bold">مبلغ کل فاکتور خرید:</span>
-                    <div className="text-right sm:text-left">
-                      <span className="font-extrabold text-amber-950 font-mono text-base block">
-                        {formatNumber(Math.round(weightKg * unitPrice))} تومان
-                      </span>
-                      <span className="text-[10px] text-amber-800">
-                        ({(weightKg / 1000).toFixed(3)} تن مس با نرخ {formatNumber(unitPrice)} تومان/کیلو)
-                      </span>
+                    {/* Weight Input Mode */}
+                    {buyInputMode === 'weight' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-stone-800">
+                            وزن مس درخواستی (کیلوگرم) <span className="text-rose-500">*</span>
+                          </label>
+                          {summary.cashBalance > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxAfford = Math.floor((summary.cashBalance / marketPrices.buyPrice) * 100) / 100;
+                                  const target = Math.min(companyCopperStockKg, maxAfford * 0.25);
+                                  setWeightKg(Math.round(target * 100) / 100);
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md transition-colors cursor-pointer"
+                              >
+                                ۲۵٪ بودجه
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxAfford = Math.floor((summary.cashBalance / marketPrices.buyPrice) * 100) / 100;
+                                  const target = Math.min(companyCopperStockKg, maxAfford * 0.50);
+                                  setWeightKg(Math.round(target * 100) / 100);
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md transition-colors cursor-pointer"
+                              >
+                                ۵۰٪ بودجه
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const maxAfford = Math.floor((summary.cashBalance / marketPrices.buyPrice) * 100) / 100;
+                                  const target = Math.min(companyCopperStockKg, maxAfford);
+                                  setWeightKg(Math.round(target * 100) / 100);
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors cursor-pointer"
+                              >
+                                حداکثر توان خرید
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <NumericInput
+                          value={weightKg}
+                          onChange={(val) => {
+                            setWeightKg(val);
+                            setError('');
+                          }}
+                          placeholder="مثال: 50"
+                          unitLabel="کیلوگرم"
+                          allowDecimals={true}
+                          required
+                        />
+                        <p className="text-[11px] text-stone-500 font-medium">
+                          قیمت روز خرید مس: <span className="font-bold text-stone-700">{formatToman(marketPrices.buyPrice)}</span> به ازای هر کیلوگرم
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Budget Input Mode */}
+                    {buyInputMode === 'budget' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-stone-800">
+                            مبلغ بودجه خرید مس (تومان) <span className="text-rose-500">*</span>
+                          </label>
+                          {summary.cashBalance > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBuyBudget(Math.round(summary.cashBalance * 0.25));
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md transition-colors cursor-pointer"
+                              >
+                                ۲۵٪ موجودی
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBuyBudget(Math.round(summary.cashBalance * 0.50));
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md transition-colors cursor-pointer"
+                              >
+                                ۵۰٪ موجودی
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBuyBudget(summary.cashBalance);
+                                  setError('');
+                                }}
+                                className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors cursor-pointer"
+                              >
+                                کل موجودی ریالی
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <NumericInput
+                          value={buyBudget}
+                          onChange={(val) => {
+                            setBuyBudget(val);
+                            setError('');
+                          }}
+                          placeholder="مثال: 50,000,000"
+                          unitLabel="تومان"
+                          required
+                        />
+                        <p className="text-[11px] text-stone-500 font-medium">
+                          معادل‌سازی بر اساس نرخ روز: <span className="font-bold text-stone-700">{formatToman(marketPrices.buyPrice)}</span> تومان/کیلوگرم
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex justify-end gap-3 border-t border-stone-100">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-5 py-2.5 text-xs font-bold text-stone-700 bg-stone-200 hover:bg-stone-300 rounded-xl cursor-pointer"
+                      >
+                        انصراف
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 text-xs font-extrabold text-white bg-amber-700 hover:bg-amber-800 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>مرحله بعد: فاکتور و اطلاعات شبا ➔</span>
+                      </button>
                     </div>
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-bold text-stone-800 mb-2">
-                    توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="توضیحات خرید مس..."
-                    className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-600 resize-none"
-                  />
-                </div>
+                {/* STEP 2: Invoice & Sheba Account Info */}
+                {buyStep === 2 && (
+                  <div className="space-y-4">
+                    {/* Invoice Calculations */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2.5">
+                      <h4 className="text-xs font-bold text-amber-900 border-b border-amber-200 pb-1.5 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-amber-700" />
+                        پیش‌فاکتور محاسبه شده خرید مس:
+                      </h4>
+                      <div className="grid grid-cols-2 gap-y-2 text-xs">
+                        <div className="text-stone-600">روش محاسبه:</div>
+                        <div className="font-bold text-left text-stone-900">
+                          {buyInputMode === 'weight' ? 'بر اساس وزن مس درخواستی' : 'بر اساس بودجه ریالی پیشنهادی'}
+                        </div>
+                        
+                        <div className="text-stone-600">نرخ روز خرید مس:</div>
+                        <div className="font-bold font-mono text-left text-stone-900">
+                          {formatToman(unitPrice)} به ازای هر کیلو
+                        </div>
 
-                <div className="pt-2 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-5 py-2.5 text-xs font-bold text-stone-700 bg-stone-200 hover:bg-stone-300 rounded-xl cursor-pointer"
-                  >
-                    انصراف
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 text-xs font-extrabold text-white bg-amber-700 hover:bg-amber-800 rounded-xl shadow-md cursor-pointer flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>ارسال درخواست خرید مس</span>
-                  </button>
-                </div>
+                        <div className="text-stone-600 font-bold text-amber-950">وزن کل مس تعلق‌گرفته:</div>
+                        <div className="font-black font-mono text-left text-amber-800 text-sm">
+                          {formatWeight(weightKg)} کیلوگرم
+                        </div>
+
+                        <div className="text-stone-600 font-bold text-amber-950">مبلغ نهایی فاکتور:</div>
+                        <div className="font-black font-mono text-left text-emerald-700 text-base">
+                          {formatToman(amount)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Company Bank & Sheba Info Box */}
+                    <div className="bg-stone-900 text-stone-100 rounded-2xl p-4 border border-stone-800 space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-stone-800">
+                        <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4" />
+                          اطلاعات حساب و شبا شرکت (مس واته):
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-bold bg-stone-800 px-2 py-0.5 rounded-md">
+                          جهت واریز مبلغ فاکتور
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        {/* Owner */}
+                        <div className="flex items-center justify-between text-stone-300">
+                          <span>نام صاحب حساب:</span>
+                          <span className="font-bold text-white">شرکت توسعه تجارت فلزات مس واته</span>
+                        </div>
+
+                        {/* Card Number */}
+                        <div className="flex items-center justify-between bg-stone-800/60 p-2 rounded-xl border border-stone-800">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-stone-400">شماره کارت بانک ملی:</span>
+                            <span className="font-mono font-bold tracking-widest text-amber-200">۶۰۳۷-۹۹۷۹-۱۲۳۴-۵۶۷۸</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy('6037997912345678', 'companyCard')}
+                            className="p-1.5 hover:bg-stone-700 rounded-lg text-stone-400 hover:text-white transition-colors"
+                            title="کپی شماره کارت"
+                          >
+                            {copiedField === 'companyCard' ? (
+                              <span className="text-[10px] text-emerald-400 font-bold">کپی شد!</span>
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Sheba Number */}
+                        <div className="flex items-center justify-between bg-stone-800/60 p-2 rounded-xl border border-stone-800">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-stone-400">شماره شبا حساب شرکت:</span>
+                            <span className="font-mono font-bold tracking-wider text-amber-200">IR96-0120-0000-0000-1234-5678</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy('IR9601200000000012345678', 'companySheba')}
+                            className="p-1.5 hover:bg-stone-700 rounded-lg text-stone-400 hover:text-white transition-colors"
+                            title="کپی شماره شبا"
+                          >
+                            {copiedField === 'companySheba' ? (
+                              <span className="text-[10px] text-emerald-400 font-bold">کپی شد!</span>
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-2 bg-stone-800/40 rounded-xl flex items-start gap-1.5 text-[10px] text-stone-300 leading-relaxed">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                        <span>
+                          <b>توضیح مهم:</b> مشتری گرامی، لطفا فیش تسویه فاکتور خود را از موجودی حساب ریالی خود و یا حواله کارت به کارت انجام داده و سپس روی دکمه ثبت نهایی درخواست کلیک نمایید.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Notes field */}
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                        توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="توضیحات یا زمان واریز حواله..."
+                        className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-600 resize-none"
+                      />
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-2 flex justify-between gap-3 border-t border-stone-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBuyStep(1);
+                          setError('');
+                        }}
+                        className="px-5 py-2.5 text-xs font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-xl cursor-pointer"
+                      >
+                        بازگشت به مرحله قبل
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 text-xs font-extrabold text-white bg-amber-700 hover:bg-amber-800 rounded-xl shadow-md cursor-pointer flex items-center gap-2"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>تأیید و ارسال درخواست خرید مس</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
               </form>
             )}
 

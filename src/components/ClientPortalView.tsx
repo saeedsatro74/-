@@ -186,7 +186,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     <div className="min-h-screen bg-stone-100 flex flex-col text-stone-900 selection:bg-stone-800 selection:text-white dir-rtl">
       
       {/* Client Top Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
+      <header className="bg-white border-b border-stone-200 lg:sticky lg:top-0 z-30 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           
           <div className="flex items-center gap-3">
@@ -268,7 +268,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1">
+      <main className="max-w-6xl w-full mx-auto px-2 sm:px-4 py-3 space-y-3 flex-1">
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => onOpenCopperChart?.()} userRole="client" />
@@ -290,34 +290,34 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           />
         ) : (
           <>
-            {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT */}
+            {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT - Ultra Compact */}
             {step2Txs.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {step2Txs.map((tx) => (
               <div
                 key={tx.id}
-                className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-stone-900 text-white rounded-2xl p-5 shadow-lg border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in zoom-in-95"
+                className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-stone-900 text-white rounded-lg p-3 shadow-md border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in zoom-in-95"
               >
-                <div className="space-y-1.5">
-                  <div className="inline-flex items-center gap-1.5 bg-amber-400 text-stone-950 px-2.5 py-0.5 rounded-full text-xs font-black">
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>مرحله ۲ از ۴: شماره حساب اختصاصی صادر شد!</span>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 px-2 py-0.2 rounded-md text-[10px] font-bold">
+                    <Building2 className="w-3 h-3" />
+                    <span>مرحله ۲ از ۴: حساب صادر شد</span>
                   </div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-emerald-100">
-                    شماره حساب واریز مبلغ {formatToman(tx.amount)} توسط مدیرعامل تعیین گردید.
+                  <h3 className="font-bold text-xs sm:text-sm text-emerald-100">
+                    شماره حساب تعیین گردید (مبلغ {formatToman(tx.amount)}).
                   </h3>
-                  <p className="text-xs text-stone-300">
-                    بانک مقصد: <b>{tx.assignedBankName}</b> ({tx.assignedOwnerName}) | شماره کارت: <span className="font-mono">{tx.assignedCardNumber}</span>
+                  <p className="text-[10px] text-stone-300">
+                    بانک: <b>{tx.assignedBankName}</b> ({tx.assignedOwnerName}) | کارت: <span className="font-mono">{tx.assignedCardNumber}</span>
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleOpenRequest('deposit')}
-                  className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0 animate-pulse"
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-[11px] rounded-lg transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer shrink-0 animate-pulse"
                 >
-                  <Upload className="w-4 h-4" />
-                  <span>مشاهده شماره حساب و بارگذاری عکس فیش</span>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>بارگذاری فیش</span>
                 </button>
               </div>
             ))}
@@ -327,19 +327,19 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         {step1Txs.length > 0 && (
           <div 
             onClick={() => handleOpenRequest('deposit')}
-            className="p-4 bg-amber-50 border border-amber-300 hover:border-amber-400 rounded-2xl text-amber-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
+            className="p-2.5 bg-amber-50 border border-amber-200 hover:border-amber-300 rounded-lg text-amber-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
           >
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-amber-600 shrink-0 animate-spin-slow" />
-              <div className="text-xs space-y-0.5">
-                <span className="font-extrabold block">مرحله ۲: درخواست شارژ حساب در حال بررسی توسط مدیرعامل</span>
-                <p className="text-amber-800">
-                  درخواست شارژ مبلغ <b>{formatToman(step1Txs[0].amount)}</b> ثبت شد و در صف تعیین شماره حساب توسط مدیرعامل است.
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin-slow" />
+              <div className="text-[11px] space-y-0.5">
+                <span className="font-bold block">مرحله ۲: درخواست شارژ در حال بررسی مدیرعامل</span>
+                <p className="text-amber-800 text-[10px]">
+                  درخواست شارژ مبلغ <b>{formatToman(step1Txs[0].amount)}</b> ثبت شده و در انتظار تعیین حساب است.
                 </p>
               </div>
             </div>
-            <span className="text-xs font-bold text-amber-900 underline group-hover:text-amber-950 shrink-0">
-              مشاهده وضعیت ➔
+            <span className="text-[10px] font-bold text-amber-900 underline group-hover:text-amber-950 shrink-0">
+              بررسی ➔
             </span>
           </div>
         )}
@@ -347,85 +347,85 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         {step3Txs.length > 0 && (
           <div 
             onClick={() => handleOpenRequest('deposit')}
-            className="p-4 bg-blue-50 border border-blue-300 hover:border-blue-400 rounded-2xl text-blue-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
+            className="p-2.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-lg text-blue-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
           >
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
-              <div className="text-xs space-y-0.5">
-                <span className="font-extrabold block">مرحله ۴: عکس فیش واریزی ارسال گردید (در انتظار شارژ نهایی)</span>
-                <p className="text-blue-800">
-                  عکس رسید بانکی شما با موفقیت دریافت شد و در حال بررسی نهایی و تأیید شارژ کیف پول توسط مدیرعامل می‌باشد.
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="text-[11px] space-y-0.5">
+                <span className="font-bold block">مرحله ۴: فیش ارسال شد (در انتظار شارژ نهایی)</span>
+                <p className="text-blue-800 text-[10px]">
+                  رسید بانکی شما دریافت گردید و در حال تایید نهایی توسط مدیرعامل می‌باشد.
                 </p>
               </div>
             </div>
-            <span className="text-xs font-bold text-blue-900 underline group-hover:text-blue-950 shrink-0">
-              مشاهده وضعیت ➔
+            <span className="text-[10px] font-bold text-blue-900 underline group-hover:text-blue-950 shrink-0">
+              بررسی ➔
             </span>
           </div>
         )}
 
         {/* Quick Action Buttons for Client Requests */}
-        <div className="bg-stone-900 rounded-2xl p-4 sm:p-5 text-white shadow-md space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-800 pb-3">
+        <div className="bg-stone-900 rounded-lg p-3 sm:p-3.5 text-white shadow-sm space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-stone-800 pb-2">
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold flex items-center gap-2">
-                <Send className="w-4 h-4 text-amber-400" />
-                <span>ثبت درخواست‌های مالی و معاملاتی (شارژ فرآیند ۴ مرحله‌ای)</span>
+              <h2 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-amber-400" />
+                <span>ثبت درخواست‌های مالی و معاملاتی</span>
               </h2>
-              <p className="text-xs text-stone-400 mt-0.5">
-                شارژ حساب، برداشت پول، یا درخواست خرید و فروش مس مستقیم با مدیرعامل
+              <p className="text-[10px] text-stone-400">
+                شارژ کیف پول، برداشت، یا خرید و فروش مس مستقیم با مدیرعامل
               </p>
             </div>
-            <span className="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg font-semibold w-fit">
-              تأیید سریع توسط مدیرعامل
+            <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold w-fit">
+              تأیید فوری
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
             <button
               type="button"
               disabled={hasPendingDeposit}
               onClick={() => handleOpenRequest('deposit')}
-              className={`p-3 rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 group ${
+              className={`p-2 rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 group ${
                 hasPendingDeposit
                   ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
               }`}
             >
-              <ArrowDownLeft className={`w-5 h-5 group-hover:scale-110 transition-transform ${hasPendingDeposit ? 'text-stone-600' : 'text-emerald-200'}`} />
-              <span>شارژ / واریز حساب</span>
+              <ArrowDownLeft className={`w-4 h-4 group-hover:scale-110 transition-transform ${hasPendingDeposit ? 'text-stone-600' : 'text-emerald-200'}`} />
+              <span>شارژ حساب (واریز)</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleOpenRequest('withdrawal')}
-              className="p-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+              className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
             >
-              <ArrowUpRight className="w-5 h-5 text-rose-200 group-hover:scale-110 transition-transform" />
+              <ArrowUpRight className="w-4 h-4 text-rose-200 group-hover:scale-110 transition-transform" />
               <span>برداشت موجودی</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleOpenRequest('sell')}
-              className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 cursor-pointer group"
+              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
             >
-              <TrendingUp className="w-5 h-5 text-blue-200 group-hover:scale-110 transition-transform" />
-              <span>درخواست فروش مس</span>
+              <TrendingUp className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
+              <span>فروش مس به شرکت</span>
             </button>
 
             <button
               type="button"
               disabled={companyCopperStockKg <= 0}
               onClick={() => handleOpenRequest('buy')}
-              className={`p-3 rounded-xl text-xs font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1.5 group ${
+              className={`p-2 rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 group ${
                 companyCopperStockKg <= 0
                   ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
                   : 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
               }`}
             >
-              <ShoppingBag className={`w-5 h-5 group-hover:scale-110 transition-transform ${companyCopperStockKg <= 0 ? 'text-stone-600' : 'text-amber-200'}`} />
-              <span>درخواست خرید مس</span>
+              <ShoppingBag className={`w-4 h-4 group-hover:scale-110 transition-transform ${companyCopperStockKg <= 0 ? 'text-stone-600' : 'text-amber-200'}`} />
+              <span>خرید مس از شرکت</span>
             </button>
           </div>
 
@@ -438,101 +438,92 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         </div>
 
         {/* Date and Rates Info Bar */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-stone-500">
-            <Calendar className="w-4 h-4 text-stone-400" />
+        <div className="bg-white rounded-lg border border-stone-200 p-2 sm:p-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-stone-500">
+            <Calendar className="w-3.5 h-3.5 text-stone-400" />
             <span>امروز: <b>{persianDate}</b></span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs bg-stone-50 border border-stone-200/80 px-3 py-1.5 rounded-xl">
+          <div className="flex items-center gap-2 text-[10px] sm:text-xs bg-stone-50 border border-stone-100 px-2 py-1 rounded-md">
             <span className="text-stone-500">نرخ روز مس در بازار:</span>
-            <span className="text-stone-700">خرید: <b className="font-mono text-stone-900">{formatNumber(buyRate)}</b> تومان</span>
+            <span className="text-stone-700">خرید: <b className="font-mono text-stone-900">{formatNumber(buyRate)}</b> ت</span>
             <span className="text-stone-300">|</span>
-            <span className="text-stone-700">فروش: <b className="font-mono text-stone-900">{formatNumber(sellRate)}</b> تومان</span>
+            <span className="text-stone-700">فروش: <b className="font-mono text-stone-900">{formatNumber(sellRate)}</b> ت</span>
           </div>
 
           <button
             type="button"
             onClick={onOpenStatement}
-            className="px-3.5 py-1.5 bg-stone-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs mr-auto sm:mr-0"
+            className="px-2.5 py-1 bg-stone-900 hover:bg-black text-white text-[10px] sm:text-xs font-bold rounded-md transition-colors flex items-center gap-1 cursor-pointer shadow-xs mr-auto sm:mr-0"
           >
-            <FileText className="w-3.5 h-3.5 text-amber-400" />
-            <span>چاپ صورت‌حساب رسمی و کاردکس</span>
+            <FileText className="w-3 h-3 text-amber-400" />
+            <span>چاپ صورت‌حساب رسمی</span>
           </button>
         </div>
 
-        {/* Company Available Copper Stock Card */}
-        <CompanyCopperStockCard
-          companyCopperStockKg={companyCopperStockKg}
-          marketPrices={marketPrices}
-          userRole="client"
-          clientSummary={summary}
-          onOpenBuyModal={() => handleOpenRequest('buy')}
-        />
-
-        {/* Big Asset Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Big Asset Summary Cards - High Density 2-Column Mobile Layout */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           
           {/* Card 1: Total Wealth */}
-          <div className="bg-gradient-to-br from-stone-900 to-stone-800 text-white rounded-2xl p-5 shadow-sm space-y-2 border border-stone-700">
-            <div className="flex items-center justify-between text-stone-400 text-xs font-semibold">
-              <span>ارزش کل دارایی شما</span>
-              <Wallet className="w-4 h-4 text-amber-400" />
+          <div className="bg-gradient-to-br from-stone-900 to-stone-850 text-white rounded-lg p-2.5 sm:p-3 shadow-xs space-y-1 border border-stone-800">
+            <div className="flex items-center justify-between text-stone-400 text-[10px] sm:text-xs font-semibold">
+              <span className="truncate">ارزش کل دارایی</span>
+              <Wallet className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             </div>
-            <div className="text-2xl font-black font-mono tracking-tight text-white">
+            <div className="text-sm sm:text-base md:text-lg font-black font-mono tracking-tight text-white truncate">
               {formatNumber(summary.totalAssetValue)}
-              <span className="text-xs font-normal text-stone-300 mr-1.5">تومان</span>
+              <span className="text-[10px] font-normal text-stone-300 mr-0.5">ت</span>
             </div>
-            <p className="text-[11px] text-stone-400 pt-1 border-t border-stone-700">
-              مجموع موجودی ریالی + ارزش روز مس
+            <p className="text-[9px] sm:text-[10px] text-stone-400 pt-1 border-t border-stone-800/80 truncate">
+              مجموع ریالی + ارزش روز مس
             </p>
           </div>
 
           {/* Card 2: Copper Stock */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200 space-y-2">
-            <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-              <span>موجودی مس شما</span>
-              <Layers className="w-4 h-4 text-amber-600" />
+          <div className="bg-white rounded-lg p-2.5 sm:p-3 shadow-xs border border-stone-200/95 space-y-1">
+            <div className="flex items-center justify-between text-stone-500 text-[10px] sm:text-xs font-semibold">
+              <span className="truncate">موجودی مس شما</span>
+              <Layers className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             </div>
-            <div className="text-2xl font-black font-mono tracking-tight text-amber-700">
+            <div className="text-sm sm:text-base md:text-lg font-black font-mono tracking-tight text-amber-700 truncate">
               {formatNumber(summary.copperStockKg, 2)}
-              <span className="text-xs font-bold text-stone-600 mr-1.5">کیلوگرم</span>
+              <span className="text-[10px] font-bold text-stone-600 mr-0.5">ک‌گ</span>
             </div>
-            <p className="text-[11px] text-stone-500 pt-1 border-t border-stone-100 flex items-center justify-between">
-              <span>ارزش روز مس:</span>
-              <b className="font-mono text-stone-800">{formatNumber(summary.copperMarketValue)} تومان</b>
+            <p className="text-[9px] sm:text-[10px] text-stone-500 pt-1 border-t border-stone-100 flex items-center justify-between truncate">
+              <span>ارزش روز:</span>
+              <b className="font-mono text-stone-800">{formatNumber(summary.copperMarketValue)} ت</b>
             </p>
           </div>
 
           {/* Card 3: Cash Wallet Balance */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200 space-y-2">
-            <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-              <span>مانده کیف پول نقدی (ریالی)</span>
-              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          <div className="bg-white rounded-lg p-2.5 sm:p-3 shadow-xs border border-stone-200/95 space-y-1">
+            <div className="flex items-center justify-between text-stone-500 text-[10px] sm:text-xs font-semibold">
+              <span className="truncate">مانده کیف پول (ریالی)</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></div>
             </div>
-            <div className={`text-2xl font-black font-mono tracking-tight ${
+            <div className={`text-sm sm:text-base md:text-lg font-black font-mono tracking-tight truncate ${
               summary.cashBalance >= 0 ? 'text-stone-900' : 'text-rose-600'
             }`}>
               {formatNumber(summary.cashBalance)}
-              <span className="text-xs font-bold text-stone-600 mr-1.5">تومان</span>
+              <span className="text-[10px] font-bold text-stone-600 mr-0.5">ت</span>
             </div>
-            <p className="text-[11px] text-stone-500 pt-1 border-t border-stone-100">
+            <p className="text-[9px] sm:text-[10px] text-stone-500 pt-1 border-t border-stone-100 truncate">
               {summary.cashBalance >= 0 ? 'مانده مثبت (بستانکار)' : 'مانده منفی (بدهکار)'}
             </p>
           </div>
 
           {/* Card 4: Profit & Trade Volume */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-stone-200 space-y-2">
-            <div className="flex items-center justify-between text-stone-500 text-xs font-semibold">
-              <span>سود محقق شده معاملات</span>
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
+          <div className="bg-white rounded-lg p-2.5 sm:p-3 shadow-xs border border-stone-200/95 space-y-1">
+            <div className="flex items-center justify-between text-stone-500 text-[10px] sm:text-xs font-semibold">
+              <span className="truncate">سود محقق شده</span>
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             </div>
-            <div className="text-2xl font-black font-mono tracking-tight text-emerald-700">
+            <div className="text-sm sm:text-base md:text-lg font-black font-mono tracking-tight text-emerald-700 truncate">
               {formatNumber(summary.realizedProfit)}
-              <span className="text-xs font-bold text-stone-600 mr-1.5">تومان</span>
+              <span className="text-[10px] font-bold text-stone-600 mr-0.5">ت</span>
             </div>
-            <p className="text-[11px] text-stone-500 pt-1 border-t border-stone-100 flex items-center justify-between">
-              <span>کل مس خریداری شده:</span>
+            <p className="text-[9px] sm:text-[10px] text-stone-500 pt-1 border-t border-stone-100 flex items-center justify-between truncate">
+              <span>خرید کل:</span>
               <b className="font-mono text-stone-800">{formatWeight(summary.totalPurchasedKg)}</b>
             </p>
           </div>
@@ -540,8 +531,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         </div>
 
         {/* Transactions History Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between">
+        <div className="bg-white rounded-lg border border-stone-200 shadow-xs overflow-hidden">
+          <div className="p-3 sm:p-3.5 border-b border-stone-200 flex items-center justify-between">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-stone-900">
                 تاریخچه تراکنش‌ها و ریز گردش حساب شما
@@ -654,19 +645,19 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       {/* STEP 3: Client Upload Topup Receipt Modal */}
       {uploadReceiptTx && (
         <div className="fixed inset-0 z-60 bg-stone-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 dir-rtl">
-          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl w-full max-w-xl my-auto max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl border border-stone-200 shadow-2xl w-full max-w-xl my-auto max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             {/* Modal Header */}
-            <div className="p-5 bg-emerald-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                  <Upload className="w-6 h-6 text-emerald-300" />
+            <div className="p-4 bg-emerald-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                  <Upload className="w-5 h-5 text-emerald-300" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg text-white">
+                  <h3 className="font-bold text-sm sm:text-base text-white">
                     واریز وجه و بارگذاری فیش (مرحله ۳ از ۴)
                   </h3>
-                  <p className="text-xs text-stone-300 mt-0.5">
+                  <p className="text-[10px] text-stone-300">
                     شماره حساب اختصاصی را کپی کرده، وجه را واریز و عکس فیش را آپلود کنید.
                   </p>
                 </div>
@@ -674,23 +665,23 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               <button
                 type="button"
                 onClick={() => setUploadReceiptTx(null)}
-                className="p-2 text-stone-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                className="p-1.5 text-stone-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 title="بستن"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
               
               {/* Assigned Bank Info Card */}
-              <div className="bg-emerald-50/90 border border-emerald-300 rounded-2xl p-4.5 space-y-3">
-                <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
-                  <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4 text-emerald-700" />
+              <div className="bg-emerald-50/90 border border-emerald-300 rounded-lg p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-emerald-200/80 pb-1.5">
+                  <span className="text-xs font-bold text-emerald-950 flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-700" />
                     <span>شماره حساب اختصاصی صادر شده توسط مدیرعامل</span>
                   </span>
-                  <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
                     مبلغ: {formatToman(uploadReceiptTx.amount)}
                   </span>
                 </div>
@@ -735,7 +726,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
               <form onSubmit={handleConfirmSubmitReceipt} className="space-y-4">
                 {uploadError && (
-                  <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-2xl flex items-center gap-2">
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-lg flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>{uploadError}</span>
                   </div>
@@ -748,27 +739,27 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   </label>
                   
                   {receiptImageBase64 ? (
-                    <div className="relative rounded-2xl border-2 border-dashed border-emerald-500 p-3 bg-emerald-50/50 flex flex-col items-center gap-3">
+                    <div className="relative rounded-lg border-2 border-dashed border-emerald-500 p-2.5 bg-emerald-50/50 flex flex-col items-center gap-2.5">
                       <img
                         src={receiptImageBase64}
                         alt="پیش‌نمایش فیش"
-                        className="max-h-52 rounded-xl object-contain shadow-md border border-emerald-300"
+                        className="max-h-52 rounded-lg object-contain shadow-sm border border-emerald-300"
                       />
                       <button
                         type="button"
                         onClick={() => setReceiptImageBase64('')}
-                        className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                        className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg cursor-pointer"
                       >
                         حذف و انتخاب مجدد تصویر
                       </button>
                     </div>
                   ) : (
-                    <label className="border-2 border-dashed border-stone-300 hover:border-emerald-600 rounded-2xl p-7 flex flex-col items-center justify-center gap-2 cursor-pointer bg-stone-50 hover:bg-emerald-50/30 transition-all group">
-                      <ImageIcon className="w-9 h-9 text-stone-400 group-hover:text-emerald-600 transition-colors" />
+                    <label className="border-2 border-dashed border-stone-300 hover:border-emerald-600 rounded-lg p-5 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-stone-50 hover:bg-emerald-50/30 transition-all group">
+                      <ImageIcon className="w-8 h-8 text-stone-400 group-hover:text-emerald-600 transition-colors" />
                       <span className="text-xs font-bold text-stone-800 group-hover:text-emerald-900">
                         برای آپلود تصویر فیش واریزی اینجا کلیک کنید
                       </span>
-                      <span className="text-[10px] text-stone-400">فرمت‌های تصویری JPG, PNG, WEBP (حداکثر ۸ مگابایت)</span>
+                      <span className="text-[10px] text-stone-400">فرمت‌های JPG, PNG, WEBP (حداکثر ۸ مگابایت)</span>
                       <input
                         type="file"
                         accept="image/*"

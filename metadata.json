@@ -1,6 +1,6 @@
 {
-  "name": "سامانه مدیریت معاملات مس واته",
-  "description": "سامانه حسابداری، مدیریت کیف پول و کاردکس معاملات مس شرکت واته (Waateh)",
+  "name": "پلتفرم مس واته",
+  "description": "پلتفرم معاملاتی، حسابداری و مدیریت کاردکس مس واته",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

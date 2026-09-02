@@ -61,69 +61,29 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         </div>
       )}
 
-      {/* Top Banner: Market Price Bar */}
-      <div className="bg-stone-900 text-white rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-stone-800 flex items-center justify-center text-amber-400 shrink-0">
-            <Tag className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-stone-400">نرخ مرجع خرید:</span>
-                <span className="font-bold text-sm sm:text-base font-mono text-amber-300">
-                  {formatNumber(stats.marketBuyPrice || stats.marketCopperPrice)}
-                </span>
-                <span className="text-[11px] text-stone-400">ت/کیلو</span>
-              </div>
-              <span className="text-stone-600 hidden sm:inline">•</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-stone-400">نرخ مرجع فروش:</span>
-                <span className="font-bold text-sm sm:text-base font-mono text-emerald-300">
-                  {formatNumber(stats.marketSellPrice || Math.max(0, (stats.marketBuyPrice || stats.marketCopperPrice) - 150000))}
-                </span>
-                <span className="text-[11px] text-stone-400">ت/کیلو</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-stone-400 mt-0.5">
-              مبنای محاسبه ارزش روز دارایی مس افراد و مقدار پیش‌فرض در فرم‌های خرید و فروش
-            </p>
-          </div>
-        </div>
 
-        {onOpenMarketPrice && (
-          <button
-            type="button"
-            onClick={onOpenMarketPrice}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-stone-900 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-            <span>تغییر قیمت مرجع بازار (خرید / فروش)</span>
-          </button>
-        )}
-      </div>
 
-      {/* Main Grid: 6 Statistical Asset Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
+      {/* Main Grid: 6 Statistical Asset Cards - High Density Layout */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         
         {/* 1. کل موجودی ریالی افراد (کیف پول‌ها) */}
         <div 
           id="card-stat-cash"
-          className="bg-white rounded-xl border border-stone-200/90 p-3.5 shadow-xs relative overflow-hidden transition-all hover:border-emerald-400"
+          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-emerald-400"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-500">کل موجودی ریالی</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Wallet className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">کل موجودی ریالی</span>
+            <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <Wallet className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight font-mono">
+          <div className="mt-1.5">
+            <div className="text-xs sm:text-sm md:text-base font-bold text-stone-900 tracking-tight font-mono">
               {formatNumber(stats.totalCashBalance)}
-              <span className="text-xs font-normal text-stone-500 mr-1">ت</span>
+              <span className="text-[10px] font-normal text-stone-500 mr-0.5">ت</span>
             </div>
-            <div className="mt-1 text-[11px] text-stone-500">
-              مجموع مانده نقدی در کیف پول‌ها
+            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
+              مانده نقدی کل کیف پول‌ها
             </div>
           </div>
         </div>
@@ -131,20 +91,20 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 2. مجموع مس موجود در انبار */}
         <div 
           id="card-stat-stock"
-          className="bg-white rounded-xl border border-stone-200/90 p-3.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-400"
+          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-400"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-500">مجموع مس موجود</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-100/80 text-amber-800 flex items-center justify-center">
-              <Boxes className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">مجموع مس موجود</span>
+            <div className="w-6 h-6 rounded-md bg-amber-100/80 text-amber-800 flex items-center justify-center">
+              <Boxes className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-amber-900 tracking-tight font-mono">
+          <div className="mt-1.5">
+            <div className="text-xs sm:text-sm md:text-base font-bold text-amber-900 tracking-tight font-mono">
               {formatWeight(stats.totalCopperStockKg, false)}
-              <span className="text-xs font-normal text-stone-500 mr-1">کیلو</span>
+              <span className="text-[10px] font-normal text-stone-500 mr-0.5">ک‌گ</span>
             </div>
-            <div className="mt-1 text-[11px] text-stone-500">
+            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
               {stats.activeStockPeopleCount} نفر دارای موجودی مس
             </div>
           </div>
@@ -153,20 +113,20 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 3. ارزش فعلی کل مس */}
         <div 
           id="card-stat-copper-value"
-          className="bg-white rounded-xl border border-stone-200/90 p-3.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-500"
+          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-amber-500"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-500">ارزش روز کل مس</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center">
-              <Tag className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">ارزش روز کل مس</span>
+            <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-800 flex items-center justify-center">
+              <Tag className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight font-mono">
+          <div className="mt-1.5">
+            <div className="text-xs sm:text-sm md:text-base font-bold text-stone-900 tracking-tight font-mono">
               {formatNumber(stats.totalCopperMarketValue)}
-              <span className="text-xs font-normal text-stone-500 mr-1">ت</span>
+              <span className="text-[10px] font-normal text-stone-500 mr-0.5">ت</span>
             </div>
-            <div className="mt-1 text-[11px] text-stone-500">
+            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
               با نرخ {formatNumber(stats.marketCopperPrice)} ت/ک
             </div>
           </div>
@@ -175,20 +135,20 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 4. مجموع کل دارایی‌ها (ریالی + مس) */}
         <div 
           id="card-stat-total-asset"
-          className="bg-stone-900 text-white rounded-xl border border-stone-800 p-3.5 shadow-xs relative overflow-hidden transition-all"
+          className="bg-stone-900 text-white rounded-lg border border-stone-800 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-300">مجموع کل دارایی‌ها</span>
-            <div className="w-7 h-7 rounded-lg bg-stone-800 text-amber-400 flex items-center justify-center">
-              <Landmark className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-300">مجموع کل دارایی‌ها</span>
+            <div className="w-6 h-6 rounded-md bg-stone-800 text-amber-400 flex items-center justify-center">
+              <Landmark className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-extrabold text-white tracking-tight font-mono">
+          <div className="mt-1.5">
+            <div className="text-xs sm:text-sm md:text-base font-extrabold text-white tracking-tight font-mono">
               {formatNumber(stats.totalAssetValue)}
-              <span className="text-xs font-normal text-stone-400 mr-1">ت</span>
+              <span className="text-[10px] font-normal text-stone-400 mr-0.5">ت</span>
             </div>
-            <div className="mt-1 text-[11px] text-stone-400">
+            <div className="text-[9px] sm:text-[10px] text-stone-400 truncate mt-0.5">
               نقدینگی + ارزش مس انبار
             </div>
           </div>
@@ -197,30 +157,30 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 5. مجموع سود واقعی */}
         <div 
           id="card-stat-profit"
-          className={`bg-white rounded-xl border p-3.5 shadow-xs relative overflow-hidden transition-all ${
+          className={`bg-white rounded-lg border p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all ${
             isProfitPositive ? 'border-emerald-200 hover:border-emerald-400' : 'border-rose-200 hover:border-rose-400'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-500">مجموع سود معاملات</span>
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">مجموع سود معاملات</span>
+            <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
               isProfitPositive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
             }`}>
-              <BadgePercent className="w-4 h-4" />
+              <BadgePercent className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className={`text-lg sm:text-xl font-bold tracking-tight font-mono ${
+          <div className="mt-1.5">
+            <div className={`text-xs sm:text-sm md:text-base font-bold tracking-tight font-mono ${
               isProfitPositive ? 'text-emerald-700' : 'text-rose-700'
             }`}>
               {stats.totalRealizedProfit > 0 ? '+' : ''}{formatNumber(stats.totalRealizedProfit)}
-              <span className="text-xs font-normal text-stone-500 mr-1">ت</span>
+              <span className="text-[10px] font-normal text-stone-500 mr-0.5">ت</span>
             </div>
-            <div className="mt-1 flex items-center gap-1 text-[11px]">
+            <div className="text-[9px] sm:text-[10px] flex items-center gap-1 mt-0.5 truncate">
               <span className={`font-semibold ${isProfitPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {formatPercent(stats.overallProfitPercentage)}
               </span>
-              <span className="text-stone-400">بازدهی کل</span>
+              <span className="text-stone-400 truncate">بازدهی کل</span>
             </div>
           </div>
         </div>
@@ -228,21 +188,21 @@ export const StatCards: React.FC<StatCardsProps> = ({ stats, userRole = 'admin',
         {/* 6. تعداد افراد / طرف حساب */}
         <div 
           id="card-stat-people"
-          className="bg-white rounded-xl border border-stone-200/90 p-3.5 shadow-xs relative overflow-hidden transition-all hover:border-stone-400"
+          className="bg-white rounded-lg border border-stone-200/90 p-2 sm:p-2.5 shadow-xs relative overflow-hidden transition-all hover:border-stone-400"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-500">تعداد طرف‌های حساب</span>
-            <div className="w-7 h-7 rounded-lg bg-stone-100 text-stone-700 flex items-center justify-center">
-              <Users className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-semibold text-stone-500">تعداد طرف‌های حساب</span>
+            <div className="w-6 h-6 rounded-md bg-stone-100 text-stone-700 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight font-mono">
+          <div className="mt-1.5">
+            <div className="text-xs sm:text-sm md:text-base font-bold text-stone-900 tracking-tight font-mono">
               {formatNumber(stats.totalPeopleCount)}
-              <span className="text-xs font-normal text-stone-500 mr-1">نفر</span>
+              <span className="text-[10px] font-normal text-stone-500 mr-0.5">نفر</span>
             </div>
-            <div className="mt-1 text-[11px] text-stone-500">
-              خرید کل: {formatNumber(stats.totalPurchasedKg)} کیلو
+            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
+              خرید کل: {formatNumber(stats.totalPurchasedKg)} ک‌گ
             </div>
           </div>
         </div>
