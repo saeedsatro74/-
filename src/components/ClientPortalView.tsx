@@ -164,6 +164,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Filter client transactions
   const clientTxList = transactions.filter((t) => t.personId === person.id);
   const approvedTxList = clientTxList.filter((t) => (t.approvalStatus || 'approved') === 'approved');
+  const rejectedTxs = clientTxList.filter((t) => t.approvalStatus === 'rejected');
   
   // Pending topup workflow transactions
   const step1Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step1_pending_bank' || (t.type === 'deposit' && t.approvalStatus === 'pending'));
@@ -364,6 +365,48 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             <span className="text-[10px] font-bold text-blue-900 underline group-hover:text-blue-950 shrink-0">
               بررسی ➔
             </span>
+          </div>
+        )}
+
+        {/* Rejected Requests Banner (Dismissible) */}
+        {rejectedTxs.length > 0 && (
+          <div className="space-y-2">
+            {rejectedTxs.map((tx) => (
+              <div 
+                key={tx.id}
+                className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 border border-rose-200">
+                    <XCircle className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-rose-900">
+                        درخواست {tx.type === 'deposit' ? 'شارژ حساب' : tx.type === 'withdrawal' ? 'برداشت' : tx.type === 'buy' ? 'خرید مس' : 'فروش مس'} به مبلغ {formatToman(tx.amount)} رد شد
+                      </span>
+                      <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-1.5 py-0.2 rounded font-bold">
+                        توسط مدیر
+                      </span>
+                    </div>
+                    {tx.rejectionReason && (
+                      <p className="text-[11px] text-rose-800">
+                        علت رد: <b>{tx.rejectionReason}</b>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {onCancelRequest && (
+                  <button
+                    type="button"
+                    onClick={() => onCancelRequest(tx.id)}
+                    className="px-2.5 py-1 bg-rose-200 hover:bg-rose-300 text-rose-900 text-[11px] font-bold rounded-lg transition-colors cursor-pointer self-end sm:self-auto shrink-0"
+                  >
+                    بستن و حذف اعلان ✕
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -603,18 +646,18 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 تاریخچه تراکنش‌ها و ریز گردش حساب شما
               </h2>
               <p className="text-xs text-stone-500 mt-0.5">
-                لیست تمام واریزها، برداشت‌ها، و خرید و فروش‌های مس ثبت شده
+                لیست تمام واریزها، برداشت‌ها، و خرید و فروش‌های مس قطعی و تأییدشده
               </p>
             </div>
             <span className="text-xs text-stone-500 font-mono">
-              تعداد: <b>{formatNumber(clientTxList.length)}</b> تراکنش (شامل {formatNumber(clientTxList.length - approvedTxList.length)} تیکت در جریان)
+              تعداد: <b>{formatNumber(approvedTxList.length)}</b> تراکنش تأیید شده
             </span>
           </div>
 
-          {clientTxList.length === 0 ? (
+          {approvedTxList.length === 0 ? (
             <div className="p-10 text-center text-stone-400 space-y-2">
               <FileText className="w-10 h-10 mx-auto text-stone-300" />
-              <p className="text-xs font-semibold">هنوز هیچ تراکنشی برای حساب شما ثبت نشده است.</p>
+              <p className="text-xs font-semibold">هنوز هیچ تراکنش قطعی و تأییدشده‌ای برای حساب شما ثبت نشده است.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -623,7 +666,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   <tr>
                     <th className="p-3">تاریخ</th>
                     <th className="p-3">نوع معامله</th>
-                    <th className="p-3">وضعیت</th>
                     <th className="p-3">مقدار / وزن</th>
                     <th className="p-3">فی (تومان)</th>
                     <th className="p-3">مبلغ کل (تومان)</th>
@@ -633,13 +675,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100 font-medium">
-                  {clientTxList.map((tx) => {
+                  {approvedTxList.map((tx) => {
                     const isPlusCash = tx.type === 'deposit' || tx.type === 'sell';
-                    const isApproved = (tx.approvalStatus || 'approved') === 'approved';
-                    const isRejected = tx.approvalStatus === 'rejected';
 
                     return (
-                      <tr key={tx.id} className={`transition-colors ${!isApproved && !isRejected ? 'bg-amber-50/40 hover:bg-amber-50/70' : isRejected ? 'bg-rose-50/40' : 'hover:bg-stone-50/80'}`}>
+                      <tr key={tx.id} className="hover:bg-stone-50/80 transition-colors">
                         <td className="p-3 font-mono text-stone-600 whitespace-nowrap">{tx.date}</td>
                         <td className="p-3 whitespace-nowrap">
                           {tx.type === 'deposit' && (
@@ -668,39 +708,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                             </span>
                           )}
                         </td>
-                        <td className="p-3 whitespace-nowrap">
-                          {isApproved ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3" />
-                              تأیید و اعمال شده
-                            </span>
-                          ) : isRejected ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                              <XCircle className="w-3 h-3" />
-                              رد شده
-                            </span>
-                          ) : tx.approvalStatus === 'topup_step1_pending_bank' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
-                              <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                              مرحله ۱: منتظر شماره حساب
-                            </span>
-                          ) : tx.approvalStatus === 'topup_step2_awaiting_receipt' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-                              <Clock className="w-3 h-3 text-blue-600" />
-                              مرحله ۲: منتظر واریز و ارسال فیش
-                            </span>
-                          ) : tx.approvalStatus === 'topup_step3_pending_approval' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
-                              <Clock className="w-3 h-3 text-purple-600" />
-                              مرحله ۳: فیش ارسال شد (در انتظار تأیید مدیر)
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
-                              <Clock className="w-3 h-3 text-amber-600" />
-                              در انتظار تأیید مدیر
-                            </span>
-                          )}
-                        </td>
                         <td className="p-3 font-mono whitespace-nowrap">
                           {tx.weightKg ? formatWeight(tx.weightKg) : '—'}
                         </td>
@@ -713,22 +720,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           {formatNumber(tx.amount)} تومان
                         </td>
                         <td className="p-3 font-mono text-stone-700 whitespace-nowrap">
-                          {isApproved ? (
-                            formatNumber(tx.cashBalanceAfter || 0)
-                          ) : (
-                            <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-sans font-medium whitespace-nowrap">
-                              پس از تأیید فیش در مرحله ۴
-                            </span>
-                          )}
+                          {formatNumber(tx.cashBalanceAfter || 0)}
                         </td>
                         <td className="p-3 font-mono text-stone-700 whitespace-nowrap">
-                          {isApproved ? (
-                            formatWeight(tx.copperStockAfter || 0)
-                          ) : (
-                            <span className="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-sans font-medium whitespace-nowrap">
-                              پس از تأیید مدیر
-                            </span>
-                          )}
+                          {formatWeight(tx.copperStockAfter || 0)}
                         </td>
                         <td className="p-3 text-center whitespace-nowrap">
                           <button
@@ -747,7 +742,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
               </table>
             </div>
           )}
-
         </div>
           </>
         )}
