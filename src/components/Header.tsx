@@ -169,16 +169,16 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     type="button"
                     onClick={onOpenApprovalsModal}
-                    className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                    className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
                       pendingApprovalsCount > 0
-                        ? 'bg-stone-900 text-white border-stone-900 animate-pulse'
+                        ? 'bg-rose-700 hover:bg-rose-800 text-white border-rose-800 ring-2 ring-rose-400 animate-pulse shadow-md'
                         : 'bg-stone-100 text-stone-700 border-stone-200'
                     }`}
                     title="کارتابل تأییدات مدیرعامل"
                   >
-                    <ShieldCheck className="w-4 h-4 text-stone-500" />
+                    <ShieldCheck className={`w-4 h-4 ${pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-stone-500'}`} />
                     {pendingApprovalsCount > 0 && (
-                      <span className="bg-stone-900 text-white text-[10px] px-1.5 py-0.2 rounded-full">
+                      <span className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded-full shadow-xs">
                         {pendingApprovalsCount}
                       </span>
                     )}
@@ -270,15 +270,15 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={onOpenApprovalsModal}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
                     pendingApprovalsCount > 0
-                      ? 'bg-stone-900 text-white border-stone-900 ring-2 ring-stone-400/40 animate-pulse'
+                      ? 'bg-rose-700 hover:bg-rose-800 text-white border-rose-800 ring-2 ring-rose-400 animate-pulse shadow-md'
                       : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
                   }`}
                   title="کارتابل تأییدات و بررسی معاملات مس توسط مدیرعامل"
                 >
-                  <ShieldCheck className="w-4 h-4 text-stone-600" />
+                  <ShieldCheck className={`w-4 h-4 ${pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-stone-600'}`} />
                   <span>تأییدات مدیرعامل</span>
                   {pendingApprovalsCount > 0 && (
-                    <span className="bg-stone-900 text-white text-xs px-2 py-0.5 rounded-full font-mono font-black mr-0.5">
+                    <span className="bg-amber-400 text-stone-950 text-xs px-2 py-0.5 rounded-full font-mono font-black mr-0.5 shadow-xs">
                       {pendingApprovalsCount}
                     </span>
                   )}

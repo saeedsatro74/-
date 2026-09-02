@@ -621,6 +621,8 @@ export function replayAndCalculatePersonLedger(
   let pendingChequesCount = 0;
   let pendingChequesTotalAmount = 0;
   let pendingApprovalsCount = 0;
+  let pendingReservedCash = 0;
+  let pendingDepositCash = 0;
 
   const recalculatedTransactions: Transaction[] = [];
 
@@ -634,12 +636,22 @@ export function replayAndCalculatePersonLedger(
     tx.cashBalanceBefore = Math.round(runningCashBalance);
     tx.copperStockBefore = Number(runningCopperStockKg.toFixed(3));
 
-    // Track pending transactions awaiting CEO approval
-    if (status === 'pending' || status === 'topup_step1_pending_bank' || status === 'topup_step3_pending_approval') {
+    // Track pending transactions awaiting CEO action or approval
+    const isPending = status === 'pending' || 
+                      status === 'topup_step1_pending_bank' || 
+                      status === 'topup_step2_awaiting_receipt' || 
+                      status === 'topup_step3_pending_approval';
+
+    if (isPending) {
       pendingApprovalsCount += 1;
+      if (tx.type === 'buy' || tx.type === 'withdrawal') {
+        pendingReservedCash += amount;
+      } else if (tx.type === 'deposit') {
+        pendingDepositCash += amount;
+      }
     }
 
-    // NON-APPROVED transactions (pending, draft, rejected) MUST NOT affect balances or ledger stats
+    // NON-APPROVED transactions (pending, draft, rejected) MUST NOT affect official settled balances or ledger stats
     if (status !== 'approved') {
       tx.cashBalanceAfter = Math.round(runningCashBalance);
       tx.copperStockAfter = Number(runningCopperStockKg.toFixed(3));
@@ -748,6 +760,9 @@ export function replayAndCalculatePersonLedger(
       pendingChequesTotalAmount,
       hasUnclearedCheques: pendingChequesCount > 0,
       pendingApprovalsCount,
+      pendingReservedCash,
+      pendingDepositCash,
+      availableCashBalance: Math.round(runningCashBalance - pendingReservedCash),
     },
   };
 }

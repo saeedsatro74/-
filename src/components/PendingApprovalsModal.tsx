@@ -439,9 +439,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                     </div>
 
                     {/* Transaction Amount Details */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 text-xs">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 text-xs bg-stone-50/70 p-3 rounded-xl border border-stone-200/80 mb-3">
                       <div className="space-y-0.5">
-                        <span className="text-stone-500">مبلغ درخواستی:</span>
+                        <span className="text-stone-500">مبلغ معامله / درخواست:</span>
                         <p className="font-extrabold text-stone-950 font-mono text-base">
                           {formatToman(tx.amount)}
                         </p>
@@ -466,11 +466,47 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                       )}
 
                       <div className="space-y-0.5">
-                        <span className="text-stone-500">ثبت‌کننده:</span>
-                        <p className="font-medium text-stone-800">
-                          {tx.registeredBy || 'مشتری'}
+                        <span className="text-stone-500">موجودی فعلی مشتری:</span>
+                        <p className="font-bold text-stone-900 font-mono">
+                          {formatToman(tx.cashBalanceBefore ?? 0)}
                         </p>
                       </div>
+
+                      {/* Buy Balance Impact Preview */}
+                      {tx.type === 'buy' && (
+                        <div className="col-span-2 sm:col-span-4 bg-amber-100/70 text-amber-950 p-2 rounded-lg text-xs font-semibold flex items-center justify-between border border-amber-200">
+                          <span>
+                            📉 مانده ریالی مشتری پس از تأیید کسر وجه:
+                          </span>
+                          <span className="font-bold font-mono text-emerald-800 text-sm">
+                            {formatToman(Math.max(0, (tx.cashBalanceBefore ?? 0) - tx.amount))}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Sell Balance Impact Preview */}
+                      {tx.type === 'sell' && (
+                        <div className="col-span-2 sm:col-span-4 bg-blue-100/70 text-blue-950 p-2 rounded-lg text-xs font-semibold flex items-center justify-between border border-blue-200">
+                          <span>
+                            📈 مانده ریالی مشتری پس از واریز مبلغ فروش:
+                          </span>
+                          <span className="font-bold font-mono text-emerald-800 text-sm">
+                            {formatToman((tx.cashBalanceBefore ?? 0) + tx.amount)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Withdrawal Balance Impact Preview */}
+                      {tx.type === 'withdrawal' && (
+                        <div className="col-span-2 sm:col-span-4 bg-rose-100/70 text-rose-950 p-2 rounded-lg text-xs font-semibold flex items-center justify-between border border-rose-200">
+                          <span>
+                            📉 مانده ریالی مشتری پس از پرداخت و تسویه وجه:
+                          </span>
+                          <span className="font-bold font-mono text-stone-900 text-sm">
+                            {formatToman(Math.max(0, (tx.cashBalanceBefore ?? 0) - tx.amount))}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Step 2 Assigned Bank Display */}
@@ -581,7 +617,15 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                               className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>تأیید نهایی و شارژ حساب</span>
+                              <span>
+                                {tx.type === 'buy' 
+                                  ? 'تأیید نهایی و کسر از موجودی' 
+                                  : tx.type === 'sell' 
+                                  ? 'تأیید نهایی و واریز به حساب' 
+                                  : tx.type === 'withdrawal' 
+                                  ? 'تأیید نهایی و تسویه وجه' 
+                                  : 'تأیید نهایی و شارژ حساب'}
+                              </span>
                             </button>
                           </>
                         )}

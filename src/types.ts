@@ -91,6 +91,9 @@ export interface PersonWalletSummary {
   hasUnclearedCheques: boolean; // آیا چک پاس نشده دارد (که مانع خرید جدید می‌شود)
   // Approval Summary Fields
   pendingApprovalsCount: number; // تعداد معاملات در انتظار تأیید مدیرعامل
+  pendingReservedCash?: number; // مبلغ ریالی در انتظار تأیید برای خرید یا برداشت مس
+  pendingDepositCash?: number; // مبلغ ریالی شارژ حساب در انتظار تأیید
+  availableCashBalance?: number; // مانده ریالی آزاد و قابل استفاده (موجودی منهای درخواست‌های در جریان)
 }
 
 export interface MarketPrices {

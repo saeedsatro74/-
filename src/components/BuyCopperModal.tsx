@@ -55,7 +55,9 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
   }, [isOpen, selectedPersonId, people, defaultPricePerKg]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);
-  const currentCash = selectedPersonSummary?.cashBalance || 0;
+  const totalCash = selectedPersonSummary?.cashBalance || 0;
+  const availableCash = selectedPersonSummary?.availableCashBalance ?? totalCash;
+  const pendingReserved = selectedPersonSummary?.pendingReservedCash || 0;
   const currentStock = selectedPersonSummary?.copperStockKg || 0;
   const hasUnclearedCheques = selectedPersonSummary?.hasUnclearedCheques || false;
   const pendingChequesCount = selectedPersonSummary?.pendingChequesCount || 0;
@@ -66,8 +68,8 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
     return Math.round(weightKg * pricePerKg);
   }, [weightKg, pricePerKg]);
 
-  const hasInsufficientCash = calculatedTotal > 0 && calculatedTotal > currentCash;
-  const cashDeficit = calculatedTotal - currentCash;
+  const hasInsufficientCash = calculatedTotal > 0 && calculatedTotal > availableCash;
+  const cashDeficit = calculatedTotal - availableCash;
 
   if (!isOpen) return null;
 
@@ -87,9 +89,9 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
     }
     if (hasInsufficientCash) {
       setError(
-        `موجودی ریالی شخص کافی نیست! موجودی فعلی: ${formatToman(currentCash)}، مبلغ کل فاکتور خرید: ${formatToman(
+        `موجودی ریالی قابل استفاده شخص کافی نیست! موجودی قابل استفاده: ${formatToman(availableCash)}${pendingReserved > 0 ? ` (از کل ${formatToman(totalCash)}، مبلغ ${formatToman(pendingReserved)} در انتظار تأیید قبلی است)` : ''}، مبلغ کل فاکتور خرید: ${formatToman(
           calculatedTotal
-        )}. خرید مس فقط تا سقف موجودی نقدی فعلی امکان‌پذیر است.`
+        )}. خرید مس فقط تا سقف موجودی نقدی آزاد امکان‌پذیر است.`
       );
       return;
     }
@@ -197,7 +199,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                 <span>اطلاعیه: این شخص دارای چک پاس‌نشده است</span>
               </div>
               <p className="text-amber-800 leading-relaxed">
-                این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. خرید مس فقط تا سقف موجودی نقدی فعلی (<b>{formatToman(currentCash)}</b>) امکان‌پذیر است.
+                این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. خرید مس فقط تا سقف موجودی نقدی قابل استفاده (<b>{formatToman(availableCash)}</b>) امکان‌پذیر است.
               </p>
             </div>
           )}
@@ -207,10 +209,15 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
             <div className="grid grid-cols-2 gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
               <div className="flex items-center gap-1.5">
                 <Wallet className="w-4 h-4 text-amber-700" />
-                <span className="text-stone-500">موجودی ریالی:</span>
+                <span className="text-stone-500">موجودی قابل استفاده:</span>
                 <span className="font-bold text-stone-900 font-mono">
-                  {formatNumber(selectedPersonSummary.cashBalance)} ت
+                  {formatNumber(availableCash)} ت
                 </span>
+                {pendingReserved > 0 && (
+                  <span className="text-[10px] text-amber-700 font-normal">
+                    ({formatNumber(pendingReserved)} ت رزرو)
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5 justify-end">
                 <span className="text-stone-500">موجودی مس فعلی:</span>
@@ -342,9 +349,9 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
           {/* Balance After Purchase Preview (when cash is sufficient) */}
           {!hasInsufficientCash && calculatedTotal > 0 && selectedPersonSummary && (
             <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs flex items-center justify-between text-stone-600">
-              <span>موجودی ریالی باقی‌مانده پس از خرید:</span>
+              <span>موجودی ریالی آزاد باقی‌مانده پس از خرید:</span>
               <span className="font-bold text-stone-900 font-mono">
-                {formatToman(currentCash - calculatedTotal)}
+                {formatToman(availableCash - calculatedTotal)}
               </span>
             </div>
           )}
