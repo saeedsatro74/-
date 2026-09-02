@@ -88,8 +88,80 @@ export function toPersonRow(p: Person): PersonRow {
   };
 }
 
+export function buildNotesWithMetadata(tx: Transaction): string | null {
+  const metadata: Record<string, any> = {
+    approvalStatus: tx.approvalStatus,
+    registeredBy: tx.registeredBy,
+    approvedBy: tx.approvedBy,
+    approvedAt: tx.approvedAt,
+    rejectionReason: tx.rejectionReason,
+    receiptNumber: tx.receiptNumber,
+    paymentMethod: tx.paymentMethod,
+    chequeNumber: tx.chequeNumber,
+    chequeDueDate: tx.chequeDueDate,
+    chequeBank: tx.chequeBank,
+    chequeStatus: tx.chequeStatus,
+    chequeClearedDate: tx.chequeClearedDate,
+    receiptImageUrl: tx.receiptImageUrl,
+    assignedBankName: tx.assignedBankName,
+    assignedOwnerName: tx.assignedOwnerName,
+    assignedCardNumber: tx.assignedCardNumber,
+    assignedIbanNumber: tx.assignedIbanNumber,
+    assignedBankNote: tx.assignedBankNote,
+    assignedAccountId: (tx as any).assignedAccountId,
+  };
+
+  // Filter out undefined/null values to keep string short
+  const cleanMetadata: Record<string, any> = {};
+  for (const k in metadata) {
+    if (metadata[k] !== undefined && metadata[k] !== null) {
+      cleanMetadata[k] = metadata[k];
+    }
+  }
+
+  const userNotes = tx.notes || '';
+  if (Object.keys(cleanMetadata).length > 0) {
+    return `${userNotes} |||__METADATA__||| ${JSON.stringify(cleanMetadata)}`;
+  }
+  return userNotes || null;
+}
+
 export function toTransaction(row: TransactionRow): Transaction {
-  return {
+  let notes = row.notes || undefined;
+  let metadata: Record<string, any> = {};
+
+  if (row.notes && row.notes.includes('|||__METADATA__|||')) {
+    const parts = row.notes.split('|||__METADATA__|||');
+    notes = parts[0].trim() || undefined;
+    try {
+      metadata = JSON.parse(parts[1]);
+    } catch (e) {
+      console.error('Failed to parse transaction metadata:', e);
+    }
+  }
+
+  // Fallback to reading columns if metadata doesn't have the key, keeping it backward compatible
+  const approvalStatus = metadata.approvalStatus || row.approval_status || 'approved';
+  const registeredBy = metadata.registeredBy || row.registered_by || undefined;
+  const approvedBy = metadata.approvedBy || row.approved_by || undefined;
+  const approvedAt = metadata.approvedAt || row.approved_at || undefined;
+  const rejectionReason = metadata.rejectionReason || row.rejection_reason || undefined;
+  const receiptNumber = metadata.receiptNumber || row.receipt_number || undefined;
+  const paymentMethod = metadata.paymentMethod || row.payment_method || undefined;
+  const chequeNumber = metadata.chequeNumber || row.cheque_number || undefined;
+  const chequeDueDate = metadata.chequeDueDate || row.cheque_due_date || undefined;
+  const chequeBank = metadata.chequeBank || row.cheque_bank || undefined;
+  const chequeStatus = metadata.chequeStatus || row.cheque_status || undefined;
+  const chequeClearedDate = metadata.chequeClearedDate || row.cheque_cleared_date || undefined;
+  const receiptImageUrl = metadata.receiptImageUrl || row.receipt_image_url || undefined;
+  const assignedBankName = metadata.assignedBankName || (row as any).assigned_bank_name || undefined;
+  const assignedOwnerName = metadata.assignedOwnerName || (row as any).assigned_owner_name || undefined;
+  const assignedCardNumber = metadata.assignedCardNumber || (row as any).assigned_card_number || undefined;
+  const assignedIbanNumber = metadata.assignedIbanNumber || (row as any).assigned_iban_number || undefined;
+  const assignedBankNote = metadata.assignedBankNote || row.admin_bank_note || undefined;
+  const assignedAccountId = metadata.assignedAccountId || (row as any).assigned_bank_account_id || undefined;
+
+  const tx: Transaction = {
     id: row.id,
     personId: row.person_id,
     date: row.date,
@@ -104,30 +176,37 @@ export function toTransaction(row: TransactionRow): Transaction {
     cashBalanceAfter: row.cash_balance_after !== null ? Number(row.cash_balance_after) : undefined,
     copperStockBefore: row.copper_stock_before !== undefined && row.copper_stock_before !== null ? Number(row.copper_stock_before) : undefined,
     copperStockAfter: row.copper_stock_after !== null ? Number(row.copper_stock_after) : undefined,
-    notes: row.notes || undefined,
+    notes,
     createdAt: row.created_at,
-    approvalStatus: (row.approval_status as any) || 'approved',
-    registeredBy: row.registered_by || undefined,
-    approvedBy: row.approved_by || undefined,
-    approvedAt: row.approved_at || undefined,
-    rejectionReason: row.rejection_reason || undefined,
-    receiptNumber: row.receipt_number || undefined,
-    paymentMethod: (row.payment_method as any) || undefined,
-    chequeNumber: row.cheque_number || undefined,
-    chequeDueDate: row.cheque_due_date || undefined,
-    chequeBank: row.cheque_bank || undefined,
-    chequeStatus: (row.cheque_status as any) || undefined,
-    chequeClearedDate: row.cheque_cleared_date || undefined,
-    receiptImageUrl: row.receipt_image_url || undefined,
-    assignedBankName: (row as any).assigned_bank_name || undefined,
-    assignedOwnerName: (row as any).assigned_owner_name || undefined,
-    assignedCardNumber: (row as any).assigned_card_number || undefined,
-    assignedIbanNumber: (row as any).assigned_iban_number || undefined,
-    assignedBankNote: row.admin_bank_note || undefined,
+    approvalStatus: approvalStatus as any,
+    registeredBy,
+    approvedBy,
+    approvedAt,
+    rejectionReason,
+    receiptNumber,
+    paymentMethod: paymentMethod as any,
+    chequeNumber,
+    chequeDueDate,
+    chequeBank,
+    chequeStatus: chequeStatus as any,
+    chequeClearedDate,
+    receiptImageUrl,
+    assignedBankName,
+    assignedOwnerName,
+    assignedCardNumber,
+    assignedIbanNumber,
+    assignedBankNote,
   };
+
+  if (assignedAccountId) {
+    (tx as any).assignedAccountId = assignedAccountId;
+  }
+
+  return tx;
 }
 
 export function toTransactionRow(tx: Transaction): TransactionRow {
+  const notesWithMeta = buildNotesWithMetadata(tx);
   return {
     id: tx.id,
     person_id: tx.personId,
@@ -143,7 +222,7 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     cash_balance_after: tx.cashBalanceAfter !== undefined && tx.cashBalanceAfter !== null ? Number(tx.cashBalanceAfter) : null,
     copper_stock_before: tx.copperStockBefore !== undefined && tx.copperStockBefore !== null ? Number(tx.copperStockBefore) : null,
     copper_stock_after: tx.copperStockAfter !== undefined && tx.copperStockAfter !== null ? Number(tx.copperStockAfter) : null,
-    notes: tx.notes || null,
+    notes: notesWithMeta,
     created_at: tx.createdAt || new Date().toISOString(),
     approval_status: tx.approvalStatus || 'approved',
     registered_by: tx.registeredBy || null,
@@ -172,6 +251,7 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
  * Used as a fallback when the remote Supabase table does not have extended columns.
  */
 export function toBaseTransactionRow(tx: Transaction): Record<string, any> {
+  const notesWithMeta = buildNotesWithMetadata(tx);
   return {
     id: tx.id,
     person_id: tx.personId,
@@ -185,7 +265,7 @@ export function toBaseTransactionRow(tx: Transaction): Record<string, any> {
     profit_percentage: tx.profitPercentage !== undefined && tx.profitPercentage !== null ? Number(tx.profitPercentage) : null,
     cash_balance_after: tx.cashBalanceAfter !== undefined && tx.cashBalanceAfter !== null ? Number(tx.cashBalanceAfter) : null,
     copper_stock_after: tx.copperStockAfter !== undefined && tx.copperStockAfter !== null ? Number(tx.copperStockAfter) : null,
-    notes: tx.notes || null,
+    notes: notesWithMeta,
     created_at: tx.createdAt || new Date().toISOString(),
   };
 }

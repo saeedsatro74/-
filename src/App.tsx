@@ -503,6 +503,7 @@ export default function App() {
     amount: number;
     notes?: string;
   }) => {
+    const isCEO = authSession?.role === 'admin';
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -510,6 +511,10 @@ export default function App() {
       type: data.type,
       amount: data.amount,
       notes: data.notes,
+      approvalStatus: isCEO ? 'approved' : 'pending',
+      registeredBy: isCEO ? 'مدیرعامل' : (authSession?.username || 'مسئول مس'),
+      approvedBy: isCEO ? 'مدیرعامل' : undefined,
+      approvedAt: isCEO ? getPersianDateTimeString() : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -517,9 +522,13 @@ export default function App() {
     await syncPersonLedgerToCloud(data.personId, replayed);
 
     showToast(
-      data.type === 'deposit' 
-        ? `واریز مبلغ ${formatToman(data.amount)} با موفقیت در سرور ثبت شد.` 
-        : `برداشت مبلغ ${formatToman(data.amount)} با موفقیت در سرور ثبت شد.`
+      isCEO
+        ? (data.type === 'deposit' 
+          ? `واریز مبلغ ${formatToman(data.amount)} با موفقیت ثبت و تایید گردید.` 
+          : `برداشت مبلغ ${formatToman(data.amount)} با موفقیت ثبت و تایید گردید.`)
+        : (data.type === 'deposit'
+          ? `درخواست واریز مبلغ ${formatToman(data.amount)} ثبت و جهت تایید به کارتابل مدیرعامل ارسال شد.`
+          : `درخواست برداشت مبلغ ${formatToman(data.amount)} ثبت و جهت تایید به کارتابل مدیرعامل ارسال شد.`)
     );
   };
 
@@ -541,6 +550,7 @@ export default function App() {
     registeredBy?: string;
   }) => {
     const pSummary = summaries.find((s) => s.person.id === data.personId);
+    const isCEO = authSession?.role === 'admin';
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -550,8 +560,10 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
       notes: data.notes,
-      approvalStatus: 'pending',
-      registeredBy: data.registeredBy || 'مسئول مس',
+      approvalStatus: isCEO ? 'approved' : 'pending',
+      registeredBy: data.registeredBy || (isCEO ? 'مدیرعامل' : 'مسئول مس'),
+      approvedBy: isCEO ? 'مدیرعامل' : undefined,
+      approvedAt: isCEO ? getPersianDateTimeString() : undefined,
       receiptNumber: generateReceiptNumber('buy'),
       cashBalanceBefore: pSummary?.cashBalance ?? 0,
       copperStockBefore: pSummary?.copperStockKg ?? 0,
@@ -565,7 +577,11 @@ export default function App() {
     const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
     await handleSaveCompanyCopperStock(newStock);
 
-    showToast(`سند خرید ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
+    showToast(
+      isCEO
+        ? `سند خرید ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
+        : `سند خرید ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`
+    );
     setReceiptModalTx(newTx);
   };
 
@@ -591,6 +607,7 @@ export default function App() {
     chequeBank?: string;
   }) => {
     const pSummary = summaries.find((s) => s.person.id === data.personId);
+    const isCEO = authSession?.role === 'admin';
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -600,8 +617,10 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
       notes: data.notes,
-      approvalStatus: 'pending',
-      registeredBy: data.registeredBy || 'مسئول مس',
+      approvalStatus: isCEO ? 'approved' : 'pending',
+      registeredBy: data.registeredBy || (isCEO ? 'مدیرعامل' : 'مسئول مس'),
+      approvedBy: isCEO ? 'مدیرعامل' : undefined,
+      approvedAt: isCEO ? getPersianDateTimeString() : undefined,
       receiptNumber: generateReceiptNumber('sell'),
       cashBalanceBefore: pSummary?.cashBalance ?? 0,
       copperStockBefore: pSummary?.copperStockKg ?? 0,
@@ -616,7 +635,11 @@ export default function App() {
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(data.personId, replayed);
 
-    showToast(`حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`);
+    showToast(
+      isCEO
+        ? `حواله فروش ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
+        : `حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`
+    );
     setReceiptModalTx(newTx);
   };
 
