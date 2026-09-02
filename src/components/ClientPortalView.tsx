@@ -458,15 +458,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
             <button
               type="button"
-              disabled={companyCopperStockKg <= 0}
               onClick={() => handleOpenRequest('buy')}
-              className={`p-2 rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 group ${
-                companyCopperStockKg <= 0
-                  ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
-                  : 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer'
-              }`}
+              className="p-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
             >
-              <ShoppingBag className={`w-4 h-4 group-hover:scale-110 transition-transform ${companyCopperStockKg <= 0 ? 'text-stone-600' : 'text-amber-200'}`} />
+              <ShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform text-amber-200" />
               <span>خرید مس از شرکت</span>
             </button>
           </div>

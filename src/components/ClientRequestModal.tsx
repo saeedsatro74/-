@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   ArrowDownLeft, 
@@ -74,7 +74,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   onSubmitTopupReceipt,
   onCancelRequest,
 }) => {
-  const requestType = initialType;
+  const [requestType, setRequestType] = useState<TransactionType>(initialType);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRequestType(initialType);
+    }
+  }, [isOpen, initialType]);
 
   // Form fields for fresh requests
   const [amount, setAmount] = useState<number>(0);
@@ -255,20 +261,12 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             setError('لطفاً وزن مس مورد نظر خود را به کیلوگرم وارد کنید.');
             return;
           }
-          if (weightKg > companyCopperStockKg) {
-            setError(
-              `موجودی مس آماده تحویل شرکت کافی نیست! موجودی انبار شرکت: ${formatWeight(
-                companyCopperStockKg
-              )} کیلوگرم می‌باشد.`
-            );
-            return;
-          }
           const totalAmount = Math.round(weightKg * curPrice);
-          if (totalAmount > summary.cashBalance) {
+          if (summary.cashBalance <= 0 || totalAmount > summary.cashBalance) {
             setError(
-              `موجودی ریالی شما کافی نیست! موجودی فعلی: ${formatToman(summary.cashBalance)}، مبلغ کل فاکتور: ${formatToman(
+              `موجودی نقدی شما (${formatToman(summary.cashBalance)}) برای این خرید (${formatToman(
                 totalAmount
-              )}.`
+              )}) کافی نیست. لطفاً ابتدا حساب خود را شارژ نمایید.`
             );
             return;
           }
@@ -280,23 +278,15 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             setError('لطفاً مبلغ بودجه خود را به تومان وارد کنید.');
             return;
           }
-          if (buyBudget > summary.cashBalance) {
+          if (summary.cashBalance <= 0 || buyBudget > summary.cashBalance) {
             setError(
               `مبلغ بودجه وارد شده (${formatToman(buyBudget)}) بیشتر از موجودی ریالی فعلی شما (${formatToman(
                 summary.cashBalance
-              )}) می‌باشد.`
+              )}) می‌باشد. لطفاً ابتدا حساب خود را شارژ نمایید.`
             );
             return;
           }
           const calculatedWeight = Math.round((buyBudget / curPrice) * 100) / 100;
-          if (calculatedWeight > companyCopperStockKg) {
-            setError(
-              `موجودی مس آماده تحویل شرکت برای این مبلغ کافی نیست! موجودی انبار شرکت: ${formatWeight(
-                companyCopperStockKg
-              )} کیلوگرم (ارزش معادل: ${formatToman(Math.round(companyCopperStockKg * curPrice))}) می‌باشد.`
-            );
-            return;
-          }
           setWeightKg(calculatedWeight);
           setAmount(buyBudget);
           setUnitPrice(curPrice);
@@ -439,9 +429,24 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
             {/* Error Banner */}
             {error && (
-              <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                <span>{error}</span>
+              <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+                {requestType === 'buy' && summary.cashBalance <= 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      setRequestType('deposit');
+                    }}
+                    className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <ArrowDownLeft className="w-4 h-4" />
+                    <span>شارژ حساب (واریز)</span>
+                  </button>
+                )}
               </div>
             )}
 
