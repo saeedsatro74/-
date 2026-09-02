@@ -753,6 +753,25 @@ export default function App() {
     showToast('عکس فیش و کد پیگیری با موفقیت جهت تأیید نهایی برای مدیرعامل ارسال شد.');
   };
 
+  const handleCancelClientRequest = async (txId: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+    const personId = targetTx.personId;
+    const updatedTxs = transactions.filter((t) => t.id !== txId);
+    const replayed = await updateTransactions(updatedTxs);
+    if (personId) {
+      await syncPersonLedgerToCloud(personId, replayed);
+    }
+    await dbDeleteTransaction(txId);
+
+    // Restore company copper stock if it was a buy request
+    if (targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+      const newStock = companyCopperStockKg + targetTx.weightKg;
+      await handleSaveCompanyCopperStock(newStock);
+    }
+    showToast('درخواست با موفقیت لغو شد و حذف گردید.');
+  };
+
   // --- Manager CEO Approval & Rejection Handlers ---
   const handleApproveTransaction = async (txId: string, approverName: string = 'مدیرعامل') => {
     const targetTx = transactions.find((t) => t.id === txId);
@@ -1027,6 +1046,7 @@ export default function App() {
             onViewReceipt={(tx) => setReceiptModalTx(tx)}
             onSubmitRequest={handleSaveClientRequest}
             onSubmitTopupReceipt={handleSubmitTopupReceipt}
+            onCancelRequest={handleCancelClientRequest}
             onLogout={handleLogout}
             onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
             onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}

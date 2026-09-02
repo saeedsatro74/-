@@ -66,6 +66,7 @@ interface ClientPortalViewProps {
     receiptImageUrl?: string;
   }) => void;
   onSubmitTopupReceipt?: (txId: string, receiptImageUrl: string, receiptNumber: string, notes?: string) => void;
+  onCancelRequest?: (txId: string) => void;
 }
 
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
@@ -84,6 +85,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   activeView = 'dashboard',
   onSubmitRequest,
   onSubmitTopupReceipt,
+  onCancelRequest,
 }) => {
   const bankInfo = companyBankInfo || getStoredCompanyBankInfo() || DEFAULT_COMPANY_BANK_INFO;
   const persianDate = getPersianFullDate();
@@ -164,10 +166,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const approvedTxList = clientTxList.filter((t) => (t.approvalStatus || 'approved') === 'approved');
   
   // Pending topup workflow transactions
-  const step1Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step1_pending_bank');
+  const step1Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step1_pending_bank' || (t.type === 'deposit' && t.approvalStatus === 'pending'));
   const step2Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step2_awaiting_receipt');
   const step3Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step3_pending_approval');
-  const standardPendingTxs = clientTxList.filter((t) => t.approvalStatus === 'pending');
+  const standardPendingTxs = clientTxList.filter((t) => t.type !== 'deposit' && t.approvalStatus === 'pending');
 
   // Currently active topup transaction for 4-step wizard
   const activeTopupTx = step2Txs[0] || step1Txs[0] || step3Txs[0] || null;
@@ -429,16 +431,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
             <button
               type="button"
-              disabled={hasPendingDeposit}
               onClick={() => handleOpenRequest('deposit')}
-              className={`p-2 rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 group ${
-                hasPendingDeposit
-                  ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-60'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-              }`}
+              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
             >
-              <ArrowDownLeft className={`w-4 h-4 group-hover:scale-110 transition-transform ${hasPendingDeposit ? 'text-stone-600' : 'text-emerald-200'}`} />
-              <span>شارژ حساب (واریز)</span>
+              <ArrowDownLeft className="w-4 h-4 group-hover:scale-110 transition-transform text-emerald-200" />
+              <span>{hasPendingDeposit ? 'پیگیری و مدیریت شارژ' : 'شارژ حساب (واریز)'}</span>
             </button>
 
             <button
@@ -474,10 +471,32 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </button>
           </div>
 
-          {hasPendingDeposit && (
-            <div className="bg-amber-950/40 border border-amber-800/40 text-amber-200 text-xs p-3 rounded-xl flex items-center gap-2 font-bold mt-2">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>شما یک درخواست شارژ در جریان دارید. تا تعیین تکلیف نهایی آن، امکان ثبت درخواست شارژ جدید وجود ندارد.</span>
+          {hasPendingDeposit && activeTopupTx && (
+            <div className="bg-amber-950/60 border border-amber-500/40 text-amber-200 text-xs p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  یک درخواست شارژ مبلغ <b className="text-white font-mono">{formatToman(activeTopupTx.amount)}</b> در جریان دارید.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                {onCancelRequest && (
+                  <button
+                    type="button"
+                    onClick={() => onCancelRequest(activeTopupTx.id)}
+                    className="px-2.5 py-1 bg-rose-600/80 hover:bg-rose-600 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                  >
+                    لغو این درخواست
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenRequest('deposit')}
+                  className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-stone-950 text-[11px] font-extrabold rounded-lg transition-colors cursor-pointer"
+                >
+                  مشاهده و اقدام ➔
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -911,6 +930,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           hasPendingDeposit={hasPendingDeposit}
           onSubmitRequest={onSubmitRequest}
           onSubmitTopupReceipt={onSubmitTopupReceipt}
+          onCancelRequest={onCancelRequest}
         />
       )}
 

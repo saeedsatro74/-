@@ -577,7 +577,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => onViewReceipt(tx)}
@@ -588,19 +588,31 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                         </button>
 
                         {/* STEP 1: CEO Assign Bank Account Button */}
-                        {status === 'topup_step1_pending_bank' && (
+                        {(status === 'topup_step1_pending_bank' || (tx.type === 'deposit' && status === 'pending')) && (
                           <button
                             type="button"
                             onClick={() => handleStartAssignBank(tx)}
-                            className="px-4 py-2 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer animate-bounce"
+                            className="px-3.5 py-1.5 text-xs font-black text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                           >
-                            <Building2 className="w-4 h-4" />
-                            <span>انتخاب و ارسال شماره حساب به مشتری</span>
+                            <Building2 className="w-3.5 h-3.5" />
+                            <span>انتخاب و ارسال شماره حساب</span>
+                          </button>
+                        )}
+
+                        {/* STEP 2: CEO Change Bank Account Button */}
+                        {status === 'topup_step2_awaiting_receipt' && (
+                          <button
+                            type="button"
+                            onClick={() => handleStartAssignBank(tx)}
+                            className="px-3.5 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Building2 className="w-3.5 h-3.5 text-amber-700" />
+                            <span>تغییر شماره حساب</span>
                           </button>
                         )}
 
                         {/* STEP 3 & Pending Approval: Final CEO Approval */}
-                        {(status === 'pending' || status === 'topup_step3_pending_approval') && (
+                        {(status === 'pending' || status === 'topup_step1_pending_bank' || status === 'topup_step2_awaiting_receipt' || status === 'topup_step3_pending_approval') && (
                           <>
                             <button
                               type="button"

@@ -57,6 +57,7 @@ interface ClientRequestModalProps {
     receiptNumber: string,
     notes?: string
   ) => void;
+  onCancelRequest?: (txId: string) => void;
 }
 
 export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
@@ -71,6 +72,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   hasPendingDeposit = false,
   onSubmitRequest,
   onSubmitTopupReceipt,
+  onCancelRequest,
 }) => {
   const requestType = initialType;
 
@@ -365,7 +367,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   // Helper to determine current deposit step number
   const getDepositStepNumber = () => {
     if (!activeTopupTx) return 1;
-    if (activeTopupTx.approvalStatus === 'topup_step1_pending_bank') return 2;
+    if (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') return 2;
     if (activeTopupTx.approvalStatus === 'topup_step2_awaiting_receipt') return 3;
     if (activeTopupTx.approvalStatus === 'topup_step3_pending_approval') return 4;
     return 1;
@@ -522,81 +524,64 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 {/* CASE A: STEP 1 FRESH FORM (No active topup request) */}
                 {/* ------------------------------------------------------------- */}
                 {!activeTopupTx && (
-                  hasPendingDeposit ? (
-                    <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-950 space-y-3 font-bold text-center">
-                      <AlertTriangle className="w-8 h-8 text-amber-600 mx-auto animate-bounce" />
-                      <h4 className="text-sm">شما یک درخواست شارژ در جریان دارید!</h4>
-                      <p className="text-xs font-normal text-amber-800 leading-relaxed">
-                        کاربر گرامی، با توجه به اینکه یک درخواست افزایش موجودی (شارژ حساب) تأیید نشده یا در حال بررسی در سیستم دارید، امکان ثبت درخواست شارژ جدید به صورت همزمان وجود ندارد. لطفاً منتظر تعیین تکلیف درخواست قبلی خود بمانید.
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4.5 space-y-1.5">
+                      <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
+                        <Building2 className="w-5 h-5 text-emerald-700" />
+                        <span>مرحله ۱: ثبت مبلغ درخواستی جهت دریافت شماره حساب</span>
+                      </div>
+                      <p className="text-xs text-emerald-900 leading-relaxed">
+                        مبلغ مدنظر برای شارژ حساب را وارد نمایید. پس از ثبت، درخواست به مدیرعامل ارسال می‌گردد تا شماره حساب اختصاصی شرکت برای شما صادر شود.
                       </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-2">
+                        مبلغ درخواستی جهت شارژ حساب (تومان) <span className="text-rose-500">*</span>
+                      </label>
+                      <NumericInput
+                        value={amount}
+                        onChange={(val) => {
+                          setAmount(val);
+                          setError('');
+                        }}
+                        placeholder="مثال: 50,000,000"
+                        unitLabel="تومان"
+                        showWordHelper={true}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-800 mb-2">
+                        توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="هرگونه توضیح در مورد این واریزی..."
+                        className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none"
+                      />
+                    </div>
+
+                    <div className="p-4 border-t border-stone-200 bg-stone-50 rounded-2xl flex items-center justify-between">
+                      <span className="text-xs text-stone-500">پس از ثبت، مدیرعامل شماره حساب جهت واریز وجه را ارسال می‌کند.</span>
                       <button
-                        type="button"
-                        onClick={onClose}
-                        className="mt-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-xl transition-colors cursor-pointer font-bold"
+                        type="submit"
+                        className="px-6 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
                       >
-                        متوجه شدم
+                        <Send className="w-4 h-4" />
+                        <span>ثبت درخواست و دریافت شماره حساب</span>
                       </button>
                     </div>
-                  ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4.5 space-y-1.5">
-                        <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
-                          <Building2 className="w-5 h-5 text-emerald-700" />
-                          <span>مرحله ۱: ثبت مبلغ درخواستی جهت دریافت شماره حساب</span>
-                        </div>
-                        <p className="text-xs text-emerald-900 leading-relaxed">
-                          مبلغ مدنظر برای شارژ حساب را وارد نمایید. پس از ثبت، درخواست به مدیرعامل ارسال می‌گردد تا شماره حساب اختصاصی شرکت برای شما صادر شود.
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-stone-800 mb-2">
-                          مبلغ درخواستی جهت شارژ حساب (تومان) <span className="text-rose-500">*</span>
-                        </label>
-                        <NumericInput
-                          value={amount}
-                          onChange={(val) => {
-                            setAmount(val);
-                            setError('');
-                          }}
-                          placeholder="مثال: 50,000,000"
-                          unitLabel="تومان"
-                          showWordHelper={true}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-stone-800 mb-2">
-                          توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
-                          placeholder="هرگونه توضیح در مورد این واریزی..."
-                          className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 resize-none"
-                        />
-                      </div>
-
-                      <div className="p-4 border-t border-stone-200 bg-stone-50 rounded-2xl flex items-center justify-between">
-                        <span className="text-xs text-stone-500">پس از ثبت، مدیرعامل شماره حساب جهت واریز وجه را ارسال می‌کند.</span>
-                        <button
-                          type="submit"
-                          className="px-6 py-2.5 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
-                        >
-                          <Send className="w-4 h-4" />
-                          <span>ثبت درخواست و دریافت شماره حساب</span>
-                        </button>
-                      </div>
-                    </form>
-                  )
+                  </form>
                 )}
 
                 {/* ------------------------------------------------------------- */}
                 {/* CASE B: STEP 2 (Awaiting CEO Bank Account Assignment) */}
                 {/* ------------------------------------------------------------- */}
-                {activeTopupTx && activeTopupTx.approvalStatus === 'topup_step1_pending_bank' && (
+                {activeTopupTx && (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') && (
                   <div className="space-y-4">
                     <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3 relative overflow-hidden">
                       <div className="flex items-center gap-3">
@@ -635,8 +620,20 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       </p>
                     </div>
 
-                    <div className="p-4 bg-stone-100 border border-stone-200 rounded-2xl text-center text-xs text-stone-600">
-                      لطفاً منتظر تأیید و ارسال شماره حساب اختصاصی توسط مدیرعامل باشید...
+                    <div className="p-4 bg-stone-100 border border-stone-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-600">
+                      <span>لطفاً منتظر تأیید و ارسال شماره حساب اختصاصی توسط مدیرعامل باشید...</span>
+                      {onCancelRequest && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onCancelRequest(activeTopupTx.id);
+                            onClose();
+                          }}
+                          className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs shrink-0"
+                        >
+                          لغو این درخواست و تغییر مبلغ
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -781,7 +778,19 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         />
                       </div>
 
-                      <div className="pt-2">
+                      <div className="pt-2 flex items-center justify-between gap-2">
+                        {onCancelRequest && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCancelRequest(activeTopupTx.id);
+                              onClose();
+                            }}
+                            className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl transition-colors cursor-pointer text-xs shrink-0"
+                          >
+                            لغو درخواست
+                          </button>
+                        )}
                         <button
                           type="submit"
                           className="w-full py-3 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all"
@@ -840,6 +849,21 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       <p className="text-xs text-blue-950 leading-relaxed font-semibold">
                         تصویر رسید و شماره پیگیری شما جهت تایید نهایی صورتحساب برای مدیرعامل ارسال شد. به محض تایید مدیریت، مبلغ کیف پول ریالی شما شارژ خواهد شد.
                       </p>
+
+                      {onCancelRequest && (
+                        <div className="pt-2 border-t border-blue-200 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCancelRequest(activeTopupTx.id);
+                              onClose();
+                            }}
+                            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                          >
+                            لغو این درخواست
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
