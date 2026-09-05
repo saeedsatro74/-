@@ -77,12 +77,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 }) => {
   const [requestType, setRequestType] = useState<TransactionType>(initialType);
 
-  useEffect(() => {
-    if (isOpen) {
-      setRequestType(initialType);
-    }
-  }, [isOpen, initialType]);
-
   // Form fields for fresh requests
   const [amount, setAmount] = useState<number>(0);
   const [weightKg, setWeightKg] = useState<number>(0);
@@ -109,6 +103,25 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   // General Error & Feedback
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setRequestType(initialType);
+      setWeightKg(0);
+      setAmount(0);
+      setBuyStep(1);
+      setBuyBudget(0);
+      setNotes('');
+      setError('');
+    }
+  }, [isOpen, initialType]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const defaultPrice = requestType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice;
+      setUnitPrice(defaultPrice);
+    }
+  }, [requestType, isOpen, marketPrices]);
 
   if (!isOpen) return null;
 

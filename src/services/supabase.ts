@@ -536,6 +536,7 @@ export async function dbDeleteTransaction(txId: string): Promise<boolean> {
  */
 export async function dbSaveMarketPrices(prices: MarketPrices): Promise<boolean> {
   try {
+    // 1. Try upserting numeric/direct values
     const { error } = await supabase
       .from('app_settings')
       .upsert([
@@ -544,8 +545,18 @@ export async function dbSaveMarketPrices(prices: MarketPrices): Promise<boolean>
         { key: 'market_copper_price', value: prices.buyPrice },
       ], { onConflict: 'key' });
     if (error) {
-      console.warn('Notice saving market prices to Supabase:', error.message || error);
-      return false;
+      // 2. Fallback to string representations if the column is text type
+      const { error: err2 } = await supabase
+        .from('app_settings')
+        .upsert([
+          { key: 'market_buy_price', value: String(prices.buyPrice) },
+          { key: 'market_sell_price', value: String(prices.sellPrice) },
+          { key: 'market_copper_price', value: String(prices.buyPrice) },
+        ], { onConflict: 'key' });
+      if (err2) {
+        console.warn('Notice saving market prices to Supabase (text fallback):', err2.message || err2);
+        return false;
+      }
     }
     return true;
   } catch (err: any) {

@@ -403,17 +403,19 @@ export default function App() {
                 saveStoredCompanyCopperStock(val);
               }
             } else if (key === 'market_buy_price' || key === 'market_copper_price') {
-              const current = getStoredMarketPrices();
               const buy = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_BUY_PRICE;
-              const updated: MarketPrices = { ...current, buyPrice: buy };
-              setMarketPrices(updated);
-              saveMarketPrices(updated);
+              setMarketPrices((prev) => {
+                const updated: MarketPrices = { ...prev, buyPrice: buy };
+                saveMarketPrices(updated);
+                return updated;
+              });
             } else if (key === 'market_sell_price') {
-              const current = getStoredMarketPrices();
               const sell = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_SELL_PRICE;
-              const updated: MarketPrices = { ...current, sellPrice: sell };
-              setMarketPrices(updated);
-              saveMarketPrices(updated);
+              setMarketPrices((prev) => {
+                const updated: MarketPrices = { ...prev, sellPrice: sell };
+                saveMarketPrices(updated);
+                return updated;
+              });
             }
           }
         }
