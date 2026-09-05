@@ -54,7 +54,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
   onViewReceipt,
   onAssignBank,
 }) => {
-  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'awaiting_client' | 'history'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [approverName, setApproverName] = useState('مدیرعامل');
   const [ceoPinPrompt, setCeoPinPrompt] = useState<{ action: 'approve' | 'reject' | 'bulk'; txId?: string; txIds?: string[]; reason?: string } | null>(null);
@@ -83,29 +83,42 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
     return map;
   }, [people]);
 
-  // Check if a transaction is in pending state (including topup steps 1, 2, 3)
-  const isPendingStatus = (s?: string) => 
+  // Check if a transaction is in pending state AWAITING CEO ACTION
+  const isPendingCeoStatus = (s?: string) => 
     s === 'pending' || 
     s === 'topup_step1_pending_bank' || 
-    s === 'topup_step2_awaiting_receipt' || 
     s === 'topup_step3_pending_approval';
 
-  // Separate transactions into Pending vs History
+  const isAwaitingClientStatus = (s?: string) =>
+    s === 'topup_step2_awaiting_receipt';
+
+  // Separate transactions into Pending CEO vs Awaiting Client vs History
   const pendingTransactions = useMemo(() => {
     return transactions
-      .filter((tx) => isPendingStatus(tx.approvalStatus))
+      .filter((tx) => isPendingCeoStatus(tx.approvalStatus))
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [transactions]);
+
+  const awaitingClientTransactions = useMemo(() => {
+    return transactions
+      .filter((tx) => isAwaitingClientStatus(tx.approvalStatus))
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }, [transactions]);
 
   const historyTransactions = useMemo(() => {
     return transactions
-      .filter((tx) => !isPendingStatus(tx.approvalStatus))
+      .filter((tx) => !isPendingCeoStatus(tx.approvalStatus) && !isAwaitingClientStatus(tx.approvalStatus))
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }, [transactions]);
 
   // Filtered by search
   const filteredList = useMemo(() => {
-    const list = activeTab === 'pending' ? pendingTransactions : historyTransactions;
+    const list = activeTab === 'pending' 
+      ? pendingTransactions 
+      : activeTab === 'awaiting_client' 
+      ? awaitingClientTransactions 
+      : historyTransactions;
+
     if (!searchTerm.trim()) return list;
 
     const term = searchTerm.toLowerCase();
@@ -117,7 +130,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
       const regMatch = tx.registeredBy?.toLowerCase().includes(term);
       return nameMatch || notesMatch || receiptMatch || regMatch;
     });
-  }, [activeTab, pendingTransactions, historyTransactions, searchTerm, personMap]);
+  }, [activeTab, pendingTransactions, awaitingClientTransactions, historyTransactions, searchTerm, personMap]);
 
   if (!isOpen) return null;
 
@@ -328,18 +341,18 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
         {/* Toolbar & Tabs */}
         <div className="p-4 border-b border-stone-200 bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           
-          <div className="flex items-center bg-stone-200/80 p-1 rounded-xl text-xs font-bold">
+          <div className="flex items-center bg-stone-200/80 p-1 rounded-xl text-xs font-bold overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('pending')}
-              className={`px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'pending'
                   ? 'bg-white text-stone-900 shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-amber-600" />
-              <span>در انتظار اقدام مدیر</span>
+              <span>در انتظار اقدام مدیرعامل</span>
               {pendingTransactions.length > 0 && (
                 <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.2 rounded-full mr-1">
                   {formatNumber(pendingTransactions.length)}
@@ -349,15 +362,33 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
 
             <button
               type="button"
+              onClick={() => setActiveTab('awaiting_client')}
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === 'awaiting_client'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>در انتظار واریز مشتری</span>
+              {awaitingClientTransactions.length > 0 && (
+                <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full mr-1">
+                  {formatNumber(awaitingClientTransactions.length)}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 activeTab === 'history'
                   ? 'bg-white text-stone-900 shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>تاریخچه تأیید و رد شده‌ها</span>
+              <span>تاریخچه</span>
               <span className="text-stone-400 text-[10px] mr-1">
                 ({formatNumber(historyTransactions.length)})
               </span>
@@ -391,6 +422,8 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
               <p className="text-sm font-bold text-stone-700">
                 {activeTab === 'pending' 
                   ? 'هیچ درخواستی در صف تأیید یا تخصیص شماره حساب مدیرعامل وجود ندارد.' 
+                  : activeTab === 'awaiting_client'
+                  ? 'موردی در انتظار واریز فیش توسط مشتری وجود ندارد.'
                   : 'موردی در تاریخچه یافت نشد.'}
               </p>
             </div>
@@ -399,7 +432,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
               {filteredList.map((tx) => {
                 const person = personMap.get(tx.personId);
                 const status = tx.approvalStatus || 'approved';
-                const isPending = isPendingStatus(status);
+                const isPending = isPendingCeoStatus(status) || isAwaitingClientStatus(status);
 
                 return (
                   <div
@@ -644,7 +677,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                           </>
                         )}
 
-                        {/* STEP 2: CEO Change Bank Account or Reject */}
+                        {/* STEP 2: CEO Change Bank Account, Reject, or Direct Approve */}
                         {status === 'topup_step2_awaiting_receipt' && (
                           <>
                             <button
@@ -663,6 +696,15 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                             >
                               <Building2 className="w-3.5 h-3.5 text-amber-700" />
                               <span>تغییر شماره حساب ارسال‌شده</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => executeApprove(tx.id)}
+                              className="px-3.5 py-1.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                              <span>تأیید و شارژ مستقیم حساب</span>
                             </button>
                           </>
                         )}

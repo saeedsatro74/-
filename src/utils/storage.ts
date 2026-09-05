@@ -655,7 +655,6 @@ export function replayAndCalculatePersonLedger(
     // Track pending transactions awaiting CEO action or approval
     const isPending = status === 'pending' || 
                       status === 'topup_step1_pending_bank' || 
-                      status === 'topup_step2_awaiting_receipt' || 
                       status === 'topup_step3_pending_approval';
 
     if (isPending) {

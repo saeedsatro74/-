@@ -177,11 +177,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   );
 
   const step1Txs = pendingDepositTxs.filter(
-    (t) => !t.assignedCardNumber && (t.approvalStatus === 'topup_step1_pending_bank' || t.approvalStatus === 'pending')
+    (t) => t.approvalStatus === 'topup_step1_pending_bank' || (t.approvalStatus === 'pending' && !t.assignedCardNumber)
   );
 
   const step2Txs = pendingDepositTxs.filter(
-    (t) => (t.approvalStatus === 'topup_step2_awaiting_receipt' || (!!t.assignedCardNumber && t.approvalStatus !== 'topup_step3_pending_approval'))
+    (t) => t.approvalStatus === 'topup_step2_awaiting_receipt' || (t.approvalStatus === 'pending' && !!t.assignedCardNumber)
   );
 
   const step3Txs = pendingDepositTxs.filter(
@@ -442,22 +442,62 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         )}
 
         {step3Txs.length > 0 && (
-          <div 
-            onClick={() => handleOpenRequest('deposit')}
-            className="p-2.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-lg text-blue-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
-          >
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
-              <div className="text-[11px] space-y-0.5">
-                <span className="font-bold block">مرحله ۴: فیش ارسال شد (در انتظار شارژ نهایی)</span>
-                <p className="text-blue-800 text-[10px]">
-                  رسید بانکی شما دریافت گردید و در حال تایید نهایی توسط مدیرعامل می‌باشد.
-                </p>
+          <div className="space-y-3">
+            {step3Txs.map((tx) => (
+              <div 
+                key={tx.id}
+                className="bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-4 sm:p-5 shadow-xl border-2 border-blue-500/40 space-y-3 animate-in fade-in zoom-in-95"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-500/30 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="inline-flex items-center gap-1 bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-md text-[11px] font-black">
+                        <span>مرحله ۴ از ۴: فیش ارسال شد</span>
+                      </div>
+                      <h3 className="font-black text-sm sm:text-base text-blue-100 mt-0.5">
+                        فیش واریزی مبلغ {formatToman(tx.amount)} جهت بررسی نهایی ثبت شد
+                      </h3>
+                    </div>
+                  </div>
+
+                  <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-200 border border-blue-400/40 px-3 py-1 rounded-xl text-xs font-bold shrink-0">
+                    <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+                    <span>در انتظار بررسی و شارژ مدیرعامل</span>
+                  </span>
+                </div>
+
+                <div className="bg-slate-950/70 p-3.5 rounded-xl border border-blue-500/30 text-xs space-y-2">
+                  <p className="text-stone-300 leading-relaxed">
+                    رسید واریزی بانکی و کد پیگیری <b className="font-mono text-amber-300">{tx.receiptNumber || 'ثبت شده'}</b> با موفقیت دریافت شد. پس از بررسی حساب بانکی توسط مدیرعامل، کیف پول شما به مبلغ <b>{formatToman(tx.amount)}</b> شارژ می‌گردد.
+                  </p>
+
+                  {tx.receiptImageUrl && (
+                    <div className="flex items-center gap-3 pt-2 border-t border-slate-800">
+                      <img 
+                        src={tx.receiptImageUrl} 
+                        alt="پیش‌نمایش فیش" 
+                        className="w-12 h-12 rounded-lg object-cover border border-blue-400/60 shadow-xs cursor-pointer"
+                        onClick={() => onViewReceipt(tx)}
+                      />
+                      <div className="flex-1">
+                        <span className="text-[11px] text-stone-400 block">تصویر رسید واریزی ارسال‌شده:</span>
+                        <span className="text-xs text-blue-200 font-mono">کد پیگیری: {tx.receiptNumber || 'ندارد'}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onViewReceipt(tx)}
+                        className="px-2.5 py-1.5 bg-blue-800 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors"
+                      >
+                        مشاهده فیش
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            <span className="text-[10px] font-bold text-blue-900 underline group-hover:text-blue-950 shrink-0">
-              بررسی ➔
-            </span>
+            ))}
           </div>
         )}
 

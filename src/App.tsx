@@ -1432,7 +1432,7 @@ export default function App() {
       {isChangePassModalOpen && (
         <ChangePasswordModal
           role={authSession?.role || 'admin'}
-          person={authSession?.role === 'client' && authSession.personId ? people.find((p) => p.id === authSession.personId) || null : null}
+          person={authSession?.role === ('client' as any) && authSession.personId ? people.find((p) => p.id === authSession.personId) || null : null}
           onClose={() => setIsChangePassModalOpen(false)}
           onSaveAdminPassword={(newPass) => {
             saveAdminPassword(newPass);
