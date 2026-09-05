@@ -52,8 +52,10 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   const [chequeDueDate, setChequeDueDate] = useState('');
   const [chequeBank, setChequeBank] = useState('');
 
+  const prevIsOpenRef = React.useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setPersonId(selectedPersonId || (people.length > 0 ? people[0].id : ''));
       setDate(getTodayJalaliString());
       setWeightKg(0);
@@ -66,7 +68,13 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       setChequeNumber('');
       setChequeDueDate('');
       setChequeBank('');
+    } else if (isOpen) {
+      setPersonId((prev) => {
+        if (prev && people.some((p) => p.id === prev)) return prev;
+        return selectedPersonId || (people.length > 0 ? people[0].id : '');
+      });
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, selectedPersonId, people, defaultPricePerKg]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);

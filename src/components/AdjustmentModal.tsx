@@ -37,8 +37,10 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
+  const prevIsOpenRef = React.useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setPersonId(selectedPersonId || (people.length > 0 ? people[0].id : ''));
       setDate(getTodayJalaliString());
       setCashAmount(0);
@@ -47,7 +49,13 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
       setCopperDirection('add');
       setNotes('');
       setError('');
+    } else if (isOpen) {
+      setPersonId((prev) => {
+        if (prev && people.some((p) => p.id === prev)) return prev;
+        return selectedPersonId || (people.length > 0 ? people[0].id : '');
+      });
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, selectedPersonId, people]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);
