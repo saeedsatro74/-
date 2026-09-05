@@ -213,7 +213,7 @@ export default function App() {
         cloudResult.people.forEach((p) => peopleMap.set(p.id, p));
         const allPeople = Array.from(peopleMap.values());
 
-        // Load live data from Supabase directly & merge local pending approvals
+        // Load live data from Supabase directly & merge local pending/approved states correctly
         const storedTxs = getStoredTransactions();
         const mergedTxs = cloudResult.transactions.map((mTx) => {
           const localMatch = storedTxs.find((p) => p.id === mTx.id);
@@ -221,13 +221,20 @@ export default function App() {
           if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
             return mTx;
           }
+          // If locally approved or rejected by CEO, keep local approval status over stale cloud pending status
+          if (localMatch.approvalStatus === 'approved' || localMatch.approvalStatus === 'rejected') {
+            return { ...mTx, ...localMatch };
+          }
           return { ...localMatch, ...mTx };
         });
         const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
-        const localOnlyPending = storedTxs.filter(
-          (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
-        );
-        const combined = [...localOnlyPending, ...mergedTxs];
+        const localOnlyTxs = storedTxs.filter((p) => !remoteIds.has(p.id));
+        const combinedMap = new Map<string, Transaction>();
+        mergedTxs.forEach((t) => combinedMap.set(t.id, t));
+        localOnlyTxs.forEach((t) => {
+          if (!combinedMap.has(t.id)) combinedMap.set(t.id, t);
+        });
+        const combined = Array.from(combinedMap.values());
 
         const replayed = replayAllTransactions(allPeople, combined);
         setPeople(allPeople);

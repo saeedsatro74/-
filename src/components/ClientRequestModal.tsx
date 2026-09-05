@@ -361,9 +361,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   // Helper to determine current deposit step number
   const getDepositStepNumber = () => {
     if (!activeTopupTx) return 1;
-    if (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') return 2;
-    if (activeTopupTx.approvalStatus === 'topup_step2_awaiting_receipt') return 3;
     if (activeTopupTx.approvalStatus === 'topup_step3_pending_approval') return 4;
+    if (activeTopupTx.approvalStatus === 'topup_step2_awaiting_receipt' || !!activeTopupTx.assignedCardNumber) return 3;
+    if (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') return 2;
     return 1;
   };
 
@@ -590,7 +590,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 {/* ------------------------------------------------------------- */}
                 {/* CASE B: STEP 2 (Awaiting CEO Bank Account Assignment) */}
                 {/* ------------------------------------------------------------- */}
-                {activeTopupTx && (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') && (
+                {activeTopupTx && !activeTopupTx.assignedCardNumber && (activeTopupTx.approvalStatus === 'topup_step1_pending_bank' || activeTopupTx.approvalStatus === 'pending') && (
                   <div className="space-y-4">
                     <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3 relative overflow-hidden">
                       <div className="flex items-center gap-3">
@@ -650,7 +650,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 {/* ------------------------------------------------------------- */}
                 {/* CASE C: STEP 3 (CEO Bank Assigned, Awaiting Receipt Upload) */}
                 {/* ------------------------------------------------------------- */}
-                {activeTopupTx && activeTopupTx.approvalStatus === 'topup_step2_awaiting_receipt' && (
+                {activeTopupTx && (activeTopupTx.approvalStatus === 'topup_step2_awaiting_receipt' || (!!activeTopupTx.assignedCardNumber && activeTopupTx.approvalStatus !== 'topup_step3_pending_approval')) && (
                   <form onSubmit={handleSubmitStep3Receipt} className="space-y-4">
                     
                     {/* Bank Info Card */}

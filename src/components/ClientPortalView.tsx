@@ -172,9 +172,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const rejectedTxs = clientTxList.filter((t) => t.approvalStatus === 'rejected');
   
   // Pending topup workflow transactions
-  const step1Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step1_pending_bank' || (t.type === 'deposit' && t.approvalStatus === 'pending'));
-  const step2Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step2_awaiting_receipt');
-  const step3Txs = clientTxList.filter((t) => t.approvalStatus === 'topup_step3_pending_approval');
+  const pendingDepositTxs = clientTxList.filter(
+    (t) => t.type === 'deposit' && t.approvalStatus !== 'approved' && t.approvalStatus !== 'rejected'
+  );
+
+  const step1Txs = pendingDepositTxs.filter(
+    (t) => !t.assignedCardNumber && (t.approvalStatus === 'topup_step1_pending_bank' || t.approvalStatus === 'pending')
+  );
+
+  const step2Txs = pendingDepositTxs.filter(
+    (t) => (t.approvalStatus === 'topup_step2_awaiting_receipt' || (!!t.assignedCardNumber && t.approvalStatus !== 'topup_step3_pending_approval'))
+  );
+
+  const step3Txs = pendingDepositTxs.filter(
+    (t) => t.approvalStatus === 'topup_step3_pending_approval'
+  );
+
   const standardPendingTxs = clientTxList.filter((t) => t.type !== 'deposit' && t.approvalStatus === 'pending');
 
   // Currently active topup transaction for 4-step wizard
@@ -311,39 +324,102 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           />
         ) : (
           <>
-            {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT - Ultra Compact */}
+            {/* 4-STEP TOPUP ACTION BANNERS FOR CLIENT */}
             {step2Txs.length > 0 && (
-          <div className="space-y-2">
-            {step2Txs.map((tx) => (
-              <div
-                key={tx.id}
-                className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-stone-900 text-white rounded-lg p-3 shadow-md border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in zoom-in-95"
-              >
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 px-2 py-0.2 rounded-md text-[10px] font-bold">
-                    <Building2 className="w-3 h-3" />
-                    <span>مرحله ۲ از ۴: حساب صادر شد</span>
-                  </div>
-                  <h3 className="font-bold text-xs sm:text-sm text-emerald-100">
-                    شماره حساب تعیین گردید (مبلغ {formatToman(tx.amount)}).
-                  </h3>
-                  <p className="text-[10px] text-stone-300">
-                    بانک: <b>{tx.assignedBankName}</b> ({tx.assignedOwnerName}) | کارت: <span className="font-mono">{tx.assignedCardNumber}</span>
-                  </p>
-                </div>
+              <div className="space-y-3">
+                {step2Txs.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-stone-900 text-white rounded-2xl p-4 sm:p-5 shadow-xl border-2 border-emerald-500/40 space-y-3.5 animate-in fade-in zoom-in-95"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-500/30 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shrink-0">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 px-2 py-0.5 rounded-md text-[11px] font-black">
+                            <span>مرحله ۳ از ۴: شماره حساب صادر شد</span>
+                          </div>
+                          <h3 className="font-black text-sm sm:text-base text-emerald-100 mt-0.5">
+                            واریز به حساب جهت شارژ مبلغ {formatToman(tx.amount)}
+                          </h3>
+                        </div>
+                      </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenRequest('deposit')}
-                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-[11px] rounded-lg transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer shrink-0 animate-pulse"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>بارگذاری فیش</span>
-                </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadReceiptTx(tx);
+                          setReceiptImageBase64('');
+                          setReceiptCodeInput('');
+                          setReceiptNotesInput('');
+                        }}
+                        className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0 animate-bounce"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>بارگذاری عکس فیش بانکی ➔</span>
+                      </button>
+                    </div>
+
+                    {/* Bank Card Info */}
+                    <div className="bg-stone-950/60 backdrop-blur-md p-3.5 sm:p-4 rounded-xl border border-emerald-500/30 space-y-2.5 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-emerald-200">
+                        <span>بانک مقصد: <b className="text-white text-sm">{tx.assignedBankName || 'بانک شرکت'}</b></span>
+                        <span>نام صاحب حساب: <b className="text-white text-sm">{tx.assignedOwnerName || 'شرکت مس واته'}</b></span>
+                      </div>
+
+                      {/* Card Number */}
+                      {tx.assignedCardNumber && (
+                        <div className="flex items-center justify-between bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40">
+                          <div className="flex items-center gap-2 font-mono">
+                            <CreditCard className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span className="text-stone-300 text-[11px] font-sans">شماره کارت:</span>
+                            <span className="text-amber-300 font-extrabold dir-ltr text-xs sm:text-sm tracking-wider">
+                              {tx.assignedCardNumber}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(tx.assignedCardNumber || '', 'card')}
+                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-md cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>{copiedField === 'card' ? 'کپی شد!' : 'کپی کارت'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* IBAN */}
+                      {tx.assignedIbanNumber && (
+                        <div className="flex items-center justify-between bg-emerald-950/80 p-2.5 rounded-lg border border-emerald-500/40 font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className="text-stone-300 text-[11px] font-sans">شماره شبا:</span>
+                            <span className="text-emerald-200 font-bold dir-ltr text-[11px] sm:text-xs tracking-wider">
+                              {tx.assignedIbanNumber}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(tx.assignedIbanNumber || '', 'iban')}
+                            className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-bold rounded-md cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>{copiedField === 'iban' ? 'کپی شد!' : 'کپی شبا'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {tx.assignedBankNote && (
+                        <p className="text-[11px] text-amber-200 bg-amber-950/40 p-2 rounded-md border border-amber-500/30">
+                          💡 یادداشت مدیریت: {tx.assignedBankNote}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
         {step1Txs.length > 0 && (
           <div 
