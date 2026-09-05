@@ -218,19 +218,15 @@ export default function App() {
           const storedTxs = getStoredTransactions();
           const mergedTxs = cloudResult.transactions.map((mTx) => {
             const localMatch = storedTxs.find((p) => p.id === mTx.id);
-            if (
-              localMatch && 
-              localMatch.approvalStatus && 
-              localMatch.approvalStatus !== 'approved' && 
-              mTx.approvalStatus === 'approved'
-            ) {
-              return { ...mTx, ...localMatch, cashBalanceAfter: mTx.cashBalanceAfter, copperStockAfter: mTx.copperStockAfter };
+            if (!localMatch) return mTx;
+            if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
+              return mTx;
             }
-            return mTx;
+            return { ...localMatch, ...mTx };
           });
           const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
           const localOnlyPending = storedTxs.filter(
-            (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved'
+            (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
           );
           const combined = [...localOnlyPending, ...mergedTxs];
 
@@ -315,19 +311,15 @@ export default function App() {
             setTransactions((prevTxs) => {
               const merged = mapped.map((mTx) => {
                 const localMatch = prevTxs.find((p) => p.id === mTx.id);
-                if (
-                  localMatch && 
-                  localMatch.approvalStatus && 
-                  localMatch.approvalStatus !== 'approved' && 
-                  mTx.approvalStatus === 'approved'
-                ) {
-                  return { ...mTx, ...localMatch, cashBalanceAfter: mTx.cashBalanceAfter, copperStockAfter: mTx.copperStockAfter };
+                if (!localMatch) return mTx;
+                if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
+                  return mTx;
                 }
-                return mTx;
+                return { ...localMatch, ...mTx };
               });
               const remoteIds = new Set(mapped.map((m) => m.id));
               const localOnlyPending = prevTxs.filter(
-                (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved'
+                (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
               );
               const combined = [...localOnlyPending, ...merged];
               const replayed = replayAllTransactions(people, combined);
