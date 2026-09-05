@@ -1344,6 +1344,7 @@ export default function App() {
         onBulkApprove={handleBulkApprove}
         onViewReceipt={(tx) => setReceiptModalTx(tx)}
         onAssignBank={handleAssignBankToTransaction}
+        onDeleteTransaction={handlePromptDeleteTransaction}
       />
 
       {/* Official Transaction Receipt Modal */}

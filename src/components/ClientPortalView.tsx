@@ -31,7 +31,8 @@ import {
   X,
   XCircle,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
@@ -574,14 +575,27 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     )}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onViewReceipt(tx)}
-                  className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer self-end sm:self-center shrink-0 flex items-center gap-1"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>مشاهده پیش‌فاکتور</span>
-                </button>
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onViewReceipt(tx)}
+                    className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>مشاهده پیش‌فاکتور</span>
+                  </button>
+                  {onCancelRequest && (
+                    <button
+                      type="button"
+                      onClick={() => onCancelRequest(tx.id)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                      title="لغو و حذف این درخواست"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>لغو و حذف درخواست</span>
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

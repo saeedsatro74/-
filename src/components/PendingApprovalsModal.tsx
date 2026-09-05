@@ -23,7 +23,8 @@ import {
   CreditCard,
   Send,
   Copy,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { Transaction, Person, CompanyBankAccount } from '../types';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
@@ -40,6 +41,7 @@ interface PendingApprovalsModalProps {
   onBulkApprove?: (transactionIds: string[], approverName?: string) => void;
   onViewReceipt: (transaction: Transaction) => void;
   onAssignBank?: (transactionId: string, bankDetails: CompanyBankAccount, note?: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
 export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
@@ -53,6 +55,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
   onBulkApprove,
   onViewReceipt,
   onAssignBank,
+  onDeleteTransaction,
 }) => {
   const [activeTab, setActiveTab] = useState<'pending' | 'awaiting_client' | 'history'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,6 +63,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
   const [ceoPinPrompt, setCeoPinPrompt] = useState<{ action: 'approve' | 'reject' | 'bulk'; txId?: string; txIds?: string[]; reason?: string } | null>(null);
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
+
+  // Delete transaction modal state
+  const [deletingTxId, setDeletingTxId] = useState<string | null>(null);
 
   // Reject modal state
   const [rejectingTxId, setRejectingTxId] = useState<string | null>(null);
@@ -654,6 +660,18 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                           <span>مشاهده رسید</span>
                         </button>
 
+                        {onDeleteTransaction && (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingTxId(tx.id)}
+                            className="px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                            title="حذف کامل این درخواست از سیستم"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>حذف درخواست</span>
+                          </button>
+                        )}
+
                         {/* STEP 1: CEO Assign Bank Account Button */}
                         {(status === 'topup_step1_pending_bank' || (tx.type === 'deposit' && status === 'pending')) && (
                           <>
@@ -987,6 +1005,44 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingTxId && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 dir-rtl">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-stone-200 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h3 className="font-extrabold text-stone-900 text-base">حذف کامل درخواست</h3>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              آیا از حذف کامل این درخواست اطمینان دارید؟ این درخواست به‌طور کامل از لیست و سرور حذف خواهد شد.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setDeletingTxId(null)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                انصراف
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deletingTxId && onDeleteTransaction) {
+                    onDeleteTransaction(deletingTxId);
+                  }
+                  setDeletingTxId(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+              >
+                بله، حذف کن
+              </button>
+            </div>
           </div>
         </div>
       )}
