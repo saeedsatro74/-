@@ -540,8 +540,9 @@ export async function dbSaveCompanyCopperStock(stockKg: number): Promise<boolean
  */
 export async function dbClearAllCloudData(): Promise<boolean> {
   try {
-    // Only delete transactions to reset balances and buy/sell history, keeping customer accounts intact
+    // Delete all transactions and people in Supabase
     await supabase.from('transactions').delete().neq('id', '___non_existent___');
+    await supabase.from('people').delete().neq('id', '___non_existent___');
     await supabase.from('app_settings').upsert({ key: 'market_copper_price', value: DEFAULT_MARKET_COPPER_PRICE });
     await supabase.from('app_settings').upsert({ key: 'company_copper_stock', value: 0 });
     return true;

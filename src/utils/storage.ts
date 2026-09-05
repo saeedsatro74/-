@@ -209,6 +209,36 @@ export const DEFAULT_MARKET_COPPER_PRICE = DEFAULT_MARKET_BUY_PRICE;
 // Realistic Seed People
 const INITIAL_PEOPLE: Person[] = [
   {
+    id: 'person-1788006163739',
+    name: 'سعید صمیمی پور',
+    phone: '09379900697',
+    createdAt: '1405/06/07',
+  },
+  {
+    id: 'person-1788007473054',
+    name: 'میلاد فتح پور',
+    phone: '09121495188',
+    createdAt: '1405/06/07',
+  },
+  {
+    id: 'person-1788009335252',
+    name: 'جواد شکرالهی',
+    phone: '09127697501',
+    createdAt: '1405/06/07',
+  },
+  {
+    id: 'person-1788164520151',
+    name: 'علی ظفری پور',
+    phone: '09134263654',
+    createdAt: '1405/06/09',
+  },
+  {
+    id: 'person-1788183021164',
+    name: 'سارا خمسه لو',
+    phone: '09370256246',
+    createdAt: '1405/06/09',
+  },
+  {
     id: 'p-ali',
     name: 'علی رضایی',
     phone: '09121113344',
@@ -228,20 +258,6 @@ const INITIAL_PEOPLE: Person[] = [
     phone: '09123335566',
     notes: 'لوله مسی کلاف و شاخه ای ضخامت ۰.۸۱',
     createdAt: '1403/11/10',
-  },
-  {
-    id: 'p-karimi',
-    name: 'علی کریمی (فروشگاه برودت)',
-    phone: '09125557788',
-    notes: 'فروش کامل و تسویه مس',
-    createdAt: '1403/11/15',
-  },
-  {
-    id: 'p-alborz',
-    name: 'شرکت سرمایش البرز (محمودی)',
-    phone: '02188997766',
-    notes: 'سرمایه‌گذاری عمده لوله مسی سنگین',
-    createdAt: '1403/11/20',
   },
 ];
 

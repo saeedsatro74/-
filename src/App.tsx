@@ -206,6 +206,13 @@ export default function App() {
         if (cloudResult.isConnected) {
           setIsCloudConnected(true);
           
+          // Merge local & remote people to ensure no customer accounts are lost
+          const storedPeople = getStoredPeople();
+          const peopleMap = new Map<string, Person>();
+          storedPeople.forEach((p) => peopleMap.set(p.id, p));
+          cloudResult.people.forEach((p) => peopleMap.set(p.id, p));
+          const allPeople = Array.from(peopleMap.values());
+
           // Load live data from Supabase directly & merge local pending approvals
           const storedTxs = getStoredTransactions();
           const mergedTxs = cloudResult.transactions.map((mTx) => {
@@ -226,15 +233,15 @@ export default function App() {
           );
           const combined = [...localOnlyPending, ...mergedTxs];
 
-          const replayed = replayAllTransactions(cloudResult.people, combined);
-          setPeople(cloudResult.people);
+          const replayed = replayAllTransactions(allPeople, combined);
+          setPeople(allPeople);
           setTransactions(replayed);
           setMarketPrices(cloudResult.marketPrices);
           if (cloudResult.companyCopperStock !== undefined) {
             setCompanyCopperStockKg(cloudResult.companyCopperStock);
             saveStoredCompanyCopperStock(cloudResult.companyCopperStock);
           }
-          savePeople(cloudResult.people);
+          savePeople(allPeople);
           saveTransactions(replayed);
           saveMarketPrices(cloudResult.marketPrices);
         } else {
