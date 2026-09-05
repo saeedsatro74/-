@@ -18,6 +18,7 @@ export interface PersonRow {
   name: string;
   phone: string | null;
   notes: string | null;
+  password?: string | null;
   created_at: string;
 }
 
@@ -59,6 +60,7 @@ export interface TransactionRow {
   assigned_owner_name?: string | null;
   assigned_card_number?: string | null;
   assigned_iban_number?: string | null;
+  sale_category?: string | null;
 }
 
 export interface AppSettingRow {
@@ -67,7 +69,7 @@ export interface AppSettingRow {
 }
 
 export function toPerson(row: PersonRow): Person {
-  const storedPass = getClientPassword(row.id);
+  const storedPass = row.password || getClientPassword(row.id);
   return {
     id: row.id,
     name: row.name,
@@ -84,6 +86,7 @@ export function toPersonRow(p: Person): PersonRow {
     name: p.name,
     phone: p.phone || null,
     notes: p.notes || null,
+    password: p.password || getClientPassword(p.id) || null,
     created_at: p.createdAt || new Date().toISOString(),
   };
 }
@@ -109,6 +112,7 @@ export function buildNotesWithMetadata(tx: Transaction): string | null {
     assignedIbanNumber: tx.assignedIbanNumber,
     assignedBankNote: tx.assignedBankNote,
     assignedAccountId: (tx as any).assignedAccountId,
+    saleCategory: tx.saleCategory,
   };
 
   // Filter out undefined/null values to keep string short
@@ -160,6 +164,7 @@ export function toTransaction(row: TransactionRow): Transaction {
   const assignedIbanNumber = metadata.assignedIbanNumber || (row as any).assigned_iban_number || undefined;
   const assignedBankNote = metadata.assignedBankNote || row.admin_bank_note || undefined;
   const assignedAccountId = metadata.assignedAccountId || (row as any).assigned_bank_account_id || undefined;
+  const saleCategory = metadata.saleCategory || row.sale_category || undefined;
 
   const tx: Transaction = {
     id: row.id,
@@ -196,6 +201,7 @@ export function toTransaction(row: TransactionRow): Transaction {
     assignedCardNumber,
     assignedIbanNumber,
     assignedBankNote,
+    saleCategory: saleCategory as any,
   };
 
   if (assignedAccountId) {
@@ -243,6 +249,7 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     assigned_owner_name: tx.assignedOwnerName || null,
     assigned_card_number: tx.assignedCardNumber || null,
     assigned_iban_number: tx.assignedIbanNumber || null,
+    sale_category: tx.saleCategory || null,
   };
 }
 

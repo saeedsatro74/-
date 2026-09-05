@@ -605,14 +605,17 @@ export default function App() {
     chequeNumber?: string;
     chequeDueDate?: string;
     chequeBank?: string;
+    saleCategory?: 'internal' | 'external';
   }) => {
     const pSummary = summaries.find((s) => s.person.id === data.personId);
     const isCEO = authSession?.role === 'admin';
+    const saleCat = data.saleCategory || 'internal';
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
       type: 'sell',
+      saleCategory: saleCat,
       amount: data.totalPrice,
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
@@ -635,9 +638,20 @@ export default function App() {
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(data.personId, replayed);
 
+    // Update company copper stock
+    if (data.weightKg) {
+      if (saleCat === 'external') {
+        const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
+        await handleSaveCompanyCopperStock(newStock);
+      } else {
+        const newStock = companyCopperStockKg + data.weightKg;
+        await handleSaveCompanyCopperStock(newStock);
+      }
+    }
+
     showToast(
       isCEO
-        ? `حواله فروش ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
+        ? `حواله فروش (${saleCat === 'external' ? 'فروش خارجی' : 'فروش داخلی'}) ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
         : `حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`
     );
     setReceiptModalTx(newTx);
@@ -652,6 +666,7 @@ export default function App() {
     notes?: string;
     paymentMethod?: PaymentMethod;
     receiptImageUrl?: string;
+    saleCategory?: 'internal' | 'external';
   }) => {
     if (!authSession?.personId) return;
     const personId = authSession.personId;
@@ -664,6 +679,7 @@ export default function App() {
       personId,
       date: getTodayJalaliString(),
       type: data.type,
+      saleCategory: data.type === 'sell' ? (data.saleCategory || 'internal') : undefined,
       amount: data.amount,
       weightKg: data.weightKg,
       unitPrice: data.unitPrice,
@@ -681,10 +697,18 @@ export default function App() {
     const replayed = await updateTransactions([...transactions, newTx]);
     await syncPersonLedgerToCloud(personId, replayed);
 
-    // Decrease company copper stock
+    // Update company copper stock
     if (data.type === 'buy' && data.weightKg) {
       const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
       await handleSaveCompanyCopperStock(newStock);
+    } else if (data.type === 'sell' && data.weightKg) {
+      if (data.saleCategory === 'external') {
+        const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
+        await handleSaveCompanyCopperStock(newStock);
+      } else {
+        const newStock = companyCopperStockKg + data.weightKg;
+        await handleSaveCompanyCopperStock(newStock);
+      }
     }
 
     let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
@@ -764,10 +788,20 @@ export default function App() {
     }
     await dbDeleteTransaction(txId);
 
-    // Restore company copper stock if it was a buy request
-    if (targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
-      const newStock = companyCopperStockKg + targetTx.weightKg;
-      await handleSaveCompanyCopperStock(newStock);
+    // Revert company copper stock
+    if (targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+      if (targetTx.type === 'buy') {
+        const newStock = companyCopperStockKg + targetTx.weightKg;
+        await handleSaveCompanyCopperStock(newStock);
+      } else if (targetTx.type === 'sell') {
+        if (targetTx.saleCategory === 'external') {
+          const newStock = companyCopperStockKg + targetTx.weightKg;
+          await handleSaveCompanyCopperStock(newStock);
+        } else {
+          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+          await handleSaveCompanyCopperStock(newStock);
+        }
+      }
     }
     showToast('درخواست با موفقیت لغو شد و حذف گردید.');
   };
@@ -815,10 +849,20 @@ export default function App() {
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
 
-    // Restore company copper stock if previous status wasn't rejected
-    if (targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
-      const newStock = companyCopperStockKg + targetTx.weightKg;
-      await handleSaveCompanyCopperStock(newStock);
+    // Revert company copper stock if previous status wasn't rejected
+    if (targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+      if (targetTx.type === 'buy') {
+        const newStock = companyCopperStockKg + targetTx.weightKg;
+        await handleSaveCompanyCopperStock(newStock);
+      } else if (targetTx.type === 'sell') {
+        if (targetTx.saleCategory === 'external') {
+          const newStock = companyCopperStockKg + targetTx.weightKg;
+          await handleSaveCompanyCopperStock(newStock);
+        } else {
+          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+          await handleSaveCompanyCopperStock(newStock);
+        }
+      }
     }
 
     showToast(`معامله مس رد شد و تأثیری در موجودی نخواهد داشت.`);
@@ -941,10 +985,20 @@ export default function App() {
       const replayed = await updateTransactions(updatedTxs);
       await dbDeleteTransaction(id);
       
-      // Restore company copper stock if previous status wasn't rejected and type is buy
-      if (targetTx && targetTx.type === 'buy' && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
-        const newStock = companyCopperStockKg + targetTx.weightKg;
-        await handleSaveCompanyCopperStock(newStock);
+      // Revert company copper stock if previous status wasn't rejected
+      if (targetTx && targetTx.weightKg && targetTx.approvalStatus !== 'rejected') {
+        if (targetTx.type === 'buy') {
+          const newStock = companyCopperStockKg + targetTx.weightKg;
+          await handleSaveCompanyCopperStock(newStock);
+        } else if (targetTx.type === 'sell') {
+          if (targetTx.saleCategory === 'external') {
+            const newStock = companyCopperStockKg + targetTx.weightKg;
+            await handleSaveCompanyCopperStock(newStock);
+          } else {
+            const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+            await handleSaveCompanyCopperStock(newStock);
+          }
+        }
       }
 
       if (personId) {

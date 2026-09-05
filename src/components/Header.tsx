@@ -127,20 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>{persianDate}</span>
                   <span className="text-stone-300">•</span>
                   <span>
-                    انبار مس شرکت: {userRole === 'admin' && onOpenEditCompanyStock ? (
-                      <button
-                        type="button"
-                        onClick={onOpenEditCompanyStock}
-                        className="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded-md cursor-pointer transition-colors"
-                        title="کلیک کنید جهت ورود، ویرایش یا شارژ موجودی انبار مس شرکت"
-                      >
-                        <Boxes className="w-3 h-3 text-amber-700" />
-                        <span>{formatWeight(companyCopperStockKg)}</span>
-                        <Edit2 className="w-2.5 h-2.5 text-amber-600" />
-                      </button>
-                    ) : (
-                      <b className="font-bold text-stone-800">{formatWeight(companyCopperStockKg)}</b>
-                    )}
+                    انبار مس شرکت: <b className="font-bold text-stone-800">{formatWeight(companyCopperStockKg)}</b>
                   </span>
                   <span className="text-stone-300">•</span>
                   <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
@@ -151,17 +138,6 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile Data & Approvals Buttons */}
             {!isPersonSelected && (
               <div className="lg:hidden flex items-center gap-1.5">
-                {userRole === 'admin' && onOpenEditCompanyStock && (
-                  <button
-                    type="button"
-                    onClick={onOpenEditCompanyStock}
-                    className="px-2 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg flex items-center gap-1 cursor-pointer"
-                    title="تنظیم و شارژ موجودی انبار مس شرکت"
-                  >
-                    <Boxes className="w-3.5 h-3.5 text-amber-700" />
-                    <span>انبار شرکت ({formatWeight(companyCopperStockKg, false)})</span>
-                  </button>
-                )}
                 {onChangePassword && (
                   <button
                     type="button"

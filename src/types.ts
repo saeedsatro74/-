@@ -50,6 +50,7 @@ export interface Transaction {
   approvalStatus?: ApprovalStatus; // 'draft' | 'pending' | 'topup_step1_pending_bank' | ...
   registeredBy?: string; // e.g. "مسئول مس" or "مشتری"
   approvedBy?: string; // e.g. "مدیرعامل"
+  saleCategory?: 'internal' | 'external'; // 'internal' (فروش داخلی / واریز به انبار شرکت), 'external' (فروش خارجی / خروج از انبار شرکت)
   approvedAt?: string; // e.g. "1403/12/10 ساعت 14:35"
   rejectionReason?: string; // e.g. "قیمت خرید اشتباه وارد شده است."
   receiptNumber?: string; // e.g. "REC-140312-8419"

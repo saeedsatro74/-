@@ -255,9 +255,13 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
         );
       case 'sell':
         return (
-          <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md text-xs font-bold">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${
+            tx.saleCategory === 'external'
+              ? 'bg-amber-100 text-amber-950 border border-amber-300'
+              : 'bg-blue-100 text-blue-900 border border-blue-200'
+          }`}>
             <TrendingUp className="w-3 h-3" />
-            فروش مس
+            {tx.saleCategory === 'external' ? 'فروش مس (خارجی - خروج از انبار)' : 'فروش مس (داخلی - واریز به انبار)'}
           </span>
         );
       case 'deposit':

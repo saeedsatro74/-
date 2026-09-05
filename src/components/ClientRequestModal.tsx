@@ -50,6 +50,7 @@ interface ClientRequestModalProps {
     notes?: string;
     paymentMethod?: PaymentMethod;
     receiptImageUrl?: string;
+    saleCategory?: 'internal' | 'external';
   }) => void;
   onSubmitTopupReceipt?: (
     txId: string,
@@ -88,6 +89,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [unitPrice, setUnitPrice] = useState<number>(
     initialType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice
   );
+  const [saleCategory, setSaleCategory] = useState<'internal' | 'external'>('internal');
   
   // Buy copper multi-step wizard states
   const [buyStep, setBuyStep] = useState<1 | 2>(1);
@@ -232,7 +234,8 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       }
 
       const totalCalculated = Math.round(weightKg * unitPrice);
-      let finalNotes = `درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)}`;
+      const catTitle = saleCategory === 'external' ? 'فروش خارجی (خروج از انبار شرکت)' : 'فروش داخلی (تحویل به انبار شرکت)';
+      let finalNotes = `[${catTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)}`;
       if (notes.trim()) finalNotes += ` | توضیحات: ${notes.trim()}`;
 
       onSubmitRequest({
@@ -240,6 +243,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         amount: totalCalculated,
         weightKg,
         unitPrice,
+        saleCategory,
         notes: finalNotes,
       });
       onClose();
@@ -964,6 +968,62 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             {/* ======================================================== */}
             {requestType === 'sell' && (
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Sale Category Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-2">
+                    نوع فروش <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Internal Sale */}
+                    <button
+                      type="button"
+                      onClick={() => setSaleCategory('internal')}
+                      className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                        saleCategory === 'internal'
+                          ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-300 text-blue-950 shadow-xs'
+                          : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="font-extrabold text-xs flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4 text-blue-700" />
+                          فروش داخلی (تحویل به شرکت)
+                        </span>
+                        {saleCategory === 'internal' && (
+                          <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-500 leading-tight">
+                        مس به انبار مرکزی شرکت اضافه می‌گردد (افزایش موجودی انبار شرکت).
+                      </p>
+                    </button>
+
+                    {/* External Sale */}
+                    <button
+                      type="button"
+                      onClick={() => setSaleCategory('external')}
+                      className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                        saleCategory === 'external'
+                          ? 'bg-amber-50 border-amber-600 ring-2 ring-amber-300 text-amber-950 shadow-xs'
+                          : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <span className="font-extrabold text-xs flex items-center gap-1.5">
+                          <ArrowUpRight className="w-4 h-4 text-amber-700" />
+                          فروش خارجی (خروج از انبار)
+                        </span>
+                        {saleCategory === 'external' && (
+                          <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-500 leading-tight">
+                        مس از انبار شرکت خارج شده و به خارج تحویل داده می‌شود (کاهش موجودی انبار شرکت).
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-stone-800 mb-2">

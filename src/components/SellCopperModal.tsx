@@ -20,6 +20,7 @@ interface SellCopperModalProps {
     chequeNumber?: string;
     chequeDueDate?: string;
     chequeBank?: string;
+    saleCategory?: 'internal' | 'external';
   }) => void;
   people: Person[];
   summaries: PersonWalletSummary[];
@@ -41,6 +42,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   const [weightKg, setWeightKg] = useState<number>(0);
   const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 2850000);
   const [registeredBy, setRegisteredBy] = useState('حسابدار مس');
+  const [saleCategory, setSaleCategory] = useState<'internal' | 'external'>('internal');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -57,6 +59,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       setWeightKg(0);
       setPricePerKg(defaultPricePerKg || 2850000);
       setRegisteredBy('حسابدار مس');
+      setSaleCategory('internal');
       setNotes('');
       setError('');
       setPaymentMethod('cash');
@@ -133,18 +136,22 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       }
     }
 
+    const catTitle = saleCategory === 'external' ? 'فروش خارجی (خروج از انبار)' : 'فروش داخلی (تحویل به انبار)';
+    let finalNotes = notes.trim() ? `[${catTitle}] ${notes.trim()}` : `[${catTitle}]`;
+
     onSave({
       personId,
       date: date.trim() || getTodayJalaliString(),
       weightKg,
       pricePerKg,
       totalPrice: calculatedTotal,
-      notes: notes.trim() || undefined,
+      notes: finalNotes,
       registeredBy: registeredBy.trim() || 'مسئول مس',
       paymentMethod,
       chequeNumber: paymentMethod === 'cheque' ? chequeNumber.trim() : undefined,
       chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
       chequeBank: paymentMethod === 'cheque' ? chequeBank.trim() : undefined,
+      saleCategory,
     });
     onClose();
   };
@@ -246,6 +253,50 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Sale Category Selector (Internal vs External) */}
+          <div>
+            <label className="block text-xs font-bold text-stone-700 mb-1.5">
+              نوع فروش و مقصد مس <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSaleCategory('internal')}
+                className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-start gap-1 transition-all cursor-pointer ${
+                  saleCategory === 'internal'
+                    ? 'bg-blue-50 border-blue-500 text-blue-900 ring-1 ring-blue-500 shadow-xs'
+                    : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-extrabold">
+                  <Building2 className="w-4 h-4 text-blue-700" />
+                  <span>فروش داخلی (تحویل به شرکت)</span>
+                </div>
+                <span className="text-[10px] text-stone-500 font-normal">
+                  افزایش موجودی مس انبار شرکت
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSaleCategory('external')}
+                className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-start gap-1 transition-all cursor-pointer ${
+                  saleCategory === 'external'
+                    ? 'bg-amber-50 border-amber-500 text-amber-950 ring-1 ring-amber-500 shadow-xs'
+                    : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-extrabold">
+                  <ArrowUpRight className="w-4 h-4 text-amber-700" />
+                  <span>فروش خارجی (خروج از انبار)</span>
+                </div>
+                <span className="text-[10px] text-stone-500 font-normal">
+                  کاهش موجودی مس انبار شرکت
+                </span>
+              </button>
+            </div>
+          </div>
 
           {/* Payment Method Selector (Cash vs Cheque) */}
           <div>
