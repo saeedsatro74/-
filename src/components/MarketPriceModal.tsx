@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Tag, ShoppingBag, TrendingUp, Check, Info, ArrowLeftRight, Sparkles } from 'lucide-react';
 import { NumericInput } from './NumericInput';
 import { formatNumber, formatToman } from '../utils/formatters';
@@ -28,14 +28,17 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
   const [sellPrice, setSellPrice] = useState<number>(initialSell);
   const [error, setError] = useState('');
 
+  const prevIsOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       const b = typeof currentPrices === 'number' ? currentPrices : (currentPrices?.buyPrice || 3000000);
       const s = typeof currentPrices === 'number' ? Math.max(0, currentPrices - 150000) : (currentPrices?.sellPrice || 2850000);
       setBuyPrice(b);
       setSellPrice(s);
       setError('');
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, currentPrices]);
 
   if (!isOpen) return null;
