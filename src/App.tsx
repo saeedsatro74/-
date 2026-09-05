@@ -197,68 +197,57 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // Initial Load from Supabase (with fallback to local storage)
-  useEffect(() => {
-    async function loadData() {
-      setIsSyncing(true);
-      try {
-        const cloudResult = await fetchAllFromSupabase();
+  // Centralized Refresh Handler & Auto Sync Engine
+  const handleRefreshData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsSyncing(true);
+    try {
+      const cloudResult = await fetchAllFromSupabase();
 
-        if (cloudResult.isConnected) {
-          setIsCloudConnected(true);
-          
-          // Merge local & remote people to ensure no customer accounts are lost
-          const storedPeople = getStoredPeople();
-          const peopleMap = new Map<string, Person>();
-          storedPeople.forEach((p) => peopleMap.set(p.id, p));
-          cloudResult.people.forEach((p) => peopleMap.set(p.id, p));
-          const allPeople = Array.from(peopleMap.values());
+      if (cloudResult.isConnected) {
+        setIsCloudConnected(true);
+        
+        // Merge local & remote people to ensure no customer accounts are lost
+        const storedPeople = getStoredPeople();
+        const peopleMap = new Map<string, Person>();
+        storedPeople.forEach((p) => peopleMap.set(p.id, p));
+        cloudResult.people.forEach((p) => peopleMap.set(p.id, p));
+        const allPeople = Array.from(peopleMap.values());
 
-          // Load live data from Supabase directly & merge local pending approvals
-          const storedTxs = getStoredTransactions();
-          const mergedTxs = cloudResult.transactions.map((mTx) => {
-            const localMatch = storedTxs.find((p) => p.id === mTx.id);
-            if (!localMatch) return mTx;
-            if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
-              return mTx;
-            }
-            return { ...localMatch, ...mTx };
-          });
-          const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
-          const localOnlyPending = storedTxs.filter(
-            (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
-          );
-          const combined = [...localOnlyPending, ...mergedTxs];
-
-          const replayed = replayAllTransactions(allPeople, combined);
-          setPeople(allPeople);
-          setTransactions(replayed);
-          setMarketPrices(cloudResult.marketPrices);
-          if (cloudResult.companyCopperStock !== undefined) {
-            setCompanyCopperStockKg(cloudResult.companyCopperStock);
-            saveStoredCompanyCopperStock(cloudResult.companyCopperStock);
+        // Load live data from Supabase directly & merge local pending approvals
+        const storedTxs = getStoredTransactions();
+        const mergedTxs = cloudResult.transactions.map((mTx) => {
+          const localMatch = storedTxs.find((p) => p.id === mTx.id);
+          if (!localMatch) return mTx;
+          if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
+            return mTx;
           }
-          savePeople(allPeople);
-          saveTransactions(replayed);
-          saveMarketPrices(cloudResult.marketPrices);
-          
-          // Ensure all local/merged people are synced up to Supabase
-          dbSyncAllPeopleToCloud(allPeople).catch((e) => console.error('Failed to auto-sync people to cloud:', e));
-        } else {
-          // Cloud connection issue, fallback to local storage
-          setIsCloudConnected(false);
-          const storedPeople = getStoredPeople();
-          const storedTransactions = getStoredTransactions();
-          const storedPrices = getStoredMarketPrices();
-          const replayed = replayAllTransactions(storedPeople, storedTransactions);
+          return { ...localMatch, ...mTx };
+        });
+        const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
+        const localOnlyPending = storedTxs.filter(
+          (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
+        );
+        const combined = [...localOnlyPending, ...mergedTxs];
 
-          setPeople(storedPeople);
-          setTransactions(replayed);
-          setMarketPrices(storedPrices);
-          showToast('اتصال به سرور برقرار نشد، داده‌ها از حافظه محلی فراخوانی شدند.', 'info');
+        const replayed = replayAllTransactions(allPeople, combined);
+        setPeople(allPeople);
+        setTransactions(replayed);
+        setMarketPrices(cloudResult.marketPrices);
+        if (cloudResult.companyCopperStock !== undefined) {
+          setCompanyCopperStockKg(cloudResult.companyCopperStock);
+          saveStoredCompanyCopperStock(cloudResult.companyCopperStock);
         }
-      } catch (err) {
-        console.error('Error during initial load:', err);
+        savePeople(allPeople);
+        saveTransactions(replayed);
+        saveMarketPrices(cloudResult.marketPrices);
+        
+        // Auto-sync people to cloud
+        dbSyncAllPeopleToCloud(allPeople).catch((e) => console.error('Failed to auto-sync people to cloud:', e));
+
+        if (!isSilent) {
+          showToast('اطلاعات با موفقیت از سرور به روزرسانی شد.', 'success');
+        }
+      } else {
         setIsCloudConnected(false);
         const storedPeople = getStoredPeople();
         const storedTransactions = getStoredTransactions();
@@ -268,14 +257,38 @@ export default function App() {
         setPeople(storedPeople);
         setTransactions(replayed);
         setMarketPrices(storedPrices);
-      } finally {
-        setIsLoaded(true);
-        setIsSyncing(false);
+        if (!isSilent) {
+          showToast('اتصال به سرور برقرار نشد، داده‌ها از حافظه محلی فراخوانی شدند.', 'info');
+        }
       }
-    }
+    } catch (err) {
+      console.error('Error during data refresh:', err);
+      setIsCloudConnected(false);
+      const storedPeople = getStoredPeople();
+      const storedTransactions = getStoredTransactions();
+      const storedPrices = getStoredMarketPrices();
+      const replayed = replayAllTransactions(storedPeople, storedTransactions);
 
-    loadData();
+      setPeople(storedPeople);
+      setTransactions(replayed);
+      setMarketPrices(storedPrices);
+      if (!isSilent) showToast('خطا در دریافت اطلاعات از سرور.', 'error');
+    } finally {
+      setIsLoaded(true);
+      if (!isSilent) setIsSyncing(false);
+    }
   }, [showToast]);
+
+  // Initial Load from Supabase & Fast 3-Second Auto-Polling Loop for Realtime Sync
+  useEffect(() => {
+    handleRefreshData(true);
+
+    const interval = setInterval(() => {
+      handleRefreshData(true);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [handleRefreshData]);
 
   // Supabase Realtime Channel Subscription
   useEffect(() => {
@@ -1108,6 +1121,8 @@ export default function App() {
             onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
             onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
             activeView={activeView}
+            onRefreshData={() => handleRefreshData(false)}
+            isSyncing={isSyncing}
           />
 
           {/* Client Statement / Cardex Modal */}
@@ -1189,6 +1204,7 @@ export default function App() {
         currentUsername={authSession?.username}
         onOpenEditCompanyStock={() => setIsCompanyCopperStockModalOpen(true)}
         isPersonSelected={!!selectedPersonId}
+        onRefreshData={() => handleRefreshData(false)}
       />
 
       {/* Main Content Area */}

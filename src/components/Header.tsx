@@ -18,7 +18,8 @@ import {
   KeyRound,
   Trash2,
   Sparkles,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
@@ -53,6 +54,7 @@ interface HeaderProps {
   currentUsername?: string;
   onOpenEditCompanyStock?: () => void;
   isPersonSelected?: boolean;
+  onRefreshData?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -84,6 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUsername,
   onOpenEditCompanyStock,
   isPersonSelected = false,
+  onRefreshData,
 }) => {
   const persianDate = getPersianFullDate();
   const buyRate = marketBuyPrice || marketPrice;
@@ -138,6 +141,16 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile Data & Approvals Buttons */}
             {!isPersonSelected && (
               <div className="lg:hidden flex items-center gap-1.5">
+                {onRefreshData && (
+                  <button
+                    type="button"
+                    onClick={onRefreshData}
+                    className="p-1.5 text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
+                    title="به‌روزرسانی و دریافت اطلاعات تازه"
+                  >
+                    <RefreshCw className={`w-4 h-4 text-emerald-700 ${isSyncing ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
                 {onChangePassword && (
                   <button
                     type="button"
@@ -220,6 +233,20 @@ export const Header: React.FC<HeaderProps> = ({
           {!isPersonSelected && (
             <div className="flex flex-wrap items-center gap-2">
               
+              {/* Refresh Data Button */}
+              {onRefreshData && (
+                <button
+                  id="btn-refresh-header"
+                  type="button"
+                  onClick={onRefreshData}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-stone-800 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-300 rounded-lg transition-all cursor-pointer shadow-xs"
+                  title="همگام‌سازی و بروزرسانی لحظه‌ای داده‌ها با سرور"
+                >
+                  <RefreshCw className={`w-4 h-4 text-amber-800 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>بروزرسانی</span>
+                </button>
+              )}
+
               {/* Global Copper Chart Button */}
               <button
                 id="btn-copper-chart-header"
