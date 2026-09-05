@@ -381,9 +381,11 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Market Price Widget */}
               <div 
-                onClick={onOpenMarketPrice}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg cursor-pointer transition-colors"
-                title="برای تغییر قیمت‌های مرجع خرید و فروش کلیک کنید"
+                onClick={(userRole === 'admin' || userRole === 'staff') ? onOpenMarketPrice : undefined}
+                className={`hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 rounded-lg transition-colors ${
+                  (userRole === 'admin' || userRole === 'staff') ? 'hover:bg-stone-50 cursor-pointer' : ''
+                }`}
+                title={(userRole === 'admin' || userRole === 'staff') ? 'برای تغییر قیمت‌های مرجع خرید و فروش کلیک کنید' : 'قیمت مرجع خرید و فروش مس'}
               >
                 <Tag className="w-3.5 h-3.5 text-stone-400" />
                 <div className="text-xs flex items-center gap-1.5">
@@ -394,20 +396,24 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-bold text-stone-900 font-mono">{formatNumber(sellRate)}</span>
                   <span className="text-[11px] text-stone-400 mr-0.5">تومان</span>
                 </div>
-                <Edit2 className="w-3 h-3 text-stone-400 mr-0.5" />
+                {(userRole === 'admin' || userRole === 'staff') && (
+                  <Edit2 className="w-3 h-3 text-stone-400 mr-0.5" />
+                )}
               </div>
 
-              {/* Add Person Button */}
-              <button
-                id="btn-add-person-header"
-                type="button"
-                onClick={onAddPerson}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer shadow-xs"
-                title="افزودن طرف حساب جدید"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>شخص جدید</span>
-              </button>
+              {/* Add Person Button - ONLY for CEO / Staff */}
+              {(userRole === 'admin' || userRole === 'staff') && onAddPerson && (
+                <button
+                  id="btn-add-person-header"
+                  type="button"
+                  onClick={onAddPerson}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer shadow-xs"
+                  title="افزودن طرف حساب جدید"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>شخص جدید</span>
+                </button>
+              )}
 
               {/* Change Password Button */}
               {onChangePassword && (

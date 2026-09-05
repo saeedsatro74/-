@@ -1104,79 +1104,91 @@ export default function App() {
   }
 
   // --- CLIENT ROLE PORTAL VIEW ---
-  if (authSession?.role === 'client' && authSession.personId) {
-    const clientPerson = people.find((p) => p.id === authSession.personId);
-    const clientSummary = summaries.find((s) => s.person.id === authSession.personId);
+  if (authSession?.role === 'client') {
+    let clientPerson = authSession.personId ? people.find((p) => p.id === authSession.personId) : null;
 
-    if (clientPerson && clientSummary) {
-      return (
-        <>
-          <ClientPortalView
-            person={clientPerson}
-            summary={clientSummary}
-            transactions={transactions}
-            marketPrices={marketPrices}
-            companyCopperStockKg={companyCopperStockKg}
-            companyBankInfo={companyBankInfo}
-            onChangePassword={() => setIsChangePassModalOpen(true)}
-            onOpenStatement={() => setStatementPersonId(clientPerson.id)}
-            onViewReceipt={(tx) => setReceiptModalTx(tx)}
-            onSubmitRequest={handleSaveClientRequest}
-            onSubmitTopupReceipt={handleSubmitTopupReceipt}
-            onCancelRequest={handleCancelClientRequest}
-            onLogout={handleLogout}
-            onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
-            onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
-            activeView={activeView}
-            onRefreshData={() => handleRefreshData(false)}
-            isSyncing={isSyncing}
-          />
-
-          {/* Client Statement / Cardex Modal */}
-          {statementPersonId && (
-            <AccountStatementModal
-              isOpen={!!statementPersonId}
-              onClose={() => setStatementPersonId(null)}
-              person={clientPerson}
-              transactions={transactions}
-              marketCopperPrice={marketPrices.buyPrice}
-            />
-          )}
-
-          {/* Client Transaction Receipt Modal */}
-          {receiptModalTx && (
-            <TransactionReceiptModal
-              isOpen={!!receiptModalTx}
-              onClose={() => setReceiptModalTx(null)}
-              transaction={receiptModalTx}
-              person={clientPerson}
-            />
-          )}
-
-          {/* Change Password Modal */}
-          {isChangePassModalOpen && (
-            <ChangePasswordModal
-              role="client"
-              person={clientPerson}
-              onClose={() => setIsChangePassModalOpen(false)}
-              onSavePassword={(personId, newPass) => {
-                handleSavePersonPassword(personId, newPass);
-              }}
-            />
-          )}
-
-          {/* Toast Notification Alert */}
-          {toast && (
-            <div className="fixed bottom-5 left-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
-              <div className="bg-stone-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm border border-stone-800">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{toast.message}</span>
-              </div>
-            </div>
-          )}
-        </>
-      );
+    if (!clientPerson && authSession.username) {
+      clientPerson = people.find((p) => p.name === authSession.username || (p.phone && p.phone.includes(authSession.username))) || null;
     }
+
+    // Fallback virtual person if client account is not yet in people array or person was cleared
+    if (!clientPerson) {
+      clientPerson = {
+        id: authSession.personId || 'client-temp-id',
+        name: authSession.username || 'مشتری گرامی',
+        createdAt: getTodayJalaliString(),
+      };
+    }
+
+    const clientSummary = summaries.find((s) => s.person.id === clientPerson!.id) || calculatePersonSummary(clientPerson, transactions, marketPrices.buyPrice);
+
+    return (
+      <>
+        <ClientPortalView
+          person={clientPerson}
+          summary={clientSummary}
+          transactions={transactions}
+          marketPrices={marketPrices}
+          companyCopperStockKg={companyCopperStockKg}
+          companyBankInfo={companyBankInfo}
+          onChangePassword={() => setIsChangePassModalOpen(true)}
+          onOpenStatement={() => setStatementPersonId(clientPerson!.id)}
+          onViewReceipt={(tx) => setReceiptModalTx(tx)}
+          onSubmitRequest={handleSaveClientRequest}
+          onSubmitTopupReceipt={handleSubmitTopupReceipt}
+          onCancelRequest={handleCancelClientRequest}
+          onLogout={handleLogout}
+          onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
+          onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
+          activeView={activeView}
+          onRefreshData={() => handleRefreshData(false)}
+          isSyncing={isSyncing}
+        />
+
+        {/* Client Statement / Cardex Modal */}
+        {statementPersonId && (
+          <AccountStatementModal
+            isOpen={!!statementPersonId}
+            onClose={() => setStatementPersonId(null)}
+            person={clientPerson}
+            transactions={transactions}
+            marketCopperPrice={marketPrices.buyPrice}
+          />
+        )}
+
+        {/* Client Transaction Receipt Modal */}
+        {receiptModalTx && (
+          <TransactionReceiptModal
+            isOpen={!!receiptModalTx}
+            onClose={() => setReceiptModalTx(null)}
+            transaction={receiptModalTx}
+            person={clientPerson}
+          />
+        )}
+
+        {/* Change Password Modal */}
+        {isChangePassModalOpen && (
+          <ChangePasswordModal
+            role="client"
+            person={clientPerson}
+            onClose={() => setIsChangePassModalOpen(false)}
+            onSavePassword={(personId, newPass) => {
+              handleSavePersonPassword(personId, newPass);
+            }}
+          />
+        )}
+
+        {/* Toast Notification Alert */}
+        {toast && (
+          <div className="fixed bottom-5 left-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
+            <div className="bg-stone-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm border border-stone-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{toast.message}</span>
+            </div>
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
