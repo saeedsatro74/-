@@ -310,17 +310,14 @@ export async function fetchAllFromSupabase(): Promise<{
     const fetchPromise = Promise.all([
       supabase.from('people').select('*').order('created_at', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: true }),
-      supabase.from('app_settings').select('*').eq('key', 'market_copper_price').maybeSingle(),
-      supabase.from('app_settings').select('*').eq('key', 'market_buy_price').maybeSingle(),
-      supabase.from('app_settings').select('*').eq('key', 'market_sell_price').maybeSingle(),
-      supabase.from('app_settings').select('*').eq('key', 'company_copper_stock').maybeSingle(),
+      supabase.from('app_settings').select('*'),
     ]);
 
     const timeoutPromise = new Promise<never>((_, reject) => 
       setTimeout(() => reject(new Error('Supabase network timeout')), 8000)
     );
 
-    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes, stockRes] = await Promise.race([
+    const [peopleRes, txRes, settingsRes] = await Promise.race([
       fetchPromise,
       timeoutPromise
     ]);
@@ -342,22 +339,29 @@ export async function fetchAllFromSupabase(): Promise<{
     
     let buyPrice = DEFAULT_MARKET_BUY_PRICE;
     let sellPrice = DEFAULT_MARKET_SELL_PRICE;
+    let companyCopperStock: number | undefined;
 
-    if (buySettingsRes.data && buySettingsRes.data.value) {
-      buyPrice = Number(buySettingsRes.data.value) || DEFAULT_MARKET_BUY_PRICE;
-    } else if (settingsRes.data && settingsRes.data.value) {
-      buyPrice = Number(settingsRes.data.value) || DEFAULT_MARKET_BUY_PRICE;
+    const settingsList = settingsRes.data || [];
+    const getSettingVal = (keyName: string) => {
+      const match = settingsList.find((s: any) => String(s.key || '').toLowerCase() === keyName.toLowerCase());
+      return match ? match.value : undefined;
+    };
+
+    const rawBuy = getSettingVal('market_buy_price') ?? getSettingVal('market_copper_price');
+    if (rawBuy !== undefined && rawBuy !== null) {
+      buyPrice = Number(rawBuy) || DEFAULT_MARKET_BUY_PRICE;
     }
 
-    if (sellSettingsRes.data && sellSettingsRes.data.value) {
-      sellPrice = Number(sellSettingsRes.data.value) || DEFAULT_MARKET_SELL_PRICE;
+    const rawSell = getSettingVal('market_sell_price');
+    if (rawSell !== undefined && rawSell !== null) {
+      sellPrice = Number(rawSell) || DEFAULT_MARKET_SELL_PRICE;
     } else {
       sellPrice = Math.max(0, buyPrice - 150000);
     }
 
-    let companyCopperStock: number | undefined;
-    if (stockRes.data && stockRes.data.value !== null) {
-      companyCopperStock = Number(stockRes.data.value);
+    const rawStock = getSettingVal('company_copper_stock');
+    if (rawStock !== undefined && rawStock !== null) {
+      companyCopperStock = Number(rawStock);
     }
 
     return {
@@ -565,12 +569,20 @@ export async function dbSaveMarketPrice(price: number): Promise<boolean> {
  */
 export async function dbSaveCompanyCopperStock(stockKg: number): Promise<boolean> {
   try {
+    const numVal = Math.max(0, Number(stockKg) || 0);
+    // 1. Try sending numeric value (for numeric app_settings column)
     const { error } = await supabase
       .from('app_settings')
-      .upsert({ key: 'company_copper_stock', value: String(stockKg) }, { onConflict: 'key' });
+      .upsert({ key: 'company_copper_stock', value: numVal }, { onConflict: 'key' });
     if (error) {
-      console.warn('Notice saving company copper stock to Supabase:', error.message || error);
-      return false;
+      // 2. Fallback to string if schema column is text
+      const { error: err2 } = await supabase
+        .from('app_settings')
+        .upsert({ key: 'company_copper_stock', value: String(numVal) }, { onConflict: 'key' });
+      if (err2) {
+        console.warn('Notice saving company copper stock to Supabase:', err2.message || err2);
+        return false;
+      }
     }
     return true;
   } catch (err: any) {

@@ -129,10 +129,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <Calendar className="w-3.5 h-3.5 text-stone-400" />
                   <span>{persianDate}</span>
                   <span className="text-stone-300">•</span>
-                  <span>
-                    انبار مس شرکت: <b className="font-bold text-stone-800">{formatWeight(companyCopperStockKg)}</b>
-                  </span>
-                  <span className="text-stone-300">•</span>
                   <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
                 </div>
               </div>
@@ -144,7 +140,10 @@ export const Header: React.FC<HeaderProps> = ({
                 {onRefreshData && (
                   <button
                     type="button"
-                    onClick={onRefreshData}
+                    onClick={() => {
+                      if (onRefreshData) onRefreshData();
+                      window.location.reload();
+                    }}
                     className="p-1.5 text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
                     title="به‌روزرسانی و دریافت اطلاعات تازه"
                   >
@@ -238,9 +237,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   id="btn-refresh-header"
                   type="button"
-                  onClick={onRefreshData}
+                  onClick={() => {
+                    if (onRefreshData) onRefreshData();
+                    window.location.reload();
+                  }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-stone-800 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-300 rounded-lg transition-all cursor-pointer shadow-xs"
-                  title="همگام‌سازی و بروزرسانی لحظه‌ای داده‌ها با سرور"
+                  title="همگام‌سازی و بروزرسانی مجدد کامل صفحه و دریافت داده‌ها از سرور"
                 >
                   <RefreshCw className={`w-4 h-4 text-amber-800 ${isSyncing ? 'animate-spin' : ''}`} />
                   <span>بروزرسانی</span>

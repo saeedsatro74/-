@@ -348,6 +348,10 @@ export default function App() {
                 if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
                   return mTx;
                 }
+                // If locally approved or rejected by CEO, keep local approval status over stale cloud pending status
+                if (localMatch.approvalStatus === 'approved' || localMatch.approvalStatus === 'rejected') {
+                  return { ...mTx, ...localMatch };
+                }
                 return { ...localMatch, ...mTx };
               });
               const remoteIds = new Set(mapped.map((m) => m.id));
@@ -366,15 +370,23 @@ export default function App() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_settings' },
         async (payload: any) => {
-          if (payload.new && (payload.new.key === 'market_copper_price' || payload.new.key === 'market_buy_price' || payload.new.key === 'market_sell_price')) {
-            const current = getStoredMarketPrices();
-            if (payload.new.key === 'market_buy_price' || payload.new.key === 'market_copper_price') {
-              const buy = Number(payload.new.value) || DEFAULT_MARKET_BUY_PRICE;
+          if (payload.new && payload.new.key) {
+            const key = String(payload.new.key).toLowerCase();
+            const val = Number(payload.new.value);
+            if (key === 'company_copper_stock') {
+              if (!isNaN(val)) {
+                setCompanyCopperStockKg(val);
+                saveStoredCompanyCopperStock(val);
+              }
+            } else if (key === 'market_buy_price' || key === 'market_copper_price') {
+              const current = getStoredMarketPrices();
+              const buy = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_BUY_PRICE;
               const updated: MarketPrices = { ...current, buyPrice: buy };
               setMarketPrices(updated);
               saveMarketPrices(updated);
-            } else if (payload.new.key === 'market_sell_price') {
-              const sell = Number(payload.new.value) || DEFAULT_MARKET_SELL_PRICE;
+            } else if (key === 'market_sell_price') {
+              const current = getStoredMarketPrices();
+              const sell = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_SELL_PRICE;
               const updated: MarketPrices = { ...current, sellPrice: sell };
               setMarketPrices(updated);
               saveMarketPrices(updated);

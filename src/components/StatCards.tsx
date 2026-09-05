@@ -140,21 +140,8 @@ export const StatCards: React.FC<StatCardsProps> = ({
               {formatWeight(stats.totalCopperStockKg, false)}
               <span className="text-[10px] font-normal text-stone-500 mr-0.5">ک‌گ</span>
             </div>
-            <div className="text-[9px] sm:text-[10px] text-stone-500 flex items-center justify-between mt-0.5 pt-1 border-t border-stone-100">
-              <span>انبار شرکت:</span>
-              {userRole === 'admin' && onOpenEditCompanyStock ? (
-                <button
-                  type="button"
-                  onClick={onOpenEditCompanyStock}
-                  className="font-bold font-mono text-amber-900 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-1 py-0.2 rounded border border-amber-200 cursor-pointer flex items-center gap-0.5 transition-colors"
-                  title="کلیک برای تنظیم موجودی انبار شرکت"
-                >
-                  <span>{formatWeight(companyCopperStockKg, false)}</span>
-                  <Edit2 className="w-2.5 h-2.5 text-amber-600" />
-                </button>
-              ) : (
-                <span className="font-bold font-mono text-stone-700">{formatWeight(companyCopperStockKg, false)}</span>
-              )}
+            <div className="text-[9px] sm:text-[10px] text-stone-500 truncate mt-0.5">
+              مجموع دارایی مس مسجل مشتریان
             </div>
           </div>
         </div>
