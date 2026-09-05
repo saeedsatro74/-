@@ -3,7 +3,7 @@
  * سیستم جامع مدیریت کیف پول، معاملات مس و انبار
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, CompanyBankAccount } from './types';
 import { 
   getStoredPeople, 
@@ -108,6 +108,11 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(true);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncingRef = useRef(false);
+  const setSyncingState = useCallback((val: boolean) => {
+    setIsSyncing(val);
+    isSyncingRef.current = val;
+  }, []);
   const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart' | 'ai-analysis'>('dashboard');
 
   // Selected Person for Detail / Ledger Modal
@@ -202,7 +207,8 @@ export default function App() {
 
   // Centralized Refresh Handler & Auto Sync Engine
   const handleRefreshData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setIsSyncing(true);
+    if (isSyncingRef.current) return;
+    if (!isSilent) setSyncingState(true);
     try {
       const cloudResult = await fetchAllFromSupabase();
 
@@ -285,7 +291,7 @@ export default function App() {
       if (!isSilent) showToast('خطا در دریافت اطلاعات از سرور.', 'error');
     } finally {
       setIsLoaded(true);
-      if (!isSilent) setIsSyncing(false);
+      if (!isSilent) setSyncingState(false);
     }
   }, [showToast]);
 
@@ -317,53 +323,71 @@ export default function App() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'people' },
-        async () => {
-          // Refresh people
-          const { data } = await supabase.from('people').select('*');
-          if (data) {
-            const mapped = data.map((r: any) => ({
-              id: r.id,
-              name: r.name,
-              phone: r.phone || undefined,
-              notes: r.notes || undefined,
-              createdAt: r.created_at,
-            }));
-            setPeople(mapped);
-            savePeople(mapped);
-          }
+        (payload: any) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+          setPeople((prevPeople) => {
+            let updatedPeople = [...prevPeople];
+            if (eventType === 'DELETE') {
+              if (oldRow && oldRow.id) {
+                updatedPeople = updatedPeople.filter((p) => p.id !== oldRow.id);
+              }
+            } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+              if (newRow && newRow.id) {
+                const incomingPerson = toPerson(newRow);
+                const existingIndex = updatedPeople.findIndex((p) => p.id === incomingPerson.id);
+                if (existingIndex !== -1) {
+                  updatedPeople[existingIndex] = { ...updatedPeople[existingIndex], ...incomingPerson };
+                } else {
+                  updatedPeople.push(incomingPerson);
+                }
+              }
+            }
+            savePeople(updatedPeople);
+            return updatedPeople;
+          });
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },
-        async () => {
-          // Refresh transactions
-          const { data } = await supabase.from('transactions').select('*');
-          if (data) {
-            const mapped = data.map(toTransaction);
-            setTransactions((prevTxs) => {
-              const merged = mapped.map((mTx) => {
-                const localMatch = prevTxs.find((p) => p.id === mTx.id);
-                if (!localMatch) return mTx;
-                if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
-                  return mTx;
+        (payload: any) => {
+          const { eventType, new: newRow, old: oldRow } = payload;
+          setTransactions((prevTxs) => {
+            let updatedList = [...prevTxs];
+
+            if (eventType === 'DELETE') {
+              if (oldRow && oldRow.id) {
+                updatedList = updatedList.filter((t) => t.id !== oldRow.id);
+              }
+            } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+              if (newRow && newRow.id) {
+                const incomingTx = toTransaction(newRow);
+                const existingIndex = updatedList.findIndex((t) => t.id === incomingTx.id);
+
+                if (existingIndex !== -1) {
+                  const existingTx = updatedList[existingIndex];
+                  
+                  // Keep local approved or rejected state over stale cloud pending status
+                  const isStalePending = 
+                    (incomingTx.approvalStatus === 'pending' || 
+                     incomingTx.approvalStatus === 'topup_step1_pending_bank' || 
+                     incomingTx.approvalStatus === 'topup_step3_pending_approval') &&
+                    (existingTx.approvalStatus === 'approved' || existingTx.approvalStatus === 'rejected');
+
+                  if (!isStalePending) {
+                    updatedList[existingIndex] = { ...existingTx, ...incomingTx };
+                  }
+                } else {
+                  updatedList.push(incomingTx);
                 }
-                // If locally approved or rejected by CEO, keep local approval status over stale cloud pending status
-                if (localMatch.approvalStatus === 'approved' || localMatch.approvalStatus === 'rejected') {
-                  return { ...mTx, ...localMatch };
-                }
-                return { ...localMatch, ...mTx };
-              });
-              const remoteIds = new Set(mapped.map((m) => m.id));
-              const localOnlyPending = prevTxs.filter(
-                (p) => !remoteIds.has(p.id) && p.approvalStatus && p.approvalStatus !== 'approved' && p.approvalStatus !== 'rejected'
-              );
-              const combined = [...localOnlyPending, ...merged];
-              const replayed = replayAllTransactions(people, combined);
-              saveTransactions(replayed);
-              return replayed;
-            });
-          }
+              }
+            }
+
+            const currentPeople = getStoredPeople();
+            const replayed = replayAllTransactions(currentPeople, updatedList);
+            saveTransactions(replayed);
+            return replayed;
+          });
         }
       )
       .on(
@@ -399,7 +423,7 @@ export default function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [people]);
+  }, []);
 
   // Save changes to state & Supabase
   const updatePeople = async (newPeople: Person[]) => {
@@ -417,9 +441,9 @@ export default function App() {
   const updateMarketPricesState = async (newPrices: MarketPrices) => {
     setMarketPrices(newPrices);
     saveMarketPrices(newPrices);
-    setIsSyncing(true);
+    setSyncingState(true);
     await dbSaveMarketPrices(newPrices);
-    setIsSyncing(false);
+    setSyncingState(false);
     showToast(`قیمت‌های مرجع مس (خرید: ${formatToman(newPrices.buyPrice)} | فروش: ${formatToman(newPrices.sellPrice)}) به‌روز شدند.`);
   };
 
@@ -457,7 +481,7 @@ export default function App() {
   };
 
   const handleSavePerson = async (personData: { name: string; phone?: string; notes?: string }) => {
-    setIsSyncing(true);
+    setSyncingState(true);
     if (editingPerson) {
       const updatedPerson: Person = { ...editingPerson, ...personData };
       const updated = people.map((p) =>
@@ -479,13 +503,13 @@ export default function App() {
       await dbUpsertPerson(newPerson);
       showToast(`حساب کاربری جدید برای «${personData.name}» در سوپابیس ایجاد شد.`);
     }
-    setIsSyncing(false);
+    setSyncingState(false);
     setEditingPerson(null);
   };
 
   const handleSavePersonPassword = async (personId: string, newPass: string) => {
     const cleanPass = newPass.trim();
-    setIsSyncing(true);
+    setSyncingState(true);
     saveClientPassword(personId, cleanPass);
     const updatedPeople = people.map((p) => (p.id === personId ? { ...p, password: cleanPass } : p));
     setPeople(updatedPeople);
@@ -495,7 +519,7 @@ export default function App() {
     if (target) {
       await dbUpsertPerson(target);
     }
-    setIsSyncing(false);
+    setSyncingState(false);
     showToast('رمز عبور حساب کاربر با موفقیت بروزرسانی گردید.');
   };
 
@@ -521,10 +545,10 @@ export default function App() {
 
   // Helper to sync replayed ledger of a person to Supabase
   const syncPersonLedgerToCloud = async (personId: string, updatedAllTxs: Transaction[]) => {
-    setIsSyncing(true);
+    setSyncingState(true);
     const { recalculatedTransactions } = replayAndCalculatePersonLedger(personId, updatedAllTxs);
     await dbBatchUpsertTransactions(recalculatedTransactions);
-    setIsSyncing(false);
+    setSyncingState(false);
   };
 
   // --- Handlers for Deposits & Withdrawals ---
@@ -1018,7 +1042,7 @@ export default function App() {
   // --- Confirm Delete Execution ---
   const handleExecuteDelete = async () => {
     const { type, id } = deleteConfirm;
-    setIsSyncing(true);
+    setSyncingState(true);
     if (type === 'person') {
       const updatedPeople = people.filter((p) => p.id !== id);
       const updatedTxs = transactions.filter((t) => t.personId !== id);
@@ -1050,7 +1074,7 @@ export default function App() {
       }
       showToast('سند با موفقیت از سرور حذف شد.');
     }
-    setIsSyncing(false);
+    setSyncingState(false);
   };
 
   // --- Factory Reset ---
@@ -1059,7 +1083,7 @@ export default function App() {
       showToast('حذف کلی داده‌ها فقط توسط مدیرعامل امکان‌پذیر است.', 'error');
       return;
     }
-    setIsSyncing(true);
+    setSyncingState(true);
     clearAllData();
     // Reset company copper stock and save
     setCompanyCopperStockKg(0);
@@ -1075,7 +1099,7 @@ export default function App() {
     // Wipe all rows from Cloud except people
     await dbClearAllCloudData();
 
-    setIsSyncing(false);
+    setSyncingState(false);
     setIsFactoryResetModalOpen(false);
     showToast('تمامی تراکنش‌ها، خرید و فروش‌ها و موجودی‌ها صفر شدند، اما مشخصات و حساب مشتریان به طور کامل حفظ گردیدند.');
   };
