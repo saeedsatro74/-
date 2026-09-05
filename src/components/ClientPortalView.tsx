@@ -235,7 +235,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             {onRefreshData && (
               <button
                 type="button"
-                onClick={onRefreshData}
+                onClick={() => {
+                  if (onRefreshData) onRefreshData();
+                  window.location.reload();
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded-lg transition-colors cursor-pointer shadow-xs"
                 title="دریافت و بروزرسانی لحظه‌ای اطلاعات و وضعیت تاییدات از سرور"
               >
