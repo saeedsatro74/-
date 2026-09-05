@@ -307,13 +307,22 @@ export async function fetchAllFromSupabase(): Promise<{
   error?: string;
 }> {
   try {
-    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes, stockRes] = await Promise.all([
+    const fetchPromise = Promise.all([
       supabase.from('people').select('*').order('created_at', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: true }),
       supabase.from('app_settings').select('*').eq('key', 'market_copper_price').maybeSingle(),
       supabase.from('app_settings').select('*').eq('key', 'market_buy_price').maybeSingle(),
       supabase.from('app_settings').select('*').eq('key', 'market_sell_price').maybeSingle(),
       supabase.from('app_settings').select('*').eq('key', 'company_copper_stock').maybeSingle(),
+    ]);
+
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Supabase request timeout')), 3000)
+    );
+
+    const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes, stockRes] = await Promise.race([
+      fetchPromise,
+      timeoutPromise
     ]);
 
     if (peopleRes.error) {

@@ -105,7 +105,7 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [marketPrices, setMarketPrices] = useState<MarketPrices>(() => getStoredMarketPrices());
   const marketPrice = marketPrices.buyPrice;
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(true);
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart' | 'ai-analysis'>('dashboard');
@@ -286,13 +286,23 @@ export default function App() {
     }
   }, [showToast]);
 
-  // Initial Load from Supabase & Fast 3-Second Auto-Polling Loop for Realtime Sync
+  // Initial Load from Local & Supabase Auto-Polling Loop
   useEffect(() => {
+    // Instant local hydration so UI never gets stuck on loading spinner
+    const storedPeople = getStoredPeople();
+    const storedTransactions = getStoredTransactions();
+    const storedPrices = getStoredMarketPrices();
+    const replayed = replayAllTransactions(storedPeople, storedTransactions);
+    if (storedPeople.length > 0) setPeople(storedPeople);
+    if (replayed.length > 0) setTransactions(replayed);
+    setMarketPrices(storedPrices);
+    setIsLoaded(true);
+
     handleRefreshData(true);
 
     const interval = setInterval(() => {
       handleRefreshData(true);
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [handleRefreshData]);
