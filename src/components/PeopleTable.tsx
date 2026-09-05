@@ -429,6 +429,16 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Delete Person */}
+                        <button
+                          type="button"
+                          onClick={() => onDeletePerson(item.person.id)}
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="حذف حساب کاربر"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -549,6 +559,14 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                       title="ویرایش"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeletePerson(item.person.id)}
+                      className="p-1 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 rounded cursor-pointer"
+                      title="حذف کاربر"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

@@ -42,6 +42,7 @@ import {
   dbSaveMarketPrices,
   dbSaveCompanyCopperStock,
   dbClearAllCloudData,
+  dbSyncAllPeopleToCloud,
   toTransaction,
   toPerson,
   supabase
@@ -244,6 +245,9 @@ export default function App() {
           savePeople(allPeople);
           saveTransactions(replayed);
           saveMarketPrices(cloudResult.marketPrices);
+          
+          // Ensure all local/merged people are synced up to Supabase
+          dbSyncAllPeopleToCloud(allPeople).catch((e) => console.error('Failed to auto-sync people to cloud:', e));
         } else {
           // Cloud connection issue, fallback to local storage
           setIsCloudConnected(false);

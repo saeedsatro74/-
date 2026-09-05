@@ -380,12 +380,47 @@ export async function dbUpsertPerson(person: Person): Promise<boolean> {
     const row = toPersonRow(person);
     const { error } = await supabase.from('people').upsert(row, { onConflict: 'id' });
     if (error) {
+      if (error.code === '42501' || error.message?.includes('row-level security')) {
+        console.error('CRITICAL: Supabase Row-Level Security (RLS) is blocking writes on "people" table. Execute: ALTER TABLE public.people DISABLE ROW LEVEL SECURITY; in Supabase SQL Editor.', error.message);
+      }
+      if (isSchemaColumnError(error)) {
+        console.warn('Supabase people table missing password column; retrying without password...', error.message);
+        const baseRow = {
+          id: person.id,
+          name: person.name,
+          phone: person.phone || null,
+          notes: person.notes || null,
+          created_at: person.createdAt || new Date().toISOString(),
+        };
+        const { error: retryErr } = await supabase.from('people').upsert(baseRow, { onConflict: 'id' });
+        if (retryErr) {
+          console.error('Error upserting person (base schema):', retryErr);
+          return false;
+        }
+        return true;
+      }
       console.error('Error upserting person:', error);
       return false;
     }
     return true;
   } catch (err) {
     console.error('Supabase dbUpsertPerson error:', err);
+    return false;
+  }
+}
+
+/**
+ * Batch Upsert / Sync all people to Supabase
+ */
+export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<boolean> {
+  if (peopleList.length === 0) return true;
+  try {
+    for (const p of peopleList) {
+      await dbUpsertPerson(p);
+    }
+    return true;
+  } catch (err) {
+    console.error('Supabase dbSyncAllPeopleToCloud error:', err);
     return false;
   }
 }
