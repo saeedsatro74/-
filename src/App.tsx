@@ -74,7 +74,7 @@ import { CopperChartView } from './components/CopperChartView';
 import { AiAnalysisView } from './components/AiAnalysisView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
-import { formatToman } from './utils/formatters';
+import { formatToman, formatWeight } from './utils/formatters';
 import { AuthSession } from './types';
 
 export default function App() {
@@ -180,13 +180,16 @@ export default function App() {
   const [companyCopperStockKg, setCompanyCopperStockKg] = useState<number>(() => getStoredCompanyCopperStock());
   const [isCompanyCopperStockModalOpen, setIsCompanyCopperStockModalOpen] = useState(false);
 
-  const handleSaveCompanyCopperStock = async (newStockKg: number) => {
-    setCompanyCopperStockKg(newStockKg);
-    saveStoredCompanyCopperStock(newStockKg);
+  const handleSaveCompanyCopperStock = async (newStockKg: number, silent = false) => {
+    const validStock = Math.max(0, Number(newStockKg) || 0);
+    setCompanyCopperStockKg(validStock);
+    saveStoredCompanyCopperStock(validStock);
     if (isCloudConnected) {
-      await dbSaveCompanyCopperStock(newStockKg);
+      await dbSaveCompanyCopperStock(validStock);
     }
-    showToast(`موجودی مس شرکت با موفقیت بروزرسانی گردید.`);
+    if (!silent) {
+      showToast(`موجودی مس شرکت با موفقیت بروزرسانی گردید.`);
+    }
   };
 
   // Toast Notification
@@ -608,7 +611,7 @@ export default function App() {
     
     // Decrease company copper stock
     const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
-    await handleSaveCompanyCopperStock(newStock);
+    await handleSaveCompanyCopperStock(newStock, true);
 
     showToast(
       isCEO
@@ -675,10 +678,10 @@ export default function App() {
     if (data.weightKg) {
       if (saleCat === 'external') {
         const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
-        await handleSaveCompanyCopperStock(newStock);
+        await handleSaveCompanyCopperStock(newStock, true);
       } else {
         const newStock = companyCopperStockKg + data.weightKg;
-        await handleSaveCompanyCopperStock(newStock);
+        await handleSaveCompanyCopperStock(newStock, true);
       }
     }
 
@@ -733,22 +736,22 @@ export default function App() {
     // Update company copper stock
     if (data.type === 'buy' && data.weightKg) {
       const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
-      await handleSaveCompanyCopperStock(newStock);
+      await handleSaveCompanyCopperStock(newStock, true);
     } else if (data.type === 'sell' && data.weightKg) {
       if (data.saleCategory === 'external') {
         const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
-        await handleSaveCompanyCopperStock(newStock);
+        await handleSaveCompanyCopperStock(newStock, true);
       } else {
         const newStock = companyCopperStockKg + data.weightKg;
-        await handleSaveCompanyCopperStock(newStock);
+        await handleSaveCompanyCopperStock(newStock, true);
       }
     }
 
     let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
     if (data.type === 'deposit') msg = 'درخواست شارژ حساب ثبت گردید. به زودی شماره حساب اختصاصی توسط مدیرعامل برای شما ارسال می‌شود.';
     if (data.type === 'withdrawal') msg = 'درخواست برداشت موجودی ثبت شد. پس از واریز وجه توسط مدیریت، تایید نهایی می‌شود.';
-    if (data.type === 'sell') msg = 'درخواست فروش مس ثبت شد و جهت تایید به مدیرعامل ارسال گردید.';
-    if (data.type === 'buy') msg = 'درخواست خرید مس با موفقیت ثبت گردید.';
+    if (data.type === 'sell') msg = `درخواست فروش ${formatWeight(data.weightKg || 0)} مس ثبت و به انبار شرکت افزوده گردید.`;
+    if (data.type === 'buy') msg = `سند خرید ${formatWeight(data.weightKg || 0)} مس ثبت گردید و از موجودی انبار شرکت کسر شد.`;
 
     showToast(msg);
   };

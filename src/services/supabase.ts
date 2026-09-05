@@ -567,7 +567,7 @@ export async function dbSaveCompanyCopperStock(stockKg: number): Promise<boolean
   try {
     const { error } = await supabase
       .from('app_settings')
-      .upsert({ key: 'company_copper_stock', value: stockKg }, { onConflict: 'key' });
+      .upsert({ key: 'company_copper_stock', value: String(stockKg) }, { onConflict: 'key' });
     if (error) {
       console.error('Error saving company copper stock:', error);
       return false;
