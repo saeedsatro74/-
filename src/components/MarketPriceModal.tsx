@@ -28,41 +28,54 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
   const [sellPrice, setSellPrice] = useState<number>(initialSell);
   const [error, setError] = useState('');
 
-  const prevIsOpenRef = useRef(false);
-
+  // Sync state ONLY when the modal transitions from closed to open.
+  // DO NOT depend on currentPrices so background sync or polling NEVER clobbers user's typing!
   useEffect(() => {
-    if (isOpen && !prevIsOpenRef.current) {
+    if (isOpen) {
       const b = typeof currentPrices === 'number' ? currentPrices : (currentPrices?.buyPrice || 3000000);
       const s = typeof currentPrices === 'number' ? Math.max(0, currentPrices - 150000) : (currentPrices?.sellPrice || 2850000);
       setBuyPrice(b);
       setSellPrice(s);
       setError('');
     }
-    prevIsOpenRef.current = isOpen;
-  }, [isOpen, currentPrices]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const spreadDifference = buyPrice - sellPrice;
 
   const handleApplySpread = (diff: number) => {
-    setSellPrice(Math.max(0, buyPrice - diff));
+    const baseBuy = (buyPrice >= 500 && buyPrice <= 25000) ? buyPrice * 1000 : buyPrice;
+    setSellPrice(Math.max(0, baseBuy - diff));
+    setError('');
+  };
+
+  const handleSetBuyPreset = (val: number) => {
+    setBuyPrice(val);
+    // Maintain 150,000 spread if sell price was at standard spread
+    if (sellPrice <= 0 || sellPrice === Math.max(0, buyPrice - 150000)) {
+      setSellPrice(Math.max(0, val - 150000));
+    }
     setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (buyPrice <= 0) {
+    // Auto-normalize if user typed in thousands (e.g. 2830 or 3200)
+    const finalBuy = (buyPrice >= 500 && buyPrice <= 25000) ? buyPrice * 1000 : buyPrice;
+    const finalSell = (sellPrice >= 500 && sellPrice <= 25000) ? sellPrice * 1000 : sellPrice;
+
+    if (finalBuy <= 0) {
       setError('لطفاً قیمت معتبر برای خرید مس وارد کنید.');
       return;
     }
-    if (sellPrice <= 0) {
+    if (finalSell <= 0) {
       setError('لطفاً قیمت معتبر برای فروش مس وارد کنید.');
       return;
     }
     onSave({
-      buyPrice,
-      sellPrice,
+      buyPrice: finalBuy,
+      sellPrice: finalSell,
     });
     onClose();
   };
@@ -107,7 +120,7 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
           )}
 
           {/* 1. قیمت خرید روز مس */}
-          <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-200/80 space-y-2">
+          <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <label htmlFor="market-buy-price-input" className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                 <ShoppingBag className="w-4 h-4 text-amber-700" />
@@ -130,10 +143,54 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
               autoFocus
               required
             />
+
+            {/* Quick Thousand Multiplier Helper */}
+            {buyPrice >= 500 && buyPrice <= 25000 && (
+              <button
+                type="button"
+                onClick={() => setBuyPrice(buyPrice * 1000)}
+                className="w-full text-right p-2 bg-amber-100/80 hover:bg-amber-200/80 border border-amber-300 rounded-lg text-xs font-bold text-amber-900 flex items-center justify-between cursor-pointer transition-colors"
+              >
+                <span>💡 آیا منظورتان {formatNumber(buyPrice * 1000)} تومان است؟</span>
+                <span className="text-[11px] bg-white px-2 py-0.5 rounded shadow-xs text-amber-800 font-mono">
+                  تبدیل به {formatNumber(buyPrice * 1000)} تومان
+                </span>
+              </button>
+            )}
+
+            {/* Quick Buy Price Presets */}
+            <div className="pt-1 border-t border-amber-200/60">
+              <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1.5">
+                <span>نرخ‌های رایج خرید مس:</span>
+                <button
+                  type="button"
+                  onClick={() => setBuyPrice(0)}
+                  className="text-stone-400 hover:text-rose-600 text-[10px] cursor-pointer"
+                >
+                  پاک کردن
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[2800000, 2830000, 2850000, 2900000, 3000000, 3100000, 3200000].map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    onClick={() => handleSetBuyPreset(rate)}
+                    className={`px-2 py-1 text-[11px] font-mono rounded-md border transition-all cursor-pointer ${
+                      buyPrice === rate
+                        ? 'bg-amber-500 text-stone-950 font-bold border-amber-600 ring-2 ring-amber-300 shadow-xs'
+                        : 'bg-white hover:bg-amber-100 text-stone-700 border-amber-300/80'
+                    }`}
+                  >
+                    {formatNumber(rate)}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* 2. قیمت فروش روز مس */}
-          <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/80 space-y-2">
+          <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <label htmlFor="market-sell-price-input" className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-emerald-700" />
@@ -155,6 +212,60 @@ export const MarketPriceModal: React.FC<MarketPriceModalProps> = ({
               showWordHelper={true}
               required
             />
+
+            {/* Quick Thousand Multiplier Helper */}
+            {sellPrice >= 500 && sellPrice <= 25000 && (
+              <button
+                type="button"
+                onClick={() => setSellPrice(sellPrice * 1000)}
+                className="w-full text-right p-2 bg-emerald-100/80 hover:bg-emerald-200/80 border border-emerald-300 rounded-lg text-xs font-bold text-emerald-900 flex items-center justify-between cursor-pointer transition-colors"
+              >
+                <span>💡 آیا منظورتان {formatNumber(sellPrice * 1000)} تومان است؟</span>
+                <span className="text-[11px] bg-white px-2 py-0.5 rounded shadow-xs text-emerald-800 font-mono">
+                  تبدیل به {formatNumber(sellPrice * 1000)} تومان
+                </span>
+              </button>
+            )}
+
+            {/* Quick Sell Presets */}
+            <div className="pt-1 border-t border-emerald-200/60">
+              <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1.5">
+                <span>نرخ‌های رایج فروش مس:</span>
+                <button
+                  type="button"
+                  onClick={() => setSellPrice(0)}
+                  className="text-stone-400 hover:text-rose-600 text-[10px] cursor-pointer"
+                >
+                  پاک کردن
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { label: 'هم‌قیمت خرید', val: (buyPrice >= 500 && buyPrice <= 25000 ? buyPrice * 1000 : buyPrice) },
+                  { label: '۱۵۰هزار کمتر', val: Math.max(0, (buyPrice >= 500 && buyPrice <= 25000 ? buyPrice * 1000 : buyPrice) - 150000) },
+                  { label: '۳,۲۰۰,۰۰۰', val: 3200000 },
+                  { label: '۳,۱۰۰,۰۰۰', val: 3100000 },
+                  { label: '۳,۰۰۰,۰۰۰', val: 3000000 },
+                  { label: '۲,۸۵۰,۰۰۰', val: 2850000 },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSellPrice(item.val);
+                      setError('');
+                    }}
+                    className={`px-2 py-1 text-[11px] font-mono rounded-md border transition-all cursor-pointer ${
+                      sellPrice === item.val
+                        ? 'bg-emerald-600 text-white font-bold border-emerald-700 ring-2 ring-emerald-300 shadow-xs'
+                        : 'bg-white hover:bg-emerald-100 text-stone-700 border-emerald-300/80'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Quick Spread Helper Bar */}

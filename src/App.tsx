@@ -158,6 +158,8 @@ export default function App() {
   });
 
   const [isMarketPriceOpen, setIsMarketPriceOpen] = useState(false);
+  const isMarketPriceOpenRef = useRef(false);
+  isMarketPriceOpenRef.current = isMarketPriceOpen;
 
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
@@ -248,14 +250,16 @@ export default function App() {
         const replayed = replayAllTransactions(allPeople, combined);
         setPeople(allPeople);
         setTransactions(replayed);
-        setMarketPrices(cloudResult.marketPrices);
+        if (!isMarketPriceOpenRef.current) {
+          setMarketPrices(cloudResult.marketPrices);
+          saveMarketPrices(cloudResult.marketPrices);
+        }
         if (cloudResult.companyCopperStock !== undefined) {
           setCompanyCopperStockKg(cloudResult.companyCopperStock);
           saveStoredCompanyCopperStock(cloudResult.companyCopperStock);
         }
         savePeople(allPeople);
         saveTransactions(replayed);
-        saveMarketPrices(cloudResult.marketPrices);
         
         // Auto-sync people to cloud
         dbSyncAllPeopleToCloud(allPeople).catch((e) => console.warn('Auto-sync notice:', e?.message || e));
@@ -404,18 +408,22 @@ export default function App() {
               }
             } else if (key === 'market_buy_price' || key === 'market_copper_price') {
               const buy = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_BUY_PRICE;
-              setMarketPrices((prev) => {
-                const updated: MarketPrices = { ...prev, buyPrice: buy };
-                saveMarketPrices(updated);
-                return updated;
-              });
+              if (!isMarketPriceOpenRef.current) {
+                setMarketPrices((prev) => {
+                  const updated: MarketPrices = { ...prev, buyPrice: buy };
+                  saveMarketPrices(updated);
+                  return updated;
+                });
+              }
             } else if (key === 'market_sell_price') {
               const sell = !isNaN(val) && val > 0 ? val : DEFAULT_MARKET_SELL_PRICE;
-              setMarketPrices((prev) => {
-                const updated: MarketPrices = { ...prev, sellPrice: sell };
-                saveMarketPrices(updated);
-                return updated;
-              });
+              if (!isMarketPriceOpenRef.current) {
+                setMarketPrices((prev) => {
+                  const updated: MarketPrices = { ...prev, sellPrice: sell };
+                  saveMarketPrices(updated);
+                  return updated;
+                });
+              }
             }
           }
         }

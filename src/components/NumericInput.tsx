@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { parseNumberInput, formatNumberEn, numberToTomanWords } from '../utils/formatters';
 
 interface NumericInputProps {
@@ -106,6 +107,7 @@ export const NumericInput: React.FC<NumericInputProps> = ({
           inputMode={allowDecimals ? 'decimal' : 'numeric'}
           value={displayValue}
           onChange={handleChange}
+          onFocus={(e) => e.target.select()}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
@@ -113,8 +115,22 @@ export const NumericInput: React.FC<NumericInputProps> = ({
           dir="ltr"
           className={`w-full text-left font-mono px-3.5 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600 transition-all ${
             unitLabel ? 'pl-16' : ''
-          } ${className}`}
+          } ${!disabled && displayValue ? 'pr-8' : ''} ${className}`}
         />
+        {!disabled && displayValue && (
+          <button
+            type="button"
+            onClick={() => {
+              setDisplayValue('');
+              onChange(0);
+            }}
+            tabIndex={-1}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 rounded cursor-pointer transition-colors"
+            title="پاک کردن عدد"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
         {unitLabel && (
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-stone-400 pointer-events-none select-none">
             {unitLabel}
