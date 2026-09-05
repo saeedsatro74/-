@@ -252,7 +252,7 @@ export default function App() {
         saveMarketPrices(cloudResult.marketPrices);
         
         // Auto-sync people to cloud
-        dbSyncAllPeopleToCloud(allPeople).catch((e) => console.error('Failed to auto-sync people to cloud:', e));
+        dbSyncAllPeopleToCloud(allPeople).catch((e) => console.warn('Auto-sync notice:', e?.message || e));
 
         if (!isSilent) {
           showToast('اطلاعات با موفقیت از سرور به روزرسانی شد.', 'success');
@@ -271,8 +271,8 @@ export default function App() {
           showToast('اتصال به سرور برقرار نشد، داده‌ها از حافظه محلی فراخوانی شدند.', 'info');
         }
       }
-    } catch (err) {
-      console.error('Error during data refresh:', err);
+    } catch (err: any) {
+      console.warn('Notice during data refresh:', err?.message || err);
       setIsCloudConnected(false);
       const storedPeople = getStoredPeople();
       const storedTransactions = getStoredTransactions();

@@ -317,7 +317,7 @@ export async function fetchAllFromSupabase(): Promise<{
     ]);
 
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Supabase request timeout')), 3000)
+      setTimeout(() => reject(new Error('Supabase network timeout')), 8000)
     );
 
     const [peopleRes, txRes, settingsRes, buySettingsRes, sellSettingsRes, stockRes] = await Promise.race([
@@ -326,7 +326,7 @@ export async function fetchAllFromSupabase(): Promise<{
     ]);
 
     if (peopleRes.error) {
-      console.warn('Supabase people fetch error:', peopleRes.error);
+      console.warn('Supabase people fetch info:', peopleRes.error.message || peopleRes.error);
       return { 
         people: [], 
         transactions: [], 
@@ -369,14 +369,14 @@ export async function fetchAllFromSupabase(): Promise<{
       isConnected: true,
     };
   } catch (err: any) {
-    console.error('Supabase connection error:', err);
+    console.warn('Supabase fetch notice (operating with local state):', err?.message || err);
     return {
       people: [],
       transactions: [],
       marketPrice: DEFAULT_MARKET_BUY_PRICE,
       marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
       isConnected: false,
-      error: err?.message || 'Failed to connect to Supabase',
+      error: err?.message || 'Supabase disconnected',
     };
   }
 }
@@ -390,7 +390,7 @@ export async function dbUpsertPerson(person: Person): Promise<boolean> {
     const { error } = await supabase.from('people').upsert(row, { onConflict: 'id' });
     if (error) {
       if (error.code === '42501' || error.message?.includes('row-level security')) {
-        console.error('CRITICAL: Supabase Row-Level Security (RLS) is blocking writes on "people" table. Execute: ALTER TABLE public.people DISABLE ROW LEVEL SECURITY; in Supabase SQL Editor.', error.message);
+        console.warn('Supabase RLS active on people table:', error.message);
       }
       if (isSchemaColumnError(error)) {
         console.warn('Supabase people table missing password column; retrying without password...', error.message);
@@ -403,17 +403,17 @@ export async function dbUpsertPerson(person: Person): Promise<boolean> {
         };
         const { error: retryErr } = await supabase.from('people').upsert(baseRow, { onConflict: 'id' });
         if (retryErr) {
-          console.error('Error upserting person (base schema):', retryErr);
+          console.warn('Notice upserting person (base schema):', retryErr.message || retryErr);
           return false;
         }
         return true;
       }
-      console.error('Error upserting person:', error);
+      console.warn('Notice upserting person:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbUpsertPerson error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbUpsertPerson notice:', err?.message || err);
     return false;
   }
 }
@@ -428,8 +428,8 @@ export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<bool
       await dbUpsertPerson(p);
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbSyncAllPeopleToCloud error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbSyncAllPeopleToCloud notice:', err?.message || err);
     return false;
   }
 }
@@ -441,12 +441,12 @@ export async function dbDeletePerson(personId: string): Promise<boolean> {
   try {
     const { error } = await supabase.from('people').delete().eq('id', personId);
     if (error) {
-      console.error('Error deleting person:', error);
+      console.warn('Notice deleting person from Supabase:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbDeletePerson error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbDeletePerson notice:', err?.message || err);
     return false;
   }
 }
@@ -465,17 +465,17 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
         const baseRow = toBaseTransactionRow(tx);
         const { error: retryErr } = await supabase.from('transactions').upsert(baseRow, { onConflict: 'id' });
         if (retryErr) {
-          console.error('Error upserting transaction (base schema):', retryErr);
+          console.warn('Notice upserting transaction (base schema):', retryErr.message || retryErr);
           return false;
         }
         return true;
       }
-      console.error('Error upserting transaction:', error);
+      console.warn('Notice upserting transaction:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbUpsertTransaction error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbUpsertTransaction notice:', err?.message || err);
     return false;
   }
 }
@@ -495,17 +495,17 @@ export async function dbBatchUpsertTransactions(txList: Transaction[]): Promise<
         const baseRows = txList.map(toBaseTransactionRow);
         const { error: retryErr } = await supabase.from('transactions').upsert(baseRows, { onConflict: 'id' });
         if (retryErr) {
-          console.error('Error batch upserting transactions (base schema):', retryErr);
+          console.warn('Notice batch upserting transactions (base schema):', retryErr.message || retryErr);
           return false;
         }
         return true;
       }
-      console.error('Error batch upserting transactions:', error);
+      console.warn('Notice batch upserting transactions:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbBatchUpsertTransactions error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbBatchUpsertTransactions notice:', err?.message || err);
     return false;
   }
 }
@@ -517,12 +517,12 @@ export async function dbDeleteTransaction(txId: string): Promise<boolean> {
   try {
     const { error } = await supabase.from('transactions').delete().eq('id', txId);
     if (error) {
-      console.error('Error deleting transaction:', error);
+      console.warn('Notice deleting transaction from Supabase:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbDeleteTransaction error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbDeleteTransaction notice:', err?.message || err);
     return false;
   }
 }
@@ -540,12 +540,12 @@ export async function dbSaveMarketPrices(prices: MarketPrices): Promise<boolean>
         { key: 'market_copper_price', value: prices.buyPrice },
       ], { onConflict: 'key' });
     if (error) {
-      console.error('Error saving market prices:', error);
+      console.warn('Notice saving market prices to Supabase:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbSaveMarketPrices error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbSaveMarketPrices notice:', err?.message || err);
     return false;
   }
 }
@@ -569,12 +569,12 @@ export async function dbSaveCompanyCopperStock(stockKg: number): Promise<boolean
       .from('app_settings')
       .upsert({ key: 'company_copper_stock', value: String(stockKg) }, { onConflict: 'key' });
     if (error) {
-      console.error('Error saving company copper stock:', error);
+      console.warn('Notice saving company copper stock to Supabase:', error.message || error);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('Supabase dbSaveCompanyCopperStock error:', err);
+  } catch (err: any) {
+    console.warn('Supabase dbSaveCompanyCopperStock notice:', err?.message || err);
     return false;
   }
 }
