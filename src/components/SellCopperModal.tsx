@@ -144,7 +144,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       }
     }
 
-    const catTitle = saleCategory === 'external' ? 'فروش خارجی (خروج از انبار)' : 'فروش داخلی (تحویل به انبار)';
+    const catTitle = saleCategory === 'external' ? 'فروش خارجی (به خریدار بیرونی)' : 'فروش داخلی (تحویل به انبار شرکت)';
     let finalNotes = notes.trim() ? `[${catTitle}] ${notes.trim()}` : `[${catTitle}]`;
 
     onSave({
@@ -297,10 +297,10 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
               >
                 <div className="flex items-center gap-1.5 font-extrabold">
                   <ArrowUpRight className="w-4 h-4 text-amber-700" />
-                  <span>فروش خارجی (خروج از انبار)</span>
+                  <span>فروش به خارج (خریدار بیرونی)</span>
                 </div>
                 <span className="text-[10px] text-stone-500 font-normal">
-                  کاهش موجودی مس انبار شرکت
+                  بدون تغییر در موجودی انبار شرکت
                 </span>
               </button>
             </div>

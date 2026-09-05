@@ -280,7 +280,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
               : 'bg-blue-100 text-blue-900 border border-blue-200'
           }`}>
             <TrendingUp className="w-3 h-3" />
-            {tx.saleCategory === 'external' ? 'فروش مس (خارجی - خروج از انبار)' : 'فروش مس (داخلی - واریز به انبار)'}
+            {tx.saleCategory === 'external' ? 'فروش مس (به خارج - بدون تغییر انبار)' : 'فروش مس (به انبار شرکت - واریز به انبار)'}
           </span>
         );
       case 'deposit':

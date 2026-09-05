@@ -678,10 +678,7 @@ export default function App() {
 
     // Update company copper stock ONLY if approved immediately (CEO)
     if (isCEO && data.weightKg) {
-      if (saleCat === 'external') {
-        const newStock = Math.max(0, companyCopperStockKg - data.weightKg);
-        await handleSaveCompanyCopperStock(newStock, true);
-      } else {
+      if (saleCat === 'internal') {
         const newStock = companyCopperStockKg + data.weightKg;
         await handleSaveCompanyCopperStock(newStock, true);
       }
@@ -817,14 +814,9 @@ export default function App() {
       if (targetTx.type === 'buy') {
         const newStock = companyCopperStockKg + targetTx.weightKg;
         await handleSaveCompanyCopperStock(newStock, true);
-      } else if (targetTx.type === 'sell') {
-        if (targetTx.saleCategory === 'external') {
-          const newStock = companyCopperStockKg + targetTx.weightKg;
-          await handleSaveCompanyCopperStock(newStock, true);
-        } else {
-          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
-          await handleSaveCompanyCopperStock(newStock, true);
-        }
+      } else if (targetTx.type === 'sell' && targetTx.saleCategory !== 'external') {
+        const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+        await handleSaveCompanyCopperStock(newStock, true);
       }
     }
     showToast('درخواست با موفقیت لغو شد و حذف گردید.');
@@ -840,14 +832,9 @@ export default function App() {
       if (targetTx.type === 'buy') {
         const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
         await handleSaveCompanyCopperStock(newStock, true);
-      } else if (targetTx.type === 'sell') {
-        if (targetTx.saleCategory === 'external') {
-          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
-          await handleSaveCompanyCopperStock(newStock, true);
-        } else {
-          const newStock = companyCopperStockKg + targetTx.weightKg;
-          await handleSaveCompanyCopperStock(newStock, true);
-        }
+      } else if (targetTx.type === 'sell' && targetTx.saleCategory !== 'external') {
+        const newStock = companyCopperStockKg + targetTx.weightKg;
+        await handleSaveCompanyCopperStock(newStock, true);
       }
     }
 
@@ -878,14 +865,9 @@ export default function App() {
       if (targetTx.type === 'buy') {
         const newStock = companyCopperStockKg + targetTx.weightKg;
         await handleSaveCompanyCopperStock(newStock, true);
-      } else if (targetTx.type === 'sell') {
-        if (targetTx.saleCategory === 'external') {
-          const newStock = companyCopperStockKg + targetTx.weightKg;
-          await handleSaveCompanyCopperStock(newStock, true);
-        } else {
-          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
-          await handleSaveCompanyCopperStock(newStock, true);
-        }
+      } else if (targetTx.type === 'sell' && targetTx.saleCategory !== 'external') {
+        const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+        await handleSaveCompanyCopperStock(newStock, true);
       }
     }
 
@@ -917,12 +899,8 @@ export default function App() {
       if (targetTx && targetTx.approvalStatus !== 'approved' && targetTx.weightKg) {
         if (targetTx.type === 'buy') {
           currentStock = Math.max(0, currentStock - targetTx.weightKg);
-        } else if (targetTx.type === 'sell') {
-          if (targetTx.saleCategory === 'external') {
-            currentStock = Math.max(0, currentStock - targetTx.weightKg);
-          } else {
-            currentStock = currentStock + targetTx.weightKg;
-          }
+        } else if (targetTx.type === 'sell' && targetTx.saleCategory !== 'external') {
+          currentStock = currentStock + targetTx.weightKg;
         }
       }
     }
@@ -1049,14 +1027,9 @@ export default function App() {
         if (targetTx.type === 'buy') {
           const newStock = companyCopperStockKg + targetTx.weightKg;
           await handleSaveCompanyCopperStock(newStock, true);
-        } else if (targetTx.type === 'sell') {
-          if (targetTx.saleCategory === 'external') {
-            const newStock = companyCopperStockKg + targetTx.weightKg;
-            await handleSaveCompanyCopperStock(newStock, true);
-          } else {
-            const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
-            await handleSaveCompanyCopperStock(newStock, true);
-          }
+        } else if (targetTx.type === 'sell' && targetTx.saleCategory !== 'external') {
+          const newStock = Math.max(0, companyCopperStockKg - targetTx.weightKg);
+          await handleSaveCompanyCopperStock(newStock, true);
         }
       }
 

@@ -234,7 +234,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       }
 
       const totalCalculated = Math.round(weightKg * unitPrice);
-      const catTitle = saleCategory === 'external' ? 'فروش خارجی (خروج از انبار شرکت)' : 'فروش داخلی (تحویل به انبار شرکت)';
+      const catTitle = saleCategory === 'external' ? 'فروش به خارج (خریدار بیرونی)' : 'فروش به انبار شرکت (تحویل به شرکت)';
       let finalNotes = `[${catTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)}`;
       if (notes.trim()) finalNotes += ` | توضیحات: ${notes.trim()}`;
 
@@ -1011,14 +1011,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       <div className="flex items-center justify-between w-full mb-1">
                         <span className="font-extrabold text-xs flex items-center gap-1.5">
                           <ArrowUpRight className="w-4 h-4 text-amber-700" />
-                          فروش خارجی (خروج از انبار)
+                          فروش به خارج (خریدار بیرونی)
                         </span>
                         {saleCategory === 'external' && (
                           <CheckCircle2 className="w-4 h-4 text-amber-600" />
                         )}
                       </div>
                       <p className="text-[11px] text-stone-500 leading-tight">
-                        مس از انبار شرکت خارج شده و به خارج تحویل داده می‌شود (کاهش موجودی انبار شرکت).
+                        مس به شخص یا خریدار بیرون از شرکت فروخته می‌شود (بدون تغییر در موجودی انبار شرکت).
                       </p>
                     </button>
                   </div>
