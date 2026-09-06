@@ -100,6 +100,11 @@ export default function App() {
     return null;
   });
 
+  const authSessionRef = useRef<AuthSession | null>(authSession);
+  useEffect(() => {
+    authSessionRef.current = authSession;
+  }, [authSession]);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return !!sessionStorage.getItem('waateh_auth_session') || !!sessionStorage.getItem('waateh_auth_token');
   });
@@ -217,8 +222,15 @@ export default function App() {
 
   // Trigger alert sound if new pending request comes in for Admin/CEO
   const checkNewIncomingRequestsForAdmin = useCallback((txList: Transaction[], peopleList: Person[]) => {
-    const isCEO = authSession?.role === 'admin';
-    if (!isCEO) return;
+    const currentSession = authSessionRef.current;
+    
+    // CRITICAL: NEVER ring in client portal! Client should never hear manager new-request alarm
+    if (currentSession?.role === 'client') {
+      return;
+    }
+
+    const isManager = !currentSession || currentSession.role === 'admin' || currentSession.role === 'staff';
+    if (!isManager) return;
 
     const currentPendingTxs = txList.filter(
       (t) =>
@@ -255,7 +267,12 @@ export default function App() {
     }
 
     prevPendingTxIdsRef.current = currentPendingIds;
-  }, [authSession?.role, showToast]);
+  }, [showToast]);
+
+  const checkNewIncomingRequestsRef = useRef(checkNewIncomingRequestsForAdmin);
+  useEffect(() => {
+    checkNewIncomingRequestsRef.current = checkNewIncomingRequestsForAdmin;
+  }, [checkNewIncomingRequestsForAdmin]);
 
   // Centralized Refresh Handler & Auto Sync Engine
   const handleRefreshData = useCallback(async (isSilent = false) => {
@@ -465,7 +482,7 @@ export default function App() {
             const currentPeople = getStoredPeople();
             const replayed = replayAllTransactions(currentPeople, updatedList);
             saveTransactions(replayed);
-            checkNewIncomingRequestsForAdmin(replayed, currentPeople);
+            checkNewIncomingRequestsRef.current(replayed, currentPeople);
             return replayed;
           });
         }

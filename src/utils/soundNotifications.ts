@@ -59,12 +59,16 @@ class SoundNotificationManager {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
 
       const now = ctx.currentTime;
+      // Melodic chime ring (Ding-Ding-Dong alert for manager)
       const notes = [
-        { freq: 659.25, time: 0.0, duration: 0.16 }, // E5
-        { freq: 830.61, time: 0.14, duration: 0.18 }, // G#5
-        { freq: 987.77, time: 0.28, duration: 0.45 }, // B5
+        { freq: 783.99, time: 0.0, duration: 0.22, vol: 0.45 }, // G5
+        { freq: 987.77, time: 0.16, duration: 0.24, vol: 0.50 }, // B5
+        { freq: 1174.66, time: 0.32, duration: 0.65, vol: 0.55 }, // D6
       ];
 
       notes.forEach((note) => {
@@ -74,10 +78,10 @@ class SoundNotificationManager {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(note.freq, now + note.time);
 
-        // Natural smooth bell envelope
-        gain.gain.setValueAtTime(0.001, now + note.time);
-        gain.gain.exponentialRampToValueAtTime(0.35, now + note.time + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + note.time + note.duration);
+        // Natural crisp chime bell envelope
+        gain.gain.setValueAtTime(0.0001, now + note.time);
+        gain.gain.exponentialRampToValueAtTime(note.vol, now + note.time + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.duration);
 
         osc.connect(gain);
         gain.connect(ctx.destination);

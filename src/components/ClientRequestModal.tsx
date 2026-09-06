@@ -20,7 +20,6 @@ import {
 import { Person, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, Transaction } from '../types';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
 import { NumericInput } from './NumericInput';
-import { soundManager } from '../utils/soundNotifications';
 
 function formatPersianDate(dateStr?: string): string {
   if (!dateStr) return '';
@@ -194,7 +193,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         amount,
         notes: notes.trim() ? `توضیحات مشتری: ${notes.trim()}` : undefined,
       });
-      soundManager.playApprovedChime();
       onClose();
       return;
     }
@@ -225,7 +223,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         amount,
         notes: finalNotes,
       });
-      soundManager.playApprovedChime();
       onClose();
       return;
     }
@@ -262,7 +259,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         saleCategory,
         notes: finalNotes,
       });
-      soundManager.playApprovedChime();
       onClose();
       return;
     }
@@ -331,7 +327,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         unitPrice,
         notes: finalNotes,
       });
-      soundManager.playApprovedChime();
       onClose();
       return;
     }
