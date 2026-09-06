@@ -19,8 +19,11 @@ import {
   Trash2,
   Sparkles,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
+import { soundManager } from '../utils/soundNotifications';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
 
@@ -92,6 +95,15 @@ export const Header: React.FC<HeaderProps> = ({
   const buyRate = marketBuyPrice || marketPrice;
   const sellRate = marketSellPrice || Math.max(0, buyRate - 150000);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const handleToggleSound = () => {
+    soundManager.unlockAudioContext();
+    if (!soundEnabled) {
+      soundManager.playNewRequestAlert();
+    }
+    setSoundEnabled(!soundEnabled);
+  };
 
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
@@ -137,6 +149,20 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile Data & Approvals Buttons */}
             {!isPersonSelected && (
               <div className="lg:hidden flex items-center gap-1.5">
+                {/* Sound Alert Toggle Button (Mobile) */}
+                <button
+                  type="button"
+                  onClick={handleToggleSound}
+                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    soundEnabled
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-stone-100 text-stone-400 border-stone-200'
+                  }`}
+                  title={soundEnabled ? 'صدای اعلان زنده فعال است (کلیک برای قطع)' : 'صدای اعلان غیرفعال است (کلیک برای فعال‌سازی)'}
+                >
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-700" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+
                 {onRefreshData && (
                   <button
                     type="button"
@@ -429,6 +455,20 @@ export const Header: React.FC<HeaderProps> = ({
                   <KeyRound className="w-4 h-4" />
                 </button>
               )}
+
+              {/* Sound Notifications Toggle Button (Desktop) */}
+              <button
+                type="button"
+                onClick={handleToggleSound}
+                className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                  soundEnabled
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
+                    : 'bg-stone-50 hover:bg-stone-100 text-stone-400 border-stone-200'
+                }`}
+                title={soundEnabled ? 'صدای اعلان زنده فعال است (کلیک برای قطع یا تست)' : 'صدای اعلان قطع است (کلیک برای فعال‌سازی)'}
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-700" /> : <VolumeX className="w-4 h-4" />}
+              </button>
 
               {/* Logout / Lock Button */}
               {onLogout && (

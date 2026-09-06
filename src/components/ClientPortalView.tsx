@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, 
   Wallet, 
@@ -32,8 +32,11 @@ import {
   XCircle,
   Sparkles,
   RefreshCw,
-  Trash2
+  Trash2,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
+import { soundManager } from '../utils/soundNotifications';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
 import { getPersianFullDate } from '../utils/persianDate';
@@ -97,11 +100,20 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const persianDate = getPersianFullDate();
   const buyRate = marketPrices.buyPrice;
   const sellRate = marketPrices.sellPrice;
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Request modal state
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [activeRequestType, setActiveRequestType] = useState<TransactionType>('deposit');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleToggleSound = () => {
+    soundManager.unlockAudioContext();
+    if (!soundEnabled) {
+      soundManager.playApprovedChime();
+    }
+    setSoundEnabled(!soundEnabled);
+  };
 
   // Step 3 Upload Receipt Modal State
   const [uploadReceiptTx, setUploadReceiptTx] = useState<Transaction | null>(null);
@@ -205,108 +217,215 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     loginAt: new Date().toISOString(),
   };
 
+  // Sound alert & notification when transaction status changes (Approved, Rejected, or Bank assigned)
+  const prevStatusesRef = useRef<Map<string, string>>(new Map());
+  const isInitialMountRef = useRef(true);
+  const [notificationBanner, setNotificationBanner] = useState<{
+    type: 'approved' | 'rejected' | 'bank_assigned';
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      const initialMap = new Map<string, string>();
+      clientTxList.forEach((t) => initialMap.set(t.id, t.approvalStatus || 'approved'));
+      prevStatusesRef.current = initialMap;
+      return;
+    }
+
+    const currentMap = new Map<string, string>();
+    let triggeredSound: 'approved' | 'rejected' | 'bank_assigned' | null = null;
+    let bannerMsg = '';
+
+    clientTxList.forEach((t) => {
+      const currentStatus = t.approvalStatus || 'approved';
+      currentMap.set(t.id, currentStatus);
+      const prevStatus = prevStatusesRef.current.get(t.id);
+
+      if (prevStatus && prevStatus !== currentStatus) {
+        if (currentStatus === 'approved') {
+          triggeredSound = 'approved';
+          const typeLabel = t.type === 'deposit' ? 'شارژ حساب' : t.type === 'withdrawal' ? 'برداشت موجودی' : t.type === 'sell' ? 'فروش مس' : 'خرید مس';
+          bannerMsg = `درخواست «${typeLabel}» شما توسط مدیرعامل تایید شد!`;
+        } else if (currentStatus === 'rejected') {
+          triggeredSound = 'rejected';
+          const typeLabel = t.type === 'deposit' ? 'شارژ حساب' : t.type === 'withdrawal' ? 'برداشت موجودی' : t.type === 'sell' ? 'فروش مس' : 'خرید مس';
+          bannerMsg = `درخواست «${typeLabel}» شما توسط مدیریت رد گردید.`;
+        } else if (currentStatus === 'topup_step2_awaiting_receipt' && prevStatus === 'topup_step1_pending_bank') {
+          triggeredSound = 'approved';
+          bannerMsg = 'شماره کارت و شبا اختصاصی توسط مدیرعامل برای واریز وجه ارسال گردید.';
+        }
+      }
+    });
+
+    prevStatusesRef.current = currentMap;
+
+    if (triggeredSound && soundEnabled) {
+      if (triggeredSound === 'approved' || triggeredSound === 'bank_assigned') {
+        soundManager.playApprovedChime();
+      } else if (triggeredSound === 'rejected') {
+        soundManager.playRejectedAlert();
+      }
+
+      setNotificationBanner({
+        type: triggeredSound,
+        message: bannerMsg,
+      });
+
+      const timer = setTimeout(() => {
+        setNotificationBanner(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [clientTxList, soundEnabled]);
+
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col text-stone-900 selection:bg-stone-800 selection:text-white dir-rtl">
       
       {/* Client Top Header */}
       <header className="bg-white border-b border-stone-200 lg:sticky lg:top-0 z-30 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black tracking-wider text-base shadow-sm">
-              واته
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-stone-900">
-                  پورتال مشتریان مس واته
-                </h1>
-                <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-                  حساب کاربری شخصی
-                </span>
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2 sm:py-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
+            
+            {/* User Branding & Identity */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black tracking-wider text-sm sm:text-base shadow-sm shrink-0">
+                  واته
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h1 className="text-sm sm:text-base font-bold text-stone-900 leading-tight">
+                      پورتال مشتریان مس واته
+                    </h1>
+                    <span className="text-[10px] sm:text-[11px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                      حساب شخصی
+                    </span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-stone-500 truncate mt-0.5">
+                    خوش آمدید، <b className="text-stone-800">{person.name}</b> {person.phone && <span className="dir-ltr text-[11px] text-stone-400">({person.phone})</span>}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-stone-500">
-                خوش آمدید، <b>{person.name}</b> {person.phone && `(${person.phone})`}
-              </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {onRefreshData && (
+            {/* Quick Action Buttons Bar - Compact & 100% visible on Mobile */}
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+              {onRefreshData && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onRefreshData) onRefreshData();
+                    window.location.reload();
+                  }}
+                  className="inline-flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded-lg transition-colors cursor-pointer shadow-xs whitespace-nowrap flex-1 sm:flex-none"
+                  title="دریافت و بروزرسانی لحظه‌ای اطلاعات و وضعیت تاییدات از سرور"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-amber-800 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>بروزرسانی</span>
+                </button>
+              )}
+
+              {onOpenCopperChart && (
+                <button
+                  type="button"
+                  onClick={onOpenCopperChart}
+                  className={`inline-flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-bold rounded-lg border transition-colors cursor-pointer whitespace-nowrap flex-1 sm:flex-none ${
+                    activeView === 'copper-chart'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                  }`}
+                  title="مشاهده چارت زنده قیمت جهانی مس در TradingView"
+                >
+                  <TrendingUp className={`w-3.5 h-3.5 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
+                  <span>چارت مس</span>
+                </button>
+              )}
+
+              {onOpenAiAnalysis && (
+                <button
+                  type="button"
+                  onClick={onOpenAiAnalysis}
+                  className={`inline-flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-bold rounded-lg border transition-colors cursor-pointer whitespace-nowrap flex-1 sm:flex-none ${
+                    activeView === 'ai-analysis'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                  }`}
+                  title="مشاهده تحلیل هوشمند بازار مس با هوش مصنوعی جمنای"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${activeView === 'ai-analysis' ? 'text-white' : 'text-amber-500'}`} />
+                  <span>تحلیل هوشمند</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => {
-                  if (onRefreshData) onRefreshData();
-                  window.location.reload();
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 active:bg-amber-300 border border-amber-300 rounded-lg transition-colors cursor-pointer shadow-xs"
-                title="دریافت و بروزرسانی لحظه‌ای اطلاعات و وضعیت تاییدات از سرور"
+                onClick={onChangePassword}
+                className="inline-flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap flex-1 sm:flex-none"
+                title="تغییر رمز عبور ورود"
               >
-                <RefreshCw className={`w-4 h-4 text-amber-800 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>بروزرسانی</span>
+                <KeyRound className="w-3.5 h-3.5 text-stone-600" />
+                <span>تغییر رمز</span>
               </button>
-            )}
 
-            {onOpenCopperChart && (
+              {/* Sound Notifications Toggle Button */}
               <button
                 type="button"
-                onClick={onOpenCopperChart}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
-                  activeView === 'copper-chart'
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-md'
-                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                onClick={handleToggleSound}
+                className={`inline-flex items-center justify-center gap-1 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg border transition-colors cursor-pointer whitespace-nowrap flex-1 sm:flex-none ${
+                  soundEnabled
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+                    : 'bg-stone-100 hover:bg-stone-200 text-stone-400 border-stone-200'
                 }`}
-                title="مشاهده چارت زنده قیمت جهانی مس در TradingView"
+                title={soundEnabled ? 'صدای اعلان زنده فعال است (کلیک برای قطع یا تست)' : 'صدای اعلان قطع است (کلیک برای فعال‌سازی)'}
               >
-                <TrendingUp className={`w-4 h-4 ${activeView === 'copper-chart' ? 'text-white' : 'text-amber-700'}`} />
-                <span>چارت جهانی مس</span>
+                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-800" /> : <VolumeX className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">صدا</span>
               </button>
-            )}
 
-            {onOpenAiAnalysis && (
               <button
                 type="button"
-                onClick={onOpenAiAnalysis}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
-                  activeView === 'ai-analysis'
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-md'
-                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
-                }`}
-                title="مشاهده تحلیل هوشمند بازار مس با هوش مصنوعی جمنای"
+                onClick={onLogout}
+                className="inline-flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap flex-1 sm:flex-none"
+                title="خروج از حساب"
               >
-                <Sparkles className={`w-4 h-4 ${activeView === 'ai-analysis' ? 'text-white' : 'text-amber-500'}`} />
-                <span>تحلیل هوشمند جمنای</span>
+                <LogOut className="w-3.5 h-3.5" />
+                <span>خروج</span>
               </button>
-            )}
+            </div>
 
-
-
-            <button
-              type="button"
-              onClick={onChangePassword}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg transition-colors cursor-pointer"
-              title="تغییر رمز عبور ورود"
-            >
-              <KeyRound className="w-4 h-4 text-stone-600" />
-              <span className="hidden sm:inline">تغییر رمز عبور</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onLogout}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
-              title="خروج از حساب"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>خروج</span>
-            </button>
           </div>
-
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="max-w-6xl w-full mx-auto px-2 sm:px-4 py-3 space-y-3 flex-1">
+
+        {/* Live Notification Banner */}
+        {notificationBanner && (
+          <div className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 shadow-md animate-in fade-in slide-in-from-top-3 duration-200 ${
+            notificationBanner.type === 'approved' || notificationBanner.type === 'bank_assigned'
+              ? 'bg-emerald-950 text-emerald-100 border-emerald-500/50'
+              : 'bg-rose-950 text-rose-100 border-rose-500/50'
+          }`}>
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold">
+              {notificationBanner.type === 'approved' || notificationBanner.type === 'bank_assigned' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 animate-bounce" />
+              ) : (
+                <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
+              )}
+              <span>{notificationBanner.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNotificationBanner(null)}
+              className="p-1 text-stone-400 hover:text-white rounded-md cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => onOpenCopperChart?.()} userRole="client" />
@@ -604,91 +723,6 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           </div>
         )}
 
-        {/* Quick Action Buttons for Client Requests */}
-        <div className="bg-stone-900 rounded-lg p-3 sm:p-3.5 text-white shadow-sm space-y-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-stone-800 pb-2">
-            <div>
-              <h2 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
-                <Send className="w-3.5 h-3.5 text-amber-400" />
-                <span>ثبت درخواست‌های مالی و معاملاتی</span>
-              </h2>
-              <p className="text-[10px] text-stone-400">
-                شارژ کیف پول، برداشت، یا خرید و فروش مس مستقیم با مدیرعامل
-              </p>
-            </div>
-            <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold w-fit">
-              تأیید فوری
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => handleOpenRequest('deposit')}
-              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
-            >
-              <ArrowDownLeft className="w-4 h-4 group-hover:scale-110 transition-transform text-emerald-200" />
-              <span>{hasPendingDeposit ? 'پیگیری و مدیریت شارژ' : 'شارژ حساب (واریز)'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOpenRequest('withdrawal')}
-              className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
-            >
-              <ArrowUpRight className="w-4 h-4 text-rose-200 group-hover:scale-110 transition-transform" />
-              <span>برداشت موجودی</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOpenRequest('sell')}
-              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
-            >
-              <TrendingUp className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
-              <span>فروش مس به شرکت</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleOpenRequest('buy')}
-              className="p-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
-            >
-              <ShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform text-amber-200" />
-              <span>خرید مس از شرکت</span>
-            </button>
-          </div>
-
-          {hasPendingDeposit && activeTopupTx && (
-            <div className="bg-amber-950/60 border border-amber-500/40 text-amber-200 text-xs p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  یک درخواست شارژ مبلغ <b className="text-white font-mono">{formatToman(activeTopupTx.amount)}</b> در جریان دارید.
-                </span>
-              </div>
-              <div className="flex items-center gap-2 self-end sm:self-auto">
-                {onCancelRequest && (
-                  <button
-                    type="button"
-                    onClick={() => onCancelRequest(activeTopupTx.id)}
-                    className="px-2.5 py-1 bg-rose-600/80 hover:bg-rose-600 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
-                  >
-                    لغو این درخواست
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleOpenRequest('deposit')}
-                  className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-stone-950 text-[11px] font-extrabold rounded-lg transition-colors cursor-pointer"
-                >
-                  مشاهده و اقدام ➔
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Date and Rates Info Bar */}
         <div className="bg-white rounded-lg border border-stone-200 p-2 sm:p-2.5 shadow-xs flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-stone-500">
@@ -786,6 +820,91 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             </p>
           </div>
 
+        </div>
+
+        {/* Quick Action Buttons for Client Requests - Placed below balance cards */}
+        <div className="bg-stone-900 rounded-lg p-3 sm:p-3.5 text-white shadow-sm space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-stone-800 pb-2">
+            <div>
+              <h2 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-amber-400" />
+                <span>ثبت درخواست‌های مالی و معاملاتی</span>
+              </h2>
+              <p className="text-[10px] text-stone-400">
+                شارژ کیف پول، برداشت، یا خرید و فروش مس مستقیم با مدیرعامل
+              </p>
+            </div>
+            <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold w-fit">
+              تأیید فوری
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('deposit')}
+              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
+            >
+              <ArrowDownLeft className="w-4 h-4 group-hover:scale-110 transition-transform text-emerald-200" />
+              <span>{hasPendingDeposit ? 'پیگیری و مدیریت شارژ' : 'شارژ حساب (واریز)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('withdrawal')}
+              className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
+            >
+              <ArrowUpRight className="w-4 h-4 text-rose-200 group-hover:scale-110 transition-transform" />
+              <span>برداشت موجودی</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('sell')}
+              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
+            >
+              <TrendingUp className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
+              <span>فروش مس به شرکت</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenRequest('buy')}
+              className="p-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex flex-col items-center justify-center gap-1 cursor-pointer group"
+            >
+              <ShoppingBag className="w-4 h-4 group-hover:scale-110 transition-transform text-amber-200" />
+              <span>خرید مس از شرکت</span>
+            </button>
+          </div>
+
+          {hasPendingDeposit && activeTopupTx && (
+            <div className="bg-amber-950/60 border border-amber-500/40 text-amber-200 text-xs p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  یک درخواست شارژ مبلغ <b className="text-white font-mono">{formatToman(activeTopupTx.amount)}</b> در جریان دارید.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                {onCancelRequest && (
+                  <button
+                    type="button"
+                    onClick={() => onCancelRequest(activeTopupTx.id)}
+                    className="px-2.5 py-1 bg-rose-600/80 hover:bg-rose-600 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                  >
+                    لغو این درخواست
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenRequest('deposit')}
+                  className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-stone-950 text-[11px] font-extrabold rounded-lg transition-colors cursor-pointer"
+                >
+                  مشاهده و اقدام ➔
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Transactions History Table */}

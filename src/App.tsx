@@ -50,6 +50,7 @@ import {
   toPerson,
   supabase
 } from './services/supabase';
+import { soundManager } from './utils/soundNotifications';
 import { Header } from './components/Header';
 import { StatCards } from './components/StatCards';
 import { PeopleTable } from './components/PeopleTable';
@@ -210,6 +211,52 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
+  // Manager Sound Alert for Pending Requests Tracker
+  const prevPendingTxIdsRef = useRef<Set<string>>(new Set());
+  const isManagerInitialCheckRef = useRef(true);
+
+  // Trigger alert sound if new pending request comes in for Admin/CEO
+  const checkNewIncomingRequestsForAdmin = useCallback((txList: Transaction[], peopleList: Person[]) => {
+    const isCEO = authSession?.role === 'admin';
+    if (!isCEO) return;
+
+    const currentPendingTxs = txList.filter(
+      (t) =>
+        t.approvalStatus === 'pending' ||
+        t.approvalStatus === 'topup_step1_pending_bank' ||
+        t.approvalStatus === 'topup_step3_pending_approval'
+    );
+
+    const currentPendingIds = new Set(currentPendingTxs.map((t) => t.id));
+
+    if (isManagerInitialCheckRef.current) {
+      isManagerInitialCheckRef.current = false;
+      prevPendingTxIdsRef.current = currentPendingIds;
+      return;
+    }
+
+    // Find genuinely new incoming pending requests
+    const newIncoming = currentPendingTxs.filter((t) => !prevPendingTxIdsRef.current.has(t.id));
+
+    if (newIncoming.length > 0) {
+      soundManager.playNewRequestAlert();
+      const firstTx = newIncoming[0];
+      const personName = peopleList.find((p) => p.id === firstTx.personId)?.name || 'مشتری';
+      const typeLabel =
+        firstTx.type === 'deposit'
+          ? 'شارژ حساب (واریز)'
+          : firstTx.type === 'withdrawal'
+          ? 'برداشت وجه'
+          : firstTx.type === 'sell'
+          ? 'فروش مس'
+          : 'خرید مس';
+
+      showToast(`🔔 درخواست جدید «${typeLabel}» از طرف ${personName} دریافت شد!`, 'info');
+    }
+
+    prevPendingTxIdsRef.current = currentPendingIds;
+  }, [authSession?.role, showToast]);
+
   // Centralized Refresh Handler & Auto Sync Engine
   const handleRefreshData = useCallback(async (isSilent = false) => {
     if (isSyncingRef.current) return;
@@ -275,6 +322,7 @@ export default function App() {
         const replayed = replayAllTransactions(allPeople, combined);
         setPeople(allPeople);
         setTransactions(replayed);
+        checkNewIncomingRequestsForAdmin(replayed, allPeople);
         if (!isMarketPriceOpenRef.current) {
           setMarketPrices(cloudResult.marketPrices);
           saveMarketPrices(cloudResult.marketPrices);
@@ -417,6 +465,7 @@ export default function App() {
             const currentPeople = getStoredPeople();
             const replayed = replayAllTransactions(currentPeople, updatedList);
             saveTransactions(replayed);
+            checkNewIncomingRequestsForAdmin(replayed, currentPeople);
             return replayed;
           });
         }
@@ -926,6 +975,7 @@ export default function App() {
 
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    soundManager.playApprovedChime();
     showToast(`معامله مس (${targetTx.type === 'buy' ? 'خرید' : 'فروش'}) توسط ${approverName} تأیید شد و اثر مالی آن اعمال گردید.`);
   };
 
@@ -960,6 +1010,7 @@ export default function App() {
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
 
+    soundManager.playRejectedAlert();
     showToast(`معامله مس رد شد و تأثیری در موجودی نخواهد داشت.`);
   };
 
@@ -1001,6 +1052,7 @@ export default function App() {
     for (const pId of affectedPersonIds) {
       await syncPersonLedgerToCloud(pId, replayed);
     }
+    soundManager.playApprovedChime();
     showToast(`تعداد ${txIds.length} معامله مس به صورت یکجا تأیید شدند.`);
   };
 
