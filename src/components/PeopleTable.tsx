@@ -433,7 +433,10 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                         {/* Delete Person */}
                         <button
                           type="button"
-                          onClick={() => onDeletePerson(item.person.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeletePerson(item.person.id);
+                          }}
                           className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="حذف حساب کاربر"
                         >
@@ -562,7 +565,10 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onDeletePerson(item.person.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeletePerson(item.person.id);
+                      }}
                       className="p-1 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 rounded cursor-pointer"
                       title="حذف کاربر"
                     >

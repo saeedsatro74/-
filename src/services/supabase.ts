@@ -1,6 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { Person, Transaction, MarketPrices } from '../types';
-import { DEFAULT_MARKET_BUY_PRICE, DEFAULT_MARKET_SELL_PRICE, DEFAULT_MARKET_COPPER_PRICE, getClientPassword } from '../utils/storage';
+import { 
+  DEFAULT_MARKET_BUY_PRICE, 
+  DEFAULT_MARKET_SELL_PRICE, 
+  DEFAULT_MARKET_COPPER_PRICE, 
+  getClientPassword,
+  getStoredDeletedPersonIds,
+  saveStoredDeletedPersonId,
+  isPersonDeleted
+} from '../utils/storage';
 
 // Supabase URL & Public Anon Key
 export const SUPABASE_URL = 
@@ -303,6 +311,7 @@ export async function fetchAllFromSupabase(): Promise<{
   marketPrice: number;
   marketPrices: MarketPrices;
   companyCopperStock?: number;
+  deletedPersonIds: string[];
   isConnected: boolean;
   error?: string;
 }> {
@@ -322,6 +331,25 @@ export async function fetchAllFromSupabase(): Promise<{
       timeoutPromise
     ]);
 
+    const settingsList = settingsRes?.data || [];
+    const getSettingVal = (keyName: string) => {
+      const match = settingsList.find((s: any) => String(s.key || '').toLowerCase() === keyName.toLowerCase());
+      return match ? match.value : undefined;
+    };
+
+    // 1. Gather all tombstoned deleted person IDs from Supabase and localStorage
+    const deletedPersonIds = new Set<string>(getStoredDeletedPersonIds());
+    settingsList.forEach((s: any) => {
+      const key = String(s.key || '');
+      if (key.startsWith('del_')) {
+        const delId = key.replace(/^del_/, '');
+        if (delId) {
+          deletedPersonIds.add(delId);
+          saveStoredDeletedPersonId(delId);
+        }
+      }
+    });
+
     if (peopleRes.error) {
       console.warn('Supabase people fetch info:', peopleRes.error.message || peopleRes.error);
       return { 
@@ -329,23 +357,24 @@ export async function fetchAllFromSupabase(): Promise<{
         transactions: [], 
         marketPrice: DEFAULT_MARKET_BUY_PRICE, 
         marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
+        deletedPersonIds: Array.from(deletedPersonIds),
         isConnected: false, 
         error: peopleRes.error.message 
       };
     }
 
-    const people = (peopleRes.data as PersonRow[] || []).map(toPerson);
-    const transactions = (txRes.data as TransactionRow[] || []).map(toTransaction);
+    // Filter out any accounts that were deleted so they are never displayed or revived
+    const people = (peopleRes.data as PersonRow[] || [])
+      .map(toPerson)
+      .filter((p) => p && p.id && !deletedPersonIds.has(p.id));
+
+    const transactions = (txRes.data as TransactionRow[] || [])
+      .map(toTransaction)
+      .filter((t) => t && t.personId && !deletedPersonIds.has(t.personId));
     
     let buyPrice = DEFAULT_MARKET_BUY_PRICE;
     let sellPrice = DEFAULT_MARKET_SELL_PRICE;
     let companyCopperStock: number | undefined;
-
-    const settingsList = settingsRes.data || [];
-    const getSettingVal = (keyName: string) => {
-      const match = settingsList.find((s: any) => String(s.key || '').toLowerCase() === keyName.toLowerCase());
-      return match ? match.value : undefined;
-    };
 
     const rawBuy = getSettingVal('market_buy_price') ?? getSettingVal('market_copper_price');
     if (rawBuy !== undefined && rawBuy !== null) {
@@ -370,6 +399,7 @@ export async function fetchAllFromSupabase(): Promise<{
       marketPrice: buyPrice,
       marketPrices: { buyPrice, sellPrice },
       companyCopperStock,
+      deletedPersonIds: Array.from(deletedPersonIds),
       isConnected: true,
     };
   } catch (err: any) {
@@ -379,6 +409,7 @@ export async function fetchAllFromSupabase(): Promise<{
       transactions: [],
       marketPrice: DEFAULT_MARKET_BUY_PRICE,
       marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
+      deletedPersonIds: getStoredDeletedPersonIds(),
       isConnected: false,
       error: err?.message || 'Supabase disconnected',
     };
@@ -389,6 +420,13 @@ export async function fetchAllFromSupabase(): Promise<{
  * Upsert a single Person in Supabase
  */
 export async function dbUpsertPerson(person: Person): Promise<boolean> {
+  if (!person || !person.id) return false;
+  // Guard against resurrecting deleted persons
+  if (isPersonDeleted(person.id)) {
+    console.warn(`[Supabase] Aborted resurrecting deleted person: ${person.id} (${person.name})`);
+    return false;
+  }
+
   try {
     const row = toPersonRow(person);
     const { error } = await supabase.from('people').upsert(row, { onConflict: 'id' });
@@ -423,12 +461,13 @@ export async function dbUpsertPerson(person: Person): Promise<boolean> {
 }
 
 /**
- * Batch Upsert / Sync all people to Supabase
+ * Batch Upsert / Sync all people to Supabase (only active, non-deleted users)
  */
 export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<boolean> {
-  if (peopleList.length === 0) return true;
+  const activePeople = peopleList.filter((p) => p && p.id && !isPersonDeleted(p.id));
+  if (activePeople.length === 0) return true;
   try {
-    for (const p of peopleList) {
+    for (const p of activePeople) {
       await dbUpsertPerson(p);
     }
     return true;
@@ -439,15 +478,31 @@ export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<bool
 }
 
 /**
- * Delete a Person in Supabase (Cascades to transactions due to SQL schema)
+ * Delete a Person permanently in Supabase & cloud tombstone
  */
 export async function dbDeletePerson(personId: string): Promise<boolean> {
+  if (!personId) return false;
   try {
-    const { error } = await supabase.from('people').delete().eq('id', personId);
-    if (error) {
-      console.warn('Notice deleting person from Supabase:', error.message || error);
-      return false;
+    // 1. Mark in local storage immediately so no local state can ever revive it
+    saveStoredDeletedPersonId(personId);
+
+    // 2. Cascade delete all transactions for this person from Supabase
+    const { error: txErr } = await supabase.from('transactions').delete().eq('person_id', personId);
+    if (txErr) {
+      console.warn('Notice deleting person transactions from Supabase:', txErr.message || txErr);
     }
+
+    // 3. Delete person record from people table
+    const { error: pErr } = await supabase.from('people').delete().eq('id', personId);
+    if (pErr) {
+      console.warn('Notice deleting person from Supabase:', pErr.message || pErr);
+    }
+
+    // 4. Mark permanently in Supabase app_settings tombstone so any other browser/client respects the deletion
+    await supabase
+      .from('app_settings')
+      .upsert({ key: 'del_' + personId, value: 1 }, { onConflict: 'key' });
+
     return true;
   } catch (err: any) {
     console.warn('Supabase dbDeletePerson notice:', err?.message || err);

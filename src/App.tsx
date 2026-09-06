@@ -28,7 +28,10 @@ import {
   resetToSampleData,
   DEFAULT_MARKET_COPPER_PRICE,
   DEFAULT_MARKET_BUY_PRICE,
-  DEFAULT_MARKET_SELL_PRICE
+  DEFAULT_MARKET_SELL_PRICE,
+  getStoredDeletedPersonIds,
+  saveStoredDeletedPersonId,
+  isPersonDeleted
 } from './utils/storage';
 import { 
   fetchAllFromSupabase, 
@@ -217,16 +220,38 @@ export default function App() {
       if (cloudResult.isConnected) {
         setIsCloudConnected(true);
         
-        // Merge local & remote people to ensure no customer accounts are lost
-        const storedPeople = getStoredPeople();
+        // 1. Gather all tombstoned deleted person IDs
+        const deletedIds = new Set<string>(getStoredDeletedPersonIds());
+        cloudResult.deletedPersonIds?.forEach((id) => {
+          if (id) {
+            deletedIds.add(id);
+            saveStoredDeletedPersonId(id);
+          }
+        });
+
+        // 2. People mapping: Cloud Supabase is the primary source of truth
         const peopleMap = new Map<string, Person>();
-        storedPeople.forEach((p) => peopleMap.set(p.id, p));
-        cloudResult.people.forEach((p) => peopleMap.set(p.id, p));
+        cloudResult.people.forEach((p) => {
+          if (p && p.id && !deletedIds.has(p.id)) {
+            peopleMap.set(p.id, p);
+          }
+        });
+
+        // Only include local people if they are genuinely new local-only offline additions (and never deleted!)
+        const remoteIds = new Set(cloudResult.people.map((p) => p.id));
+        const storedPeople = getStoredPeople();
+        storedPeople.forEach((p) => {
+          if (p && p.id && !remoteIds.has(p.id) && !deletedIds.has(p.id) && p.id.startsWith('person-')) {
+            peopleMap.set(p.id, p);
+            dbUpsertPerson(p).catch(() => {});
+          }
+        });
         const allPeople = Array.from(peopleMap.values());
 
         // Load live data from Supabase directly & merge local pending/approved states correctly
-        const storedTxs = getStoredTransactions();
-        const mergedTxs = cloudResult.transactions.map((mTx) => {
+        const storedTxs = getStoredTransactions().filter((t) => t && t.personId && !deletedIds.has(t.personId));
+        const cloudTxs = cloudResult.transactions.filter((t) => t && t.personId && !deletedIds.has(t.personId));
+        const mergedTxs = cloudTxs.map((mTx) => {
           const localMatch = storedTxs.find((p) => p.id === mTx.id);
           if (!localMatch) return mTx;
           if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
@@ -238,8 +263,8 @@ export default function App() {
           }
           return { ...localMatch, ...mTx };
         });
-        const remoteIds = new Set(cloudResult.transactions.map((m) => m.id));
-        const localOnlyTxs = storedTxs.filter((p) => !remoteIds.has(p.id));
+        const remoteTxIds = new Set(cloudTxs.map((m) => m.id));
+        const localOnlyTxs = storedTxs.filter((p) => !remoteTxIds.has(p.id));
         const combinedMap = new Map<string, Transaction>();
         mergedTxs.forEach((t) => combinedMap.set(t.id, t));
         localOnlyTxs.forEach((t) => {
@@ -260,9 +285,6 @@ export default function App() {
         }
         savePeople(allPeople);
         saveTransactions(replayed);
-        
-        // Auto-sync people to cloud
-        dbSyncAllPeopleToCloud(allPeople).catch((e) => console.warn('Auto-sync notice:', e?.message || e));
 
         if (!isSilent) {
           showToast('اطلاعات با موفقیت از سرور به روزرسانی شد.', 'success');
@@ -332,11 +354,16 @@ export default function App() {
           setPeople((prevPeople) => {
             let updatedPeople = [...prevPeople];
             if (eventType === 'DELETE') {
-              if (oldRow && oldRow.id) {
-                updatedPeople = updatedPeople.filter((p) => p.id !== oldRow.id);
+              const targetId = oldRow?.id;
+              if (targetId) {
+                saveStoredDeletedPersonId(targetId);
+                updatedPeople = updatedPeople.filter((p) => p.id !== targetId);
               }
             } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
               if (newRow && newRow.id) {
+                if (isPersonDeleted(newRow.id)) {
+                  return updatedPeople;
+                }
                 const incomingPerson = toPerson(newRow);
                 const existingIndex = updatedPeople.findIndex((p) => p.id === incomingPerson.id);
                 if (existingIndex !== -1) {
@@ -1054,13 +1081,16 @@ export default function App() {
     const { type, id } = deleteConfirm;
     setSyncingState(true);
     if (type === 'person') {
+      saveStoredDeletedPersonId(id);
       const updatedPeople = people.filter((p) => p.id !== id);
       const updatedTxs = transactions.filter((t) => t.personId !== id);
+      savePeople(updatedPeople);
+      saveTransactions(updatedTxs);
       updatePeople(updatedPeople);
       updateTransactions(updatedTxs, updatedPeople);
       await dbDeletePerson(id);
       if (selectedPersonId === id) setSelectedPersonId(null);
-      showToast('حساب فرد و سوابق آن با موفقیت از سرور حذف شد.');
+      showToast('حساب فرد و سوابق آن با موفقیت به طور دائمی حذف شد.');
     } else if (type === 'transaction') {
       const targetTx = transactions.find((t) => t.id === id);
       const personId = targetTx?.personId;

@@ -14,7 +14,15 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { Person, AuthSession, UserRole } from '../types';
-import { getStoredPeople, getStoredAdminPassword, getStoredStaffPassword, getClientPassword } from '../utils/storage';
+import { 
+  getStoredPeople, 
+  getStoredAdminPassword, 
+  getStoredStaffPassword, 
+  getClientPassword,
+  getStoredTransactions,
+  getStoredDeletedPersonIds,
+  isPersonDeleted
+} from '../utils/storage';
 
 interface LoginScreenProps {
   people?: Person[];
@@ -94,16 +102,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
     // Find person by phone (from prop or localStorage)
     const storedPeople = getStoredPeople();
     const allPeople = (people && people.length > 0) ? people : storedPeople;
-    const matchedPerson = allPeople.find((p) => {
+    const deletedIds = new Set(getStoredDeletedPersonIds());
+    
+    // Filter out any deleted accounts
+    const validPeople = allPeople.filter((p) => p && p.id && !deletedIds.has(p.id) && !isPersonDeleted(p.id));
+
+    // Find all matching candidates for this phone number
+    const matchingCandidates = validPeople.filter((p) => {
       if (!p.phone) return false;
       const pClean = p.phone.replace(/\D/g, '');
       return pClean.endsWith(cleanPhone) || cleanPhone.endsWith(pClean);
     });
 
-    if (!matchedPerson) {
+    if (matchingCandidates.length === 0) {
       setClientError('حسابی با این شماره موبایل در سامانه مس واته یافت نشد.');
       return;
     }
+
+    // Sort candidates so the account with real active transactions & latest date is chosen
+    const allTxs = getStoredTransactions();
+    matchingCandidates.sort((a, b) => {
+      const aTxs = allTxs.filter((t) => t.personId === a.id).length;
+      const bTxs = allTxs.filter((t) => t.personId === b.id).length;
+      if (bTxs !== aTxs) return bTxs - aTxs; // Highest transaction count first!
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+
+    const matchedPerson = matchingCandidates[0];
 
     const customPass = matchedPerson.password || getClientPassword(matchedPerson.id);
     const inputPass = clientPassword.trim();

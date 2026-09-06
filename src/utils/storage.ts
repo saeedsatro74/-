@@ -12,7 +12,35 @@ const STORAGE_KEYS = {
   COMPANY_BANK_ACCOUNTS: 'waateh_company_bank_accounts_v1',
   CHAT_MESSAGES: 'waateh_chat_messages_v1',
   COMPANY_COPPER_STOCK: 'waateh_company_copper_stock_v1',
+  DELETED_PEOPLE_IDS: 'copper_wallet_deleted_people_ids_v1',
 };
+
+export function getStoredDeletedPersonIds(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DELETED_PEOPLE_IDS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredDeletedPersonId(personId: string): void {
+  try {
+    if (!personId) return;
+    const list = getStoredDeletedPersonIds();
+    if (!list.includes(personId)) {
+      list.push(personId);
+      localStorage.setItem(STORAGE_KEYS.DELETED_PEOPLE_IDS, JSON.stringify(list));
+    }
+  } catch (err) {
+    console.warn('Failed to save deleted person id:', err);
+  }
+}
+
+export function isPersonDeleted(personId: string): boolean {
+  if (!personId) return false;
+  return getStoredDeletedPersonIds().includes(personId);
+}
 
 export const DEFAULT_COMPANY_COPPER_STOCK_KG = 0; // Default starts at 0 kg of copper as requested
 
@@ -206,60 +234,8 @@ export const DEFAULT_MARKET_BUY_PRICE = 3000000; // 3,000,000 Toman per Kg
 export const DEFAULT_MARKET_SELL_PRICE = 2850000; // 2,850,000 Toman per Kg (150,000 Toman less)
 export const DEFAULT_MARKET_COPPER_PRICE = DEFAULT_MARKET_BUY_PRICE;
 
-// Realistic Seed People
-const INITIAL_PEOPLE: Person[] = [
-  {
-    id: 'person-1788006163739',
-    name: 'سعید صمیمی پور',
-    phone: '09379900697',
-    createdAt: '1405/06/07',
-  },
-  {
-    id: 'person-1788007473054',
-    name: 'میلاد فتح پور',
-    phone: '09121495188',
-    createdAt: '1405/06/07',
-  },
-  {
-    id: 'person-1788009335252',
-    name: 'جواد شکرالهی',
-    phone: '09127697501',
-    createdAt: '1405/06/07',
-  },
-  {
-    id: 'person-1788164520151',
-    name: 'علی ظفری پور',
-    phone: '09134263654',
-    createdAt: '1405/06/09',
-  },
-  {
-    id: 'person-1788183021164',
-    name: 'سارا خمسه لو',
-    phone: '09370256246',
-    createdAt: '1405/06/09',
-  },
-  {
-    id: 'p-ali',
-    name: 'علی رضایی',
-    phone: '09121113344',
-    notes: 'پروژه نمونه کیف پول و معاملات مس',
-    createdAt: '1403/11/01',
-  },
-  {
-    id: 'p-reza',
-    name: 'حاج رضا احمدی (تاسیسات قائم)',
-    phone: '09122224455',
-    notes: 'تامین کننده لوله های مهراصل و باهنر',
-    createdAt: '1403/11/05',
-  },
-  {
-    id: 'p-hoseini',
-    name: 'مهندس حسینی (پیمانکار چیلر)',
-    phone: '09123335566',
-    notes: 'لوله مسی کلاف و شاخه ای ضخامت ۰.۸۱',
-    createdAt: '1403/11/10',
-  },
-];
+// Realistic Seed People (Default empty so live data comes directly from Supabase cloud)
+const INITIAL_PEOPLE: Person[] = [];
 
 // Initial Transactions showcasing real wallet workflow
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -480,31 +456,39 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 export function getStoredPeople(): Person[] {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.PEOPLE);
-    const peopleList: Person[] = data ? JSON.parse(data) : INITIAL_PEOPLE;
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(INITIAL_PEOPLE));
-    }
+    const peopleList: Person[] = data ? JSON.parse(data) : [];
+    const deletedIds = new Set(getStoredDeletedPersonIds());
+    const filtered = peopleList.filter((p) => p && p.id && !deletedIds.has(p.id));
     const clientPassMap = getStoredClientPasswords();
-    return peopleList.map((p) => {
+    return filtered.map((p) => {
       const storedPass = clientPassMap[p.id] || p.password;
       return storedPass ? { ...p, password: storedPass } : p;
     });
   } catch {
-    return INITIAL_PEOPLE;
+    return [];
   }
 }
 
 export function savePeople(people: Person[]): void {
-  localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(people));
+  const deletedIds = new Set(getStoredDeletedPersonIds());
+  const cleanPeople = people.filter((p) => p && p.id && !deletedIds.has(p.id));
+  localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(cleanPeople));
   try {
     const map = getStoredClientPasswords();
     let updated = false;
-    for (const p of people) {
+    for (const p of cleanPeople) {
       if (p.password) {
         map[p.id] = p.password.trim();
         updated = true;
       }
     }
+    // Clean deleted IDs from password cache
+    deletedIds.forEach((delId) => {
+      if (map[delId]) {
+        delete map[delId];
+        updated = true;
+      }
+    });
     if (updated) {
       localStorage.setItem(STORAGE_KEYS.CLIENT_PASSWORDS, JSON.stringify(map));
     }
