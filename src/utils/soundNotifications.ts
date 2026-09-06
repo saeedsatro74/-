@@ -169,6 +169,79 @@ class SoundNotificationManager {
       console.warn('[SoundManager] Rejected alert error:', err);
     }
   }
+  /**
+   * Sound 4: Incoming Chat Message Alert (Beep / Crisp dual ding chime)
+   * High-clarity pleasant bell chime (F5 -> C6) for online support messages
+   */
+  public playChatMessageAlert(): void {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime;
+      // High-grade pleasant double-bell notification
+      const notes = [
+        { freq: 880.00, time: 0.0, duration: 0.18, vol: 0.50 }, // A5
+        { freq: 1318.51, time: 0.12, duration: 0.45, vol: 0.60 }, // E6
+      ];
+
+      notes.forEach((note) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note.freq, now + note.time);
+
+        gain.gain.setValueAtTime(0.0001, now + note.time);
+        gain.gain.exponentialRampToValueAtTime(note.vol, now + note.time + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + note.time);
+        osc.stop(now + note.time + note.duration + 0.05);
+      });
+    } catch (err) {
+      console.warn('[SoundManager] Chat alert error:', err);
+    }
+  }
+
+  /**
+   * Sound 5: Outgoing Chat Message Sent (Subtle soft pop)
+   */
+  public playMessageSentSound(): void {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.08); // A5
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch (err) {
+      console.warn('[SoundManager] Message sent sound error:', err);
+    }
+  }
 }
 
 export const soundManager = new SoundNotificationManager();
