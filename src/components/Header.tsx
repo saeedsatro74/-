@@ -21,11 +21,14 @@ import {
   Plus,
   RefreshCw,
   Volume2,
-  VolumeX
+  VolumeX,
+  FileSpreadsheet,
+  BookOpen
 } from 'lucide-react';
 import { soundManager } from '../utils/soundNotifications';
 import { getPersianFullDate } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
+import { WATTEH_LOGO } from '../assets/branding';
 
 interface HeaderProps {
   onAddPerson: () => void;
@@ -120,8 +123,13 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo and App Title */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-stone-900 text-white flex items-center justify-center font-black tracking-wider text-base shadow-sm">
-                واته
+              <div className="w-11 h-11 rounded-xl overflow-hidden bg-blue-600 border border-blue-500/30 shadow-md flex items-center justify-center shrink-0">
+                <img 
+                  src={WATTEH_LOGO} 
+                  alt="لوگوی مس واته" 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">

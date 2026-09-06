@@ -39,10 +39,11 @@ import {
 import { soundManager } from '../utils/soundNotifications';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
-import { getPersianFullDate } from '../utils/persianDate';
+import { getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
 import { ClientRequestModal } from './ClientRequestModal';
 import { SupportChatWidget } from './SupportChatWidget';
 import { getStoredCompanyBankInfo, DEFAULT_COMPANY_BANK_INFO } from '../utils/storage';
+import { WATTEH_LOGO, WATTEH_BG } from '../assets/branding';
 import { CompanyCopperStockCard } from './CompanyCopperStockCard';
 import { CopperChartView } from './CopperChartView';
 import { AiAnalysisView } from './AiAnalysisView';
@@ -281,18 +282,28 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   }, [clientTxList, soundEnabled]);
 
   return (
-    <div className="min-h-screen bg-stone-100 flex flex-col text-stone-900 selection:bg-stone-800 selection:text-white dir-rtl">
+    <div className="min-h-screen bg-stone-100 relative flex flex-col text-stone-900 selection:bg-stone-800 selection:text-white dir-rtl">
+      {/* Subtle Ambient Background Watermark */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center opacity-[0.035] pointer-events-none"
+        style={{ backgroundImage: `url(${WATTEH_BG})` }}
+      />
       
       {/* Client Top Header */}
-      <header className="bg-white border-b border-stone-200 lg:sticky lg:top-0 z-30 shadow-xs">
+      <header className="bg-white/95 backdrop-blur-md border-b border-stone-200 lg:sticky lg:top-0 z-30 shadow-xs">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2 sm:py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
             
             {/* User Branding & Identity */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black tracking-wider text-sm sm:text-base shadow-sm shrink-0">
-                  واته
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-blue-600 border border-blue-500/30 shadow-sm flex items-center justify-center shrink-0">
+                  <img 
+                    src={WATTEH_LOGO} 
+                    alt="لوگوی مس واته" 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -946,10 +957,23 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <tbody className="divide-y divide-stone-100 font-medium">
                   {approvedTxList.map((tx) => {
                     const isPlusCash = tx.type === 'deposit' || tx.type === 'sell';
+                    const relInfo = getPersianDateRelativeInfo(tx.date);
 
                     return (
                       <tr key={tx.id} className="hover:bg-stone-50/80 transition-colors">
-                        <td className="p-3 font-mono text-stone-600 whitespace-nowrap">{tx.date}</td>
+                        <td className="p-3 whitespace-nowrap">
+                          <div className="font-mono text-stone-700">{tx.date}</div>
+                          {relInfo.dayOfWeek && (
+                            <div className="text-[10px] text-stone-500 font-sans mt-0.5 flex items-center gap-1">
+                              <span>{relInfo.dayOfWeek}</span>
+                              {relInfo.relative && (
+                                <span className="text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                  {relInfo.relative}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="p-3 whitespace-nowrap">
                           {tx.type === 'deposit' && (
                             <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">

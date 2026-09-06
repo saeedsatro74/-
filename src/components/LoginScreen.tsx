@@ -14,6 +14,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { Person, AuthSession, UserRole } from '../types';
+import { WATTEH_LOGO, WATTEH_BG } from '../assets/branding';
 import { 
   getStoredPeople, 
   getStoredAdminPassword, 
@@ -162,16 +163,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 flex items-center justify-center p-3 sm:p-4 selection:bg-stone-800 selection:text-white">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-stone-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="min-h-screen relative flex items-center justify-center p-3 sm:p-4 selection:bg-amber-600 selection:text-white overflow-hidden bg-slate-950">
+      {/* Dynamic Ambient Background Wallpaper */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-luminosity pointer-events-none scale-105 transition-transform duration-1000"
+        style={{ backgroundImage: `url(${WATTEH_BG})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-900/60 to-slate-950/95 pointer-events-none" />
+
+      {/* Login Card */}
+      <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl border border-stone-200/80 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Top Branding Banner */}
-        <div className="bg-stone-900 text-white p-6 text-center relative overflow-hidden">
-          <div className="w-14 h-14 rounded-2xl bg-stone-800 border border-stone-700 text-white mx-auto flex items-center justify-center font-black text-xl shadow-inner mb-2.5">
-            واته
+        <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white p-6 text-center relative overflow-hidden border-b border-blue-900/40">
+          <div className="relative z-10">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-blue-600 border-2 border-amber-400/40 shadow-xl mx-auto mb-3 p-0.5">
+              <img 
+                src={WATTEH_LOGO} 
+                alt="لوگوی مس واته" 
+                className="w-full h-full object-cover rounded-xl"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-white">سامانه معاملات مس واته</h1>
+            <p className="text-xs text-blue-200/80 mt-1">مدیریت هوشمند کیف پول، معاملات مس و پورتال مشتریان</p>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">سامانه معاملات مس واته</h1>
-          <p className="text-xs text-stone-400 mt-1">مدیریت کیف پول، معاملات مس و پورتال مشتریان</p>
         </div>
 
         {/* Role Switch Tabs */}

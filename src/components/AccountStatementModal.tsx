@@ -30,7 +30,7 @@ import html2canvas from 'html2canvas';
 import { Person, Transaction } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
-import { getTodayJalaliString, getPersianFullDate } from '../utils/persianDate';
+import { getTodayJalaliString, getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
 
 interface AccountStatementModalProps {
   isOpen: boolean;
@@ -523,6 +523,7 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
                       </tr>
                     ) : (
                       sortedTransactions.map((tx, idx) => {
+                        const relInfo = getPersianDateRelativeInfo(tx.date);
                         return (
                           <tr key={tx.id} className={idx % 2 === 1 ? 'bg-stone-50/60' : 'bg-white'}>
                             {/* Row */}
@@ -531,20 +532,28 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
                             </td>
 
                             {/* Date */}
-                            <td className="py-1.5 px-2 font-mono whitespace-nowrap text-stone-800">
-                              {tx.date}
+                            <td className="py-1.5 px-2 whitespace-nowrap text-stone-800">
+                              <div className="font-mono">{tx.date}</div>
+                              {relInfo.dayOfWeek && (
+                                <div className="text-[9.5px] text-stone-500 font-sans mt-0.5">
+                                  <span>{relInfo.dayOfWeek}</span>
+                                  {relInfo.relative && <span className="text-amber-800 mr-1">({relInfo.relative})</span>}
+                                </div>
+                              )}
                             </td>
 
                             {/* Type */}
-                            <td className="py-1.5 px-2 font-bold whitespace-nowrap">
-                              <span className={
-                                tx.type === 'deposit' ? 'text-emerald-800' :
-                                tx.type === 'withdrawal' ? 'text-rose-800' :
-                                tx.type === 'buy' ? 'text-amber-900' :
-                                tx.type === 'sell' ? 'text-blue-900' : 'text-stone-800'
-                              }>
-                                {getTxTypeLabel(tx.type)}
-                              </span>
+                            <td className="py-1.5 px-2 whitespace-nowrap">
+                              <div className="font-bold">
+                                <span className={
+                                  tx.type === 'deposit' ? 'text-emerald-800' :
+                                  tx.type === 'withdrawal' ? 'text-rose-800' :
+                                  tx.type === 'buy' ? 'text-amber-900' :
+                                  tx.type === 'sell' ? 'text-blue-900' : 'text-stone-800'
+                                }>
+                                  {getTxTypeLabel(tx.type)}
+                                </span>
+                              </div>
                             </td>
 
                             {/* Weight */}

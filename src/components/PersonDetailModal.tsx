@@ -25,6 +25,7 @@ import {
 import { PersonWalletSummary, Transaction, Person } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
+import { getPersianDateRelativeInfo } from '../utils/persianDate';
 
 interface PersonDetailModalProps {
   isOpen: boolean;
@@ -445,14 +446,34 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                           </td>
 
                           {/* Date */}
-                          <td className="py-3 px-3 font-mono text-stone-700 whitespace-nowrap">
-                            {tx.date}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            {(() => {
+                              const relInfo = getPersianDateRelativeInfo(tx.date);
+                              return (
+                                <div>
+                                  <div className="font-mono font-medium text-stone-800">{tx.date}</div>
+                                  {relInfo.dayOfWeek && (
+                                    <div className="text-[10px] text-stone-500 font-sans mt-0.5 flex items-center gap-1">
+                                      <span className="font-medium text-stone-700">{relInfo.dayOfWeek}</span>
+                                      {relInfo.relative && (
+                                        <span className="text-amber-900 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                          {relInfo.relative}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Type & Approval Status Badge */}
                           <td className="py-3 px-3 whitespace-nowrap">
                             <div className="flex flex-col gap-1">
-                              <div>{getTransactionBadge(tx.type)}</div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {getTransactionBadge(tx.type)}
+                              </div>
+
                               <div>
                                 {tx.approvalStatus === 'topup_step1_pending_bank' && (
                                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">

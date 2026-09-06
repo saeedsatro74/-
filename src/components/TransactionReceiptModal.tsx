@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Transaction, Person } from '../types';
 import { formatNumber, formatToman, formatWeight, numberToTomanWords } from '../utils/formatters';
+import { WATTEH_LOGO } from '../assets/branding';
 
 interface TransactionReceiptModalProps {
   isOpen: boolean;
@@ -172,8 +173,13 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-700 text-white flex items-center justify-center font-bold text-xl shadow-xs print:border print:border-amber-800">
-                  <Layers className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-blue-600 border border-blue-400/40 shadow-xs flex items-center justify-center shrink-0">
+                  <img 
+                    src={WATTEH_LOGO} 
+                    alt="واته" 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
                 <div>
                   <h1 className="text-xl font-extrabold text-stone-950 tracking-tight">

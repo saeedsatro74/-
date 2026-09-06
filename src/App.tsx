@@ -51,6 +51,7 @@ import {
   supabase
 } from './services/supabase';
 import { soundManager } from './utils/soundNotifications';
+import { exportComprehensiveBackupToExcel } from './utils/excelExport';
 import { Header } from './components/Header';
 import { StatCards } from './components/StatCards';
 import { PeopleTable } from './components/PeopleTable';
@@ -65,6 +66,7 @@ import { TransactionEditModal } from './components/TransactionEditModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { FactoryResetModal } from './components/FactoryResetModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
+import { AllCustomersLedgerModal } from './components/AllCustomersLedgerModal';
 import { PendingApprovalsModal } from './components/PendingApprovalsModal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
@@ -80,6 +82,7 @@ import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
 import { formatToman, formatWeight } from './utils/formatters';
 import { AuthSession } from './types';
+import { WATTEH_BG, WATTEH_LOGO } from './assets/branding';
 
 export default function App() {
   // Auth State & Session (Session-based auth: closing tab/browser or opening link in new session forces login)
@@ -127,6 +130,7 @@ export default function App() {
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [statementPersonId, setStatementPersonId] = useState<string | null>(null);
+  const [isAllCustomersLedgerOpen, setIsAllCustomersLedgerOpen] = useState(false);
 
   // Approvals & Receipts Modal State
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
@@ -1073,6 +1077,24 @@ export default function App() {
     showToast(`تعداد ${txIds.length} معامله مس به صورت یکجا تأیید شدند.`);
   };
 
+  // --- Comprehensive Excel Backup Handler ---
+  const handleExportComprehensiveExcel = useCallback(() => {
+    try {
+      exportComprehensiveBackupToExcel({
+        people,
+        transactions,
+        summaries,
+        overallStats,
+        marketPrices,
+        companyCopperStockKg,
+      });
+      showToast('فایل اکسل جامع پشتیبان با موفقیت دانلود شد.', 'success');
+    } catch (err) {
+      console.error('Failed to export excel backup:', err);
+      showToast('خطا در تولید فایل اکسل پشتیبان', 'error');
+    }
+  }, [people, transactions, summaries, overallStats, marketPrices, companyCopperStockKg, showToast]);
+
   // --- Handlers for Adjustment ---
   const handleOpenAdjustment = (targetPersonId?: string) => {
     setAdjustmentState({
@@ -1346,7 +1368,12 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col selection:bg-stone-800 selection:text-white">
+    <div className="min-h-screen bg-stone-50 text-stone-900 relative flex flex-col selection:bg-stone-800 selection:text-white">
+      {/* Subtle Ambient Background Watermark */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center opacity-[0.035] pointer-events-none mix-blend-multiply"
+        style={{ backgroundImage: `url(${WATTEH_BG})` }}
+      />
       
       {/* Top Header */}
       <Header
@@ -1418,6 +1445,7 @@ export default function App() {
               onAddSale={(personId) => handleOpenSellCopper(personId)}
               onAddNewPerson={handleOpenAddPerson}
               onOpenStatement={(personId) => setStatementPersonId(personId)}
+              onOpenAllLedger={() => setIsAllCustomersLedgerOpen(true)}
             />
           </>
         )}
@@ -1462,7 +1490,7 @@ export default function App() {
         />
       )}
 
-      {/* Official Account Statement & PDF Modal */}
+      {/* Official Account Statement & PDF Modal (Single Person) */}
       {statementPerson && (
         <AccountStatementModal
           isOpen={!!statementPersonId}
@@ -1470,6 +1498,17 @@ export default function App() {
           person={statementPerson}
           transactions={transactions}
           marketCopperPrice={marketPrices.buyPrice}
+        />
+      )}
+
+      {/* Unified All Customers Ledger & Multi-page PDF Modal */}
+      {isAllCustomersLedgerOpen && (
+        <AllCustomersLedgerModal
+          isOpen={isAllCustomersLedgerOpen}
+          onClose={() => setIsAllCustomersLedgerOpen(false)}
+          people={people}
+          transactions={transactions}
+          marketPrices={marketPrices}
         />
       )}
 

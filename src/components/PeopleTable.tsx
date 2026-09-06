@@ -14,7 +14,8 @@ import {
   Wallet,
   Landmark,
   UserPlus,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { PersonWalletSummary, FilterStatus, SortField, SortOrder } from '../types';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
@@ -30,6 +31,7 @@ interface PeopleTableProps {
   onAddSale: (personId: string) => void;
   onAddNewPerson: () => void;
   onOpenStatement?: (personId: string) => void;
+  onOpenAllLedger?: () => void;
 }
 
 export const PeopleTable: React.FC<PeopleTableProps> = ({
@@ -43,6 +45,7 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
   onAddSale,
   onAddNewPerson,
   onOpenStatement,
+  onOpenAllLedger,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
@@ -180,6 +183,20 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
               دارای نقدینگی ({summaries.filter(s => s.cashBalance > 0).length})
             </button>
           </div>
+
+          {/* Single Unified Backup Button: بکاپ تراکنش‌ها */}
+          {onOpenAllLedger && (
+            <button
+              id="btn-backup-transactions"
+              type="button"
+              onClick={onOpenAllLedger}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 rounded-lg transition-colors cursor-pointer shadow-2xs whitespace-nowrap shrink-0 border border-amber-500/40"
+              title="بکاپ و کاردکس تجمیعی تراکنش‌های مشتریان (خروجی PDF و چاپ)"
+            >
+              <FileText className="w-4 h-4 text-amber-950" />
+              <span>بکاپ تراکنش‌ها</span>
+            </button>
+          )}
 
         </div>
       </div>
