@@ -51,6 +51,9 @@ export interface Transaction {
   registeredBy?: string; // e.g. "مسئول مس" or "مشتری"
   approvedBy?: string; // e.g. "مدیرعامل"
   saleCategory?: 'internal' | 'external'; // 'internal' (فروش به انبار شرکت - افزایش موجودی انبار), 'external' (فروش به خارج - بدون تغییر انبار)
+  buyerName?: string; // نام شخص یا شرکت خریدار (مثال: شرکت مس واته یا آقای سهرابی)
+  sellerName?: string; // نام شخص یا شرکت فروشنده (مثال: شرکت مس واته یا نام مشتری)
+  counterpartyName?: string; // نام طرف معامله
   approvedAt?: string; // e.g. "1403/12/10 ساعت 14:35"
   rejectionReason?: string; // e.g. "قیمت خرید اشتباه وارد شده است."
   receiptNumber?: string; // e.g. "REC-140312-8419"

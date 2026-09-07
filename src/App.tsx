@@ -769,7 +769,10 @@ export default function App() {
     registeredBy?: string;
   }) => {
     const pSummary = summaries.find((s) => s.person.id === data.personId);
+    const buyerPerson = people.find((p) => p.id === data.personId);
     const isCEO = authSession?.role === 'admin';
+    const effectiveBuyer = buyerPerson?.name || 'مشتری';
+    const effectiveSeller = 'شرکت مس واته';
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
@@ -779,6 +782,9 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
       notes: data.notes,
+      buyerName: effectiveBuyer,
+      sellerName: effectiveSeller,
+      counterpartyName: effectiveSeller,
       approvalStatus: isCEO ? 'approved' : 'pending',
       registeredBy: data.registeredBy || (isCEO ? 'مدیرعامل' : 'مسئول مس'),
       approvedBy: isCEO ? 'مدیرعامل' : undefined,
@@ -827,16 +833,24 @@ export default function App() {
     chequeDueDate?: string;
     chequeBank?: string;
     saleCategory?: 'internal' | 'external';
+    buyerName?: string;
   }) => {
     const pSummary = summaries.find((s) => s.person.id === data.personId);
+    const sellerPerson = people.find((p) => p.id === data.personId);
     const isCEO = authSession?.role === 'admin';
     const saleCat = data.saleCategory || 'internal';
+    const effectiveBuyer = saleCat === 'external' ? (data.buyerName || 'خریدار بیرونی') : 'شرکت مس واته';
+    const effectiveSeller = sellerPerson?.name || 'مشتری';
+
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
       type: 'sell',
       saleCategory: saleCat,
+      buyerName: effectiveBuyer,
+      sellerName: effectiveSeller,
+      counterpartyName: effectiveBuyer,
       amount: data.totalPrice,
       weightKg: data.weightKg,
       unitPrice: data.pricePerKg,
@@ -869,7 +883,7 @@ export default function App() {
 
     showToast(
       isCEO
-        ? `حواله فروش (${saleCat === 'external' ? 'فروش خارجی' : 'فروش داخلی'}) ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
+        ? `حواله فروش (${saleCat === 'external' ? `فروش خارجی به ${effectiveBuyer}` : 'فروش داخلی به شرکت'}) ${data.weightKg} کیلوگرم مس با موفقیت ثبت و تأیید گردید.`
         : `حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`
     );
     setReceiptModalTx(newTx);
@@ -885,6 +899,7 @@ export default function App() {
     paymentMethod?: PaymentMethod;
     receiptImageUrl?: string;
     saleCategory?: 'internal' | 'external';
+    buyerName?: string;
   }) => {
     if (!authSession?.personId) return;
     const personId = authSession.personId;
@@ -893,6 +908,22 @@ export default function App() {
     const registeredBy = `درخواست مشتری (${clientPerson?.name || ''})`;
 
     const isExternalSell = data.type === 'sell' && data.saleCategory === 'external';
+    let buyerName: string | undefined;
+    let sellerName: string | undefined;
+
+    if (data.type === 'sell') {
+      buyerName = isExternalSell ? (data.buyerName || 'خریدار بیرونی') : 'شرکت مس واته';
+      sellerName = clientPerson?.name || 'مشتری';
+    } else if (data.type === 'buy') {
+      buyerName = clientPerson?.name || 'مشتری';
+      sellerName = 'شرکت مس واته';
+    } else if (data.type === 'deposit') {
+      buyerName = 'شرکت مس واته';
+      sellerName = clientPerson?.name || 'مشتری';
+    } else if (data.type === 'withdrawal') {
+      buyerName = clientPerson?.name || 'مشتری';
+      sellerName = 'شرکت مس واته';
+    }
 
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
@@ -900,6 +931,9 @@ export default function App() {
       date: getTodayJalaliString(),
       type: data.type,
       saleCategory: data.type === 'sell' ? (data.saleCategory || 'internal') : undefined,
+      buyerName,
+      sellerName,
+      counterpartyName: data.type === 'sell' ? buyerName : sellerName,
       amount: data.amount,
       weightKg: data.weightKg,
       unitPrice: data.unitPrice,

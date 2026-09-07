@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Transaction, Person } from '../types';
 import { formatNumber, formatToman, formatWeight, numberToTomanWords } from '../utils/formatters';
+import { getTransactionParties } from '../utils/parties';
 import { WATTEH_LOGO } from '../assets/branding';
 
 interface TransactionReceiptModalProps {
@@ -44,11 +45,12 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
 
   const status = transaction.approvalStatus || 'approved';
   const receiptNum = transaction.receiptNumber || `REC-${transaction.id.replace('tx-', '').toUpperCase()}`;
+  const parties = getTransactionParties(transaction, person?.name);
 
   const getTypeName = () => {
     switch (transaction.type) {
       case 'buy': return 'خرید مس (افزایش انبار / کسر وجه)';
-      case 'sell': return transaction.paymentMethod === 'cheque' ? 'فروش مس (تسویه با چک صیادی)' : 'فروش مس (تسویه نقدی)';
+      case 'sell': return transaction.saleCategory === 'external' ? `فروش مس به خارج شرکت (خریدار: ${parties.buyer.name})` : (transaction.paymentMethod === 'cheque' ? 'فروش مس به انبار شرکت (تسویه با چک صیادی)' : 'فروش مس به انبار شرکت (تسویه نقدی)');
       case 'deposit': return 'واریز وجه نقد به حساب';
       case 'withdrawal': return 'برداشت وجه نقد از حساب';
       case 'adjustment': return 'اصلاح و تعدیل موجودی حساب';
@@ -59,7 +61,7 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
   const getTypeShortName = () => {
     switch (transaction.type) {
       case 'buy': return 'خرید مس';
-      case 'sell': return transaction.paymentMethod === 'cheque' ? 'فروش مس (چکی)' : 'فروش مس (نقدی)';
+      case 'sell': return transaction.saleCategory === 'external' ? `فروش به خارج (${parties.buyer.name})` : (transaction.paymentMethod === 'cheque' ? 'فروش به شرکت (چکی)' : 'فروش به شرکت (نقدی)');
       case 'deposit': return 'واریز وجه';
       case 'withdrawal': return 'برداشت وجه';
       case 'adjustment': return 'اصلاح حساب';
@@ -74,6 +76,8 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
   const handleCopyText = () => {
     const text = `
 📜 رسید عملیات مس - شماره: ${receiptNum}
+فروشنده: ${parties.seller.name}
+خریدار: ${parties.buyer.name}
 طرف حساب: ${person?.name || 'نامشخص'}
 نوع عملیات: ${getTypeShortName()}
 تاریخ سند: ${transaction.date}
@@ -95,6 +99,8 @@ ${transaction.notes ? `توضیحات: ${transaction.notes}` : ''}
     const text = encodeURIComponent(`
 📜 *رسید عملیات مس*
 *شماره رسید:* ${receiptNum}
+*فروشنده:* ${parties.seller.name}
+*خریدار:* ${parties.buyer.name}
 *طرف حساب:* ${person?.name || ''}
 *نوع عملیات:* ${getTypeShortName()}
 *تاریخ:* ${transaction.date}
@@ -243,38 +249,65 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
             </div>
           </div>
 
-          {/* Party Information */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-stone-50 p-4 rounded-xl border border-stone-200/90 text-xs">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-stone-500">
-                <User className="w-3.5 h-3.5 text-stone-400" />
-                <span>طرف حساب / صاحب کیف پول:</span>
+          {/* Party Information (Buyer & Seller) */}
+          <div className="space-y-2.5">
+            {/* Buyer & Seller Spec */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Seller */}
+              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs">
+                <div className="text-stone-500 font-medium mb-1">فروشنده مس / انتقال‌دهنده:</div>
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm text-stone-900">{parties.seller.name}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                    parties.seller.isCompany ? 'bg-blue-100 text-blue-900 border border-blue-200' : 'bg-stone-200 text-stone-800'
+                  }`}>
+                    {parties.seller.label}
+                  </span>
+                </div>
               </div>
-              <p className="font-extrabold text-sm text-stone-950 pr-5.5">
-                {person?.name || 'نامشخص'}
-              </p>
-              {person?.phone && (
-                <p className="text-stone-500 font-mono pr-5.5 text-[11px]">
-                  شماره تماس: {person.phone}
-                </p>
-              )}
+
+              {/* Buyer */}
+              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs">
+                <div className="text-stone-500 font-medium mb-1">خریدار مس / تحویل‌گیرنده:</div>
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm text-stone-900">{parties.buyer.name}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                    parties.buyer.isCompany
+                      ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                      : parties.isExternalSale
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-stone-200 text-stone-800'
+                  }`}>
+                    {parties.buyer.label}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-1.5 border-t sm:border-t-0 sm:border-r border-stone-200 pt-2.5 sm:pt-0 sm:pr-4">
-              <div className="flex items-center gap-2 text-stone-500">
-                <ShieldCheck className="w-3.5 h-3.5 text-stone-400" />
-                <span>عوامل ثبت و تأیید سند:</span>
-              </div>
-              <div className="text-stone-700 space-y-1 pr-5.5 text-xs">
-                <p>
-                  مسئول ثبت: <b className="text-stone-900">{transaction.registeredBy || 'مسئول مس'}</b>
+            {/* Wallet Owner & Log Agents */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-stone-50/70 p-3 rounded-xl border border-stone-200/80 text-xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-stone-500 text-[11px]">
+                  <User className="w-3.5 h-3.5 text-stone-400" />
+                  <span>طرف حساب / صاحب کیف پول در سیستم:</span>
+                </div>
+                <p className="font-bold text-xs text-stone-900 pr-5">
+                  {person?.name || 'نامشخص'}
+                  {person?.phone && <span className="text-stone-500 font-mono text-[11px] mr-2">({person.phone})</span>}
                 </p>
-                {transaction.approvedBy && (
-                  <p>
-                    تأییدکننده: <b className="text-emerald-900">{transaction.approvedBy}</b>
-                    {transaction.approvedAt && <span className="text-[10px] text-stone-400 mr-1.5">({transaction.approvedAt})</span>}
-                  </p>
-                )}
+              </div>
+
+              <div className="space-y-1 border-t sm:border-t-0 sm:border-r border-stone-200 pt-2 sm:pt-0 sm:pr-3">
+                <div className="flex items-center gap-1.5 text-stone-500 text-[11px]">
+                  <ShieldCheck className="w-3.5 h-3.5 text-stone-400" />
+                  <span>عوامل ثبت و تأیید:</span>
+                </div>
+                <div className="text-stone-700 pr-5 text-[11px] flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>ثبت: <b className="text-stone-900">{transaction.registeredBy || 'مسئول مس'}</b></span>
+                  {transaction.approvedBy && (
+                    <span>تأیید: <b className="text-emerald-900">{transaction.approvedBy}</b> {transaction.approvedAt && <span className="text-stone-400 font-mono">({transaction.approvedAt})</span>}</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

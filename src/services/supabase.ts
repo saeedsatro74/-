@@ -121,6 +121,9 @@ export function buildNotesWithMetadata(tx: Transaction): string | null {
     assignedBankNote: tx.assignedBankNote,
     assignedAccountId: (tx as any).assignedAccountId,
     saleCategory: tx.saleCategory,
+    buyerName: tx.buyerName,
+    sellerName: tx.sellerName,
+    counterpartyName: tx.counterpartyName,
   };
 
   // Filter out undefined/null values to keep string short
@@ -173,6 +176,9 @@ export function toTransaction(row: TransactionRow): Transaction {
   const assignedBankNote = metadata.assignedBankNote || row.admin_bank_note || undefined;
   const assignedAccountId = metadata.assignedAccountId || (row as any).assigned_bank_account_id || undefined;
   const saleCategory = metadata.saleCategory || row.sale_category || undefined;
+  const buyerName = metadata.buyerName || (row as any).buyer_name || undefined;
+  const sellerName = metadata.sellerName || (row as any).seller_name || undefined;
+  const counterpartyName = metadata.counterpartyName || (row as any).counterparty_name || undefined;
 
   const tx: Transaction = {
     id: row.id,
@@ -210,6 +216,9 @@ export function toTransaction(row: TransactionRow): Transaction {
     assignedIbanNumber,
     assignedBankNote,
     saleCategory: saleCategory as any,
+    buyerName,
+    sellerName,
+    counterpartyName,
   };
 
   if (assignedAccountId) {

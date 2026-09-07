@@ -21,6 +21,7 @@ interface SellCopperModalProps {
     chequeDueDate?: string;
     chequeBank?: string;
     saleCategory?: 'internal' | 'external';
+    buyerName?: string;
   }) => void;
   people: Person[];
   summaries: PersonWalletSummary[];
@@ -43,6 +44,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   const [pricePerKg, setPricePerKg] = useState<number>(defaultPricePerKg || 2850000);
   const [registeredBy, setRegisteredBy] = useState('حسابدار مس');
   const [saleCategory, setSaleCategory] = useState<'internal' | 'external'>('internal');
+  const [buyerName, setBuyerName] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -62,6 +64,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       setPricePerKg(defaultPricePerKg || 2850000);
       setRegisteredBy('حسابدار مس');
       setSaleCategory('internal');
+      setBuyerName('');
       setNotes('');
       setError('');
       setPaymentMethod('cash');
@@ -144,8 +147,14 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       }
     }
 
-    const catTitle = saleCategory === 'external' ? 'فروش خارجی (به خریدار بیرونی)' : 'فروش داخلی (تحویل به انبار شرکت)';
-    let finalNotes = notes.trim() ? `[${catTitle}] ${notes.trim()}` : `[${catTitle}]`;
+    if (saleCategory === 'external' && !buyerName.trim()) {
+      setError('لطفاً نام شخص یا شرکت خریدار بیرونی (مثلاً آقای سهرابی) را وارد نمایید.');
+      return;
+    }
+
+    const effectiveBuyer = saleCategory === 'external' ? buyerName.trim() : 'شرکت مس واته';
+    const catTitle = saleCategory === 'external' ? `فروش خارجی (خریدار: ${effectiveBuyer})` : 'فروش داخلی (تحویل به انبار شرکت)';
+    let finalNotes = notes.trim() ? `[${catTitle}] ${notes.trim()} | خریدار: ${effectiveBuyer}` : `[${catTitle}] خریدار: ${effectiveBuyer}`;
 
     onSave({
       personId,
@@ -160,6 +169,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
       chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
       chequeBank: paymentMethod === 'cheque' ? chequeBank.trim() : undefined,
       saleCategory,
+      buyerName: effectiveBuyer,
     });
     onClose();
   };
@@ -305,6 +315,49 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Party Specification (Buyer & Seller) */}
+          {saleCategory === 'external' ? (
+            <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl space-y-2 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <label htmlFor="external-buyer-input" className="block text-xs font-bold text-amber-950">
+                  نام شخص یا شرکت خریدار بیرونی <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md font-bold">
+                  طرف حساب بیرونی
+                </span>
+              </div>
+              <input
+                id="external-buyer-input"
+                type="text"
+                value={buyerName}
+                onChange={(e) => {
+                  setBuyerName(e.target.value);
+                  setError('');
+                }}
+                placeholder="مثلاً: آقای سهرابی، کارگاه ابزار، یا نام خریدار..."
+                className="w-full px-3 py-2 text-xs bg-white border border-amber-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold placeholder:font-normal"
+                required
+              />
+              <div className="flex items-center justify-between text-[11px] text-amber-900 pt-1 border-t border-amber-200/80">
+                <span>فروشنده: <b className="text-stone-900">{selectedPersonSummary?.person.name || 'مشتری'}</b></span>
+                <span>خریدار مس: <b className="text-amber-950">{buyerName.trim() || 'نامشخص'}</b></span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs flex items-center justify-between text-blue-950">
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-500 font-medium">فروشنده:</span>
+                <span className="font-bold text-stone-900">{selectedPersonSummary?.person.name || 'مشتری'}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-stone-500 font-medium">خریدار:</span>
+                <span className="font-bold text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded-md border border-blue-200">
+                  شرکت مس واته (انبار مرکزی)
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Payment Method Selector (Cash vs Cheque) */}
           <div>

@@ -30,6 +30,7 @@ import { PersonWalletSummary, Transaction, Person, ChequeStatus } from '../types
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getTransactionParties } from '../utils/parties';
 
 interface PersonDetailModalProps {
   isOpen: boolean;
@@ -142,20 +143,32 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         );
       case 'sell':
         const isCheque = tx?.paymentMethod === 'cheque';
+        const isExternal = tx?.saleCategory === 'external';
+        const parties = tx ? getTransactionParties(tx, person?.name) : null;
         return (
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${
-              isCheque
+              isExternal
+                ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                : isCheque
                 ? 'bg-purple-100 text-purple-900 border border-purple-200'
                 : 'bg-blue-100 text-blue-900 border border-blue-200'
             }`}
           >
-            {isCheque ? (
+            {isExternal ? (
+              <TrendingUp className="w-3 h-3 text-amber-700" />
+            ) : isCheque ? (
               <CreditCard className="w-3 h-3 text-purple-700" />
             ) : (
               <TrendingUp className="w-3 h-3 text-blue-700" />
             )}
-            <span>{isCheque ? 'فروش مس (چکی)' : 'فروش مس (نقدی)'}</span>
+            <span>
+              {isExternal
+                ? `فروش به خارج (${parties?.buyer.name || 'خریدار بیرونی'})`
+                : isCheque
+                ? 'فروش مس به شرکت (چکی)'
+                : 'فروش مس به شرکت (نقدی)'}
+            </span>
           </span>
         );
       case 'adjustment':
@@ -646,6 +659,25 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {getTransactionBadge(tx.type, tx)}
                               </div>
+
+                              {/* Party details (Buyer / Seller) */}
+                              {(() => {
+                                const p = getTransactionParties(tx, person?.name);
+                                return (
+                                  <div className="text-[10px] text-stone-600 bg-stone-100/80 px-2 py-1 rounded-md border border-stone-200/70 space-y-0.5">
+                                    <div className="flex items-center gap-1 justify-between">
+                                      <span className="text-stone-400 font-medium">فروشنده:</span>
+                                      <span className="font-bold text-stone-800">{p.seller.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 justify-between">
+                                      <span className="text-stone-400 font-medium">خریدار:</span>
+                                      <span className={`font-black ${p.isExternalSale ? 'text-amber-900' : 'text-stone-800'}`}>
+                                        {p.buyer.name}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
 
                               {/* Cheque details & Quick Tick Action */}
                               {tx.paymentMethod === 'cheque' && (

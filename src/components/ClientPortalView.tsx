@@ -40,6 +40,7 @@ import { soundManager } from '../utils/soundNotifications';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
 import { getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getTransactionParties } from '../utils/parties';
 import { ClientRequestModal } from './ClientRequestModal';
 import { SupportChatWidget } from './SupportChatWidget';
 import { getStoredCompanyBankInfo, DEFAULT_COMPANY_BANK_INFO } from '../utils/storage';
@@ -70,6 +71,8 @@ interface ClientPortalViewProps {
     notes?: string;
     paymentMethod?: PaymentMethod;
     receiptImageUrl?: string;
+    saleCategory?: 'internal' | 'external';
+    buyerName?: string;
   }) => void;
   onSubmitTopupReceipt?: (txId: string, receiptImageUrl: string, receiptNumber: string, notes?: string) => void;
   onCancelRequest?: (txId: string) => void;
@@ -1013,31 +1016,51 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                           )}
                         </td>
                         <td className="p-3 whitespace-nowrap">
-                          {tx.type === 'deposit' && (
-                            <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              شارژ / واریز
-                            </span>
-                          )}
-                          {tx.type === 'withdrawal' && (
-                            <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                              برداشت
-                            </span>
-                          )}
-                          {tx.type === 'buy' && (
-                            <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                              خرید مس
-                            </span>
-                          )}
-                          {tx.type === 'sell' && (
-                            <span className="text-blue-800 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                              فروش مس
-                            </span>
-                          )}
-                          {tx.type === 'adjustment' && (
-                            <span className="text-purple-800 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                              اصلاحیه
-                            </span>
-                          )}
+                          {(() => {
+                            const parties = getTransactionParties(tx, person.name);
+                            return (
+                              <div className="space-y-1">
+                                <div>
+                                  {tx.type === 'deposit' && (
+                                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                      شارژ / واریز
+                                    </span>
+                                  )}
+                                  {tx.type === 'withdrawal' && (
+                                    <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                      برداشت
+                                    </span>
+                                  )}
+                                  {tx.type === 'buy' && (
+                                    <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                      خرید مس (از شرکت)
+                                    </span>
+                                  )}
+                                  {tx.type === 'sell' && (
+                                    <span className={`font-bold px-2 py-0.5 rounded border ${
+                                      tx.saleCategory === 'external'
+                                        ? 'text-amber-950 bg-amber-100 border-amber-300'
+                                        : 'text-blue-800 bg-blue-50 border-blue-200'
+                                    }`}>
+                                      {tx.saleCategory === 'external'
+                                        ? `فروش به خارج (${parties.buyer.name})`
+                                        : 'فروش مس به شرکت'}
+                                    </span>
+                                  )}
+                                  {tx.type === 'adjustment' && (
+                                    <span className="text-purple-800 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                      اصلاحیه
+                                    </span>
+                                  )}
+                                </div>
+                                {(tx.type === 'buy' || tx.type === 'sell') && (
+                                  <div className="text-[10px] text-stone-500 font-medium">
+                                    {parties.displaySummary}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-3 font-mono whitespace-nowrap">
                           {tx.weightKg ? formatWeight(tx.weightKg) : '—'}

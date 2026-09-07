@@ -37,6 +37,7 @@ import {
   getPersianDayOfWeek,
   getRelativePersianDays
 } from '../utils/persianDate';
+import { getTransactionParties } from '../utils/parties';
 
 interface AllCustomersLedgerModalProps {
   isOpen: boolean;
@@ -247,6 +248,7 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
           ${item.transactions.length === 0 ? `<tr><td colspan="10" style="text-align:center;padding:12px;color:#94a3b8">تراکنشی ثبت نشده است</td></tr>` : 
             item.transactions.map((tx, tIdx) => {
               const rel = getPersianDateRelativeInfo(tx.date);
+              const parties = getTransactionParties(tx, item.person.name);
               return `
               <tr>
                 <td style="text-align:center">${tIdx + 1}</td>
@@ -255,7 +257,8 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
                   <div style="font-size:10px;color:#64748b;margin-top:2px">${rel.dayOfWeek ? `${rel.dayOfWeek} (${rel.relative})` : ''}</div>
                 </td>
                 <td style="text-align:center">
-                  <span class="badge badge-${tx.type}">${tx.type === 'buy' ? 'خرید مس' : tx.type === 'sell' ? (tx.paymentMethod === 'cheque' ? `فروش مس (چکی - ${tx.chequeNumber || 'ثبت‌نشده'})` : 'فروش مس (نقدی)') : tx.type === 'deposit' ? 'واریز وجه' : tx.type === 'withdrawal' ? 'برداشت وجه' : 'سند اصلاحی'}</span>
+                  <span class="badge badge-${tx.type}">${tx.type === 'buy' ? 'خرید مس' : tx.type === 'sell' ? (tx.saleCategory === 'external' ? `فروش به خارج (${parties.buyer.name})` : tx.paymentMethod === 'cheque' ? `فروش مس به شرکت (چکی - ${tx.chequeNumber || 'ثبت‌نشده'})` : 'فروش مس به شرکت (نقدی)') : tx.type === 'deposit' ? 'واریز وجه' : tx.type === 'withdrawal' ? 'برداشت وجه' : 'سند اصلاحی'}</span>
+                  ${(tx.type === 'buy' || tx.type === 'sell') ? `<div style="font-size:9.5px;color:#475569;margin-top:3px">${parties.displaySummary}</div>` : ''}
                 </td>
                 <td style="text-align:center">${tx.weightKg ? formatWeight(tx.weightKg) : '-'}</td>
                 <td style="text-align:center">${tx.unitPrice ? formatNumber(tx.unitPrice) : '-'}</td>
@@ -334,20 +337,32 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
         );
       case 'sell':
         const isCheque = tx?.paymentMethod === 'cheque';
+        const isExternal = tx?.saleCategory === 'external';
+        const parties = tx ? getTransactionParties(tx) : null;
         return (
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
-              isCheque
+              isExternal
+                ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                : isCheque
                 ? 'bg-purple-100 text-purple-900 border border-purple-200'
                 : 'bg-blue-100 text-blue-900 border border-blue-200'
             }`}
           >
-            {isCheque ? (
+            {isExternal ? (
+              <TrendingUp className="w-3 h-3 text-amber-700" />
+            ) : isCheque ? (
               <CreditCard className="w-3 h-3 text-purple-700" />
             ) : (
               <TrendingUp className="w-3 h-3 text-blue-700" />
             )}
-            <span>{isCheque ? 'فروش مس (چکی)' : 'فروش مس (نقدی)'}</span>
+            <span>
+              {isExternal
+                ? `فروش به خارج (${parties?.buyer.name || 'خریدار بیرونی'})`
+                : isCheque
+                ? 'فروش مس به شرکت (چکی)'
+                : 'فروش مس به شرکت (نقدی)'}
+            </span>
           </span>
         );
       case 'adjustment':
@@ -721,6 +736,25 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
                                           چک: {tx.chequeNumber || '—'} {tx.chequeStatus === 'cleared' ? '✓ پاس شد' : '⏳ در انتظار'}
                                         </div>
                                       )}
+
+                                      {/* Party details (Buyer / Seller) */}
+                                      {(() => {
+                                        const p = getTransactionParties(tx, person.name);
+                                        return (
+                                          <div className="text-[9.5px] text-stone-600 bg-stone-100/80 px-1.5 py-0.5 rounded border border-stone-200/70 space-y-0.5 mt-0.5">
+                                            <div className="flex items-center gap-1 justify-between">
+                                              <span className="text-stone-400">فروشنده:</span>
+                                              <span className="font-bold text-stone-800">{p.seller.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 justify-between">
+                                              <span className="text-stone-400">خریدار:</span>
+                                              <span className={`font-black ${p.isExternalSale ? 'text-amber-900' : 'text-stone-800'}`}>
+                                                {p.buyer.name}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
 
                                       <div>
                                         {(!tx.approvalStatus || tx.approvalStatus === 'approved') && (

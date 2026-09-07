@@ -30,6 +30,7 @@ import {
 import { Transaction, Person, CompanyBankAccount } from '../types';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
 import { getStoredCompanyBankAccounts } from '../utils/storage';
+import { getTransactionParties } from '../utils/parties';
 
 interface PendingApprovalsModalProps {
   isOpen: boolean;
@@ -240,11 +241,15 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
 
   const getTypeBadge = (tx: Transaction) => {
     const status = tx.approvalStatus || 'approved';
+    const isSellExternal = tx.type === 'sell' && tx.saleCategory === 'external';
+
     if (status === 'topup_step1_pending_bank') {
       return (
         <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-950 px-2.5 py-0.5 rounded-md text-xs font-black border border-amber-300 animate-pulse">
-          <ArrowDownLeft className="w-3.5 h-3.5 text-amber-700" />
-          شارژ حساب (مرحله ۱: منتظر تخصیص شماره حساب)
+          {isSellExternal ? <ArrowUpRight className="w-3.5 h-3.5 text-amber-700" /> : <ArrowDownLeft className="w-3.5 h-3.5 text-amber-700" />}
+          {isSellExternal
+            ? 'فروش به خارج (مرحله ۱: نیازمند انتخاب حساب شرکت جهت پرداخت خریدار)'
+            : 'شارژ حساب (مرحله ۱: منتظر تخصیص شماره حساب)'}
         </span>
       );
     }
@@ -252,7 +257,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
       return (
         <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md text-xs font-bold border border-blue-200">
           <Building2 className="w-3.5 h-3.5 text-blue-700" />
-          شارژ حساب (مرحله ۲: شماره حساب ارسال شد، منتظر فیش مشتری)
+          {isSellExternal
+            ? 'فروش به خارج (مرحله ۲: حساب به خریدار اعلام شد، در انتظار فیش واریز)'
+            : 'شارژ حساب (مرحله ۲: شماره حساب ارسال شد، منتظر فیش مشتری)'}
         </span>
       );
     }
@@ -260,7 +267,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
       return (
         <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-950 px-2.5 py-0.5 rounded-md text-xs font-black border border-emerald-300">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-          شارژ حساب (مرحله ۳: فیش واریزی آپلود شد، منتظر بررسی نهایی)
+          {isSellExternal
+            ? 'فروش به خارج (مرحله ۳: فیش واریزی خریدار بارگذاری شد، منتظر تأیید مدیرعامل)'
+            : 'شارژ حساب (مرحله ۳: فیش واریزی آپلود شد، منتظر بررسی نهایی)'}
         </span>
       );
     }
@@ -463,6 +472,7 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                 const person = personMap.get(tx.personId);
                 const status = tx.approvalStatus || 'approved';
                 const isPending = isPendingCeoStatus(status) || isAwaitingClientStatus(status);
+                const parties = getTransactionParties(tx, person?.name);
 
                 return (
                   <div
@@ -501,6 +511,35 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                         )}
                         <span className="text-xs text-stone-500 font-mono">
                           {tx.date}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Buyer and Seller identification */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-stone-100/90 rounded-xl border border-stone-200/90 text-xs my-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-stone-500 font-medium">فروشنده:</span>
+                        <span className="font-extrabold text-stone-900">{parties.seller.name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                          parties.seller.isCompany ? 'bg-blue-100 text-blue-900 border border-blue-200' : 'bg-stone-200 text-stone-800'
+                        }`}>
+                          {parties.seller.label}
+                        </span>
+                      </div>
+
+                      <div className="hidden sm:block text-stone-400 font-bold">←</div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-stone-500 font-medium">خریدار:</span>
+                        <span className="font-extrabold text-stone-900">{parties.buyer.name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
+                          parties.buyer.isCompany
+                            ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                            : parties.isExternalSale
+                            ? 'bg-amber-200 text-amber-950 border border-amber-300'
+                            : 'bg-stone-200 text-stone-800'
+                        }`}>
+                          {parties.buyer.label}
                         </span>
                       </div>
                     </div>
@@ -891,9 +930,20 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
 
             <p className="text-xs text-stone-600 leading-relaxed">
               {assignBankTx.type === 'sell'
-                ? `مشتری درخواست فروش ${formatWeight(assignBankTx.weightKg || 0)} مس با نرخ توافقی هر کیلو ${formatToman(assignBankTx.unitPrice || 0)} (مبلغ کل ${formatToman(assignBankTx.amount)}) را ثبت نموده است. لطفاً حسابی از شرکت را که خریدار بیرونی باید وجه را به آن واریز نماید انتخاب فرمایید:`
+                ? `مشتری درخواست فروش ${formatWeight(assignBankTx.weightKg || 0)} مس به خریدار «${getTransactionParties(assignBankTx, personMap.get(assignBankTx.personId)?.name).buyer.name}» با نرخ توافقی هر کیلو ${formatToman(assignBankTx.unitPrice || 0)} (مبلغ کل ${formatToman(assignBankTx.amount)}) را ثبت نموده است. لطفاً حسابی از شرکت را که خریدار بیرونی باید وجه را به آن واریز نماید انتخاب فرمایید:`
                 : `مشتری درخواست شارژ مبلغ ${formatToman(assignBankTx.amount)} ثبت کرده است. لطفاً شماره حساب شرکت که مایلید مشتری پول را به آن واریز کند انتخاب نمایید:`}
             </p>
+
+            <div className="p-2.5 bg-stone-100 rounded-xl border border-stone-200 text-xs flex items-center justify-between">
+              <div>
+                <span className="text-stone-500">فروشنده: </span>
+                <b className="text-stone-900">{getTransactionParties(assignBankTx, personMap.get(assignBankTx.personId)?.name).seller.name}</b>
+              </div>
+              <div>
+                <span className="text-stone-500">خریدار: </span>
+                <b className="text-amber-950 font-black">{getTransactionParties(assignBankTx, personMap.get(assignBankTx.personId)?.name).buyer.name}</b>
+              </div>
+            </div>
 
             <form onSubmit={handleConfirmAssignBank} className="space-y-4">
               <div className="space-y-2 max-h-48 overflow-y-auto p-1">

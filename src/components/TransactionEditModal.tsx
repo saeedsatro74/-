@@ -23,6 +23,8 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
   const [amount, setAmount] = useState<number>(0);
   const [weightKg, setWeightKg] = useState<number>(0);
   const [unitPrice, setUnitPrice] = useState<number>(0);
+  const [buyerName, setBuyerName] = useState('');
+  const [sellerName, setSellerName] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 
@@ -32,6 +34,8 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
       setAmount(transaction.amount || 0);
       setWeightKg(transaction.weightKg || 0);
       setUnitPrice(transaction.unitPrice || 0);
+      setBuyerName(transaction.buyerName || '');
+      setSellerName(transaction.sellerName || '');
       setNotes(transaction.notes || '');
       setError('');
     }
@@ -80,6 +84,9 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
       amount: finalAmount,
       weightKg: isBuyOrSell || transaction.type === 'adjustment' ? weightKg : undefined,
       unitPrice: isBuyOrSell ? unitPrice : undefined,
+      buyerName: buyerName.trim() || undefined,
+      sellerName: sellerName.trim() || undefined,
+      counterpartyName: transaction.type === 'sell' ? (buyerName.trim() || undefined) : (sellerName.trim() || undefined),
       notes: notes.trim() || undefined,
     });
     onClose();
@@ -214,6 +221,37 @@ export const TransactionEditModal: React.FC<TransactionEditModalProps> = ({
               />
             </div>
           )}
+
+          {/* Buyer & Seller Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200">
+            <div>
+              <label htmlFor="edit-tx-buyer-name" className="block text-xs font-bold text-stone-700 mb-1.5">
+                نام خریدار <span className="text-stone-400 font-normal">(مثلاً: شرکت مس واته، آقای سهرابی...)</span>
+              </label>
+              <input
+                id="edit-tx-buyer-name"
+                type="text"
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+                placeholder={transaction.type === 'buy' ? person?.name || 'مشتری' : 'شرکت مس واته'}
+                className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-600"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-tx-seller-name" className="block text-xs font-bold text-stone-700 mb-1.5">
+                نام فروشنده <span className="text-stone-400 font-normal">(مثلاً: شرکت مس واته، مشتری...)</span>
+              </label>
+              <input
+                id="edit-tx-seller-name"
+                type="text"
+                value={sellerName}
+                onChange={(e) => setSellerName(e.target.value)}
+                placeholder={transaction.type === 'sell' ? person?.name || 'مشتری' : 'شرکت مس واته'}
+                className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-600"
+              />
+            </div>
+          </div>
 
           {/* Notes */}
           <div>

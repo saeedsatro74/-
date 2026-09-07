@@ -31,6 +31,7 @@ import { Person, Transaction } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { getTodayJalaliString, getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getTransactionParties } from '../utils/parties';
 
 interface AccountStatementModalProps {
   isOpen: boolean;
@@ -228,11 +229,27 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
   };
 
   const getTxTypeLabel = (type: Transaction['type'], tx?: Transaction) => {
+    if (!tx) {
+      switch (type) {
+        case 'deposit': return 'واریز وجه';
+        case 'withdrawal': return 'برداشت وجه';
+        case 'buy': return 'خرید مس';
+        case 'sell': return 'فروش مس';
+        case 'adjustment': return 'اصلاح حساب';
+      }
+    }
+    const parties = getTransactionParties(tx, person.name);
     switch (type) {
-      case 'deposit': return 'واریز وجه';
-      case 'withdrawal': return 'برداشت وجه';
-      case 'buy': return 'خرید مس';
-      case 'sell': return tx?.paymentMethod === 'cheque' ? `فروش مس (چکی${tx.chequeNumber ? ` - ${tx.chequeNumber}` : ''})` : 'فروش مس (نقدی)';
+      case 'deposit': return 'واریز وجه به حساب';
+      case 'withdrawal': return 'برداشت وجه از حساب';
+      case 'buy': return `خرید مس (از ${parties.seller.name})`;
+      case 'sell':
+        if (tx.saleCategory === 'external') {
+          return `فروش مس به خریدار بیرونی (${parties.buyer.name})`;
+        }
+        return tx.paymentMethod === 'cheque'
+          ? `فروش مس به شرکت (چکی${tx.chequeNumber ? ` - ${tx.chequeNumber}` : ''})`
+          : `فروش مس به ${parties.buyer.name} (نقدی)`;
       case 'adjustment': return 'اصلاح حساب';
     }
   };
@@ -554,6 +571,11 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
                                   {getTxTypeLabel(tx.type, tx)}
                                 </span>
                               </div>
+                              {(tx.type === 'buy' || tx.type === 'sell') && (
+                                <div className="text-[9.5px] text-stone-500 font-medium">
+                                  {getTransactionParties(tx, person.name).displaySummary}
+                                </div>
+                              )}
                             </td>
 
                             {/* Weight */}

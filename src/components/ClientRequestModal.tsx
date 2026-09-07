@@ -51,6 +51,7 @@ interface ClientRequestModalProps {
     paymentMethod?: PaymentMethod;
     receiptImageUrl?: string;
     saleCategory?: 'internal' | 'external';
+    buyerName?: string;
   }) => void;
   onSubmitTopupReceipt?: (
     txId: string,
@@ -84,6 +85,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     initialType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice
   );
   const [saleCategory, setSaleCategory] = useState<'internal' | 'external'>('internal');
+  const [buyerName, setBuyerName] = useState<string>('');
   
   // Buy copper multi-step wizard states
   const [buyStep, setBuyStep] = useState<1 | 2>(1);
@@ -111,6 +113,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       setAmount(0);
       setBuyStep(1);
       setBuyBudget(0);
+      setBuyerName('');
       setNotes('');
       setError('');
     }
@@ -249,10 +252,15 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         setError('لطفاً قیمت پیشنهادی هر کیلوگرم مس را وارد کنید.');
         return;
       }
+      if (saleCategory === 'external' && !buyerName.trim()) {
+        setError('لطفاً نام شخص یا شرکت خریدار مس (مثلاً آقای سهرابی) را وارد نمایید.');
+        return;
+      }
 
+      const effectiveBuyer = saleCategory === 'external' ? buyerName.trim() : 'شرکت مس واته';
       const totalCalculated = Math.round(weightKg * unitPrice);
-      const catTitle = saleCategory === 'external' ? 'فروش به خارج (خریدار بیرونی)' : 'فروش به انبار شرکت (تحویل به شرکت)';
-      let finalNotes = `[${catTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)}`;
+      const catTitle = saleCategory === 'external' ? `فروش به خارج (خریدار: ${effectiveBuyer})` : 'فروش به انبار شرکت (خریدار: شرکت مس واته)';
+      let finalNotes = `[${catTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)} | خریدار: ${effectiveBuyer}`;
       if (notes.trim()) finalNotes += ` | توضیحات: ${notes.trim()}`;
 
       onSubmitRequest({
@@ -261,6 +269,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         weightKg,
         unitPrice,
         saleCategory,
+        buyerName: effectiveBuyer,
         notes: finalNotes,
       });
       onClose();
@@ -1050,6 +1059,49 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Counterparty & Buyer Name Specification */}
+                {saleCategory === 'external' ? (
+                  <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl space-y-2 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="client-external-buyer-name" className="block text-xs font-bold text-amber-950">
+                        نام شخص یا شرکت خریدار مس <span className="text-rose-500">*</span>
+                      </label>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md font-bold">
+                        طرف حساب خارج شرکت
+                      </span>
+                    </div>
+                    <input
+                      id="client-external-buyer-name"
+                      type="text"
+                      value={buyerName}
+                      onChange={(e) => {
+                        setBuyerName(e.target.value);
+                        setError('');
+                      }}
+                      placeholder="مثال: آقای سهرابی، کارگاه تراشکاری، یا نام خریدار..."
+                      className="w-full p-2.5 text-xs bg-white border border-amber-300 rounded-xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold placeholder:font-normal"
+                      required
+                    />
+                    <div className="flex items-center justify-between text-[11px] text-amber-900 pt-1.5 border-t border-amber-200/80">
+                      <span>فروشنده: <b className="text-stone-900">{person.name}</b></span>
+                      <span>خریدار ثبت‌شده: <b className="text-amber-950">{buyerName.trim() || 'نامشخص'}</b></span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-2xl text-xs flex items-center justify-between text-blue-950">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-stone-500 font-medium">فروشنده:</span>
+                      <span className="font-bold text-stone-900">{person.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-stone-500 font-medium">خریدار:</span>
+                      <span className="font-bold text-blue-900 bg-blue-100 px-2.5 py-0.5 rounded-lg border border-blue-200">
+                        شرکت مس واته (انبار مرکزی)
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
