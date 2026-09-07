@@ -29,7 +29,7 @@ import {
 import { PersonWalletSummary, Transaction, Person, ChequeStatus } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
-import { getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getPersianDateRelativeInfo, getTransactionExactTime } from '../utils/persianDate';
 import { getTransactionParties } from '../utils/parties';
 
 interface PersonDetailModalProps {
@@ -637,15 +637,21 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                               const relInfo = getPersianDateRelativeInfo(tx.date);
                               return (
                                 <div>
-                                  <div className="font-mono font-medium text-stone-800">{tx.date}</div>
-                                  {relInfo.dayOfWeek && (
-                                    <div className="text-[10px] text-stone-500 font-sans mt-0.5 flex items-center gap-1">
-                                      <span className="font-medium text-stone-700">{relInfo.dayOfWeek}</span>
-                                      {relInfo.relative && (
-                                        <span className="text-amber-900 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
-                                          {relInfo.relative}
-                                        </span>
-                                      )}
+                                  <div className="font-mono font-bold text-stone-900">{tx.date}</div>
+                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    <div className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 dir-ltr">
+                                      <Clock className="w-2.5 h-2.5 text-blue-600" />
+                                      <span>{getTransactionExactTime(tx)}</span>
+                                    </div>
+                                    {relInfo.dayOfWeek && (
+                                      <span className="text-[10px] text-stone-600 font-sans">
+                                        {relInfo.dayOfWeek}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {relInfo.relative && relInfo.relative !== 'امروز' && (
+                                    <div className="text-[9.5px] text-amber-900 font-sans mt-0.5">
+                                      {relInfo.relative}
                                     </div>
                                   )}
                                 </div>

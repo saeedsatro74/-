@@ -23,6 +23,7 @@ import {
 import { Transaction, Person } from '../types';
 import { formatNumber, formatToman, formatWeight, numberToTomanWords } from '../utils/formatters';
 import { getTransactionParties } from '../utils/parties';
+import { getTransactionExactTime } from '../utils/persianDate';
 import { WATTEH_LOGO } from '../assets/branding';
 
 interface TransactionReceiptModalProps {
@@ -203,13 +204,17 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
                   <span className="text-stone-500 ml-1">شماره سند:</span>
                   <span className="text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">{receiptNum}</span>
                 </div>
-                <div className="text-xs text-stone-600">
-                  <span className="text-stone-500 ml-1">تاریخ تراکنش:</span>
+                <div className="text-xs text-stone-700 flex items-center justify-start sm:justify-end gap-1.5 flex-wrap">
+                  <span className="text-stone-500">تاریخ و ساعت:</span>
                   <span className="font-mono font-bold">{transaction.date}</span>
+                  <span className="inline-flex items-center gap-1 font-mono font-bold text-stone-900 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 dir-ltr text-[11px]">
+                    <Clock className="w-3 h-3 text-blue-600" />
+                    <span>{getTransactionExactTime(transaction)}</span>
+                  </span>
                 </div>
-                {transaction.createdAt && (
-                  <div className="text-[11px] text-stone-400 font-mono">
-                    ثبت در سیستم: {new Date(transaction.createdAt).toLocaleDateString('fa-IR')}
+                {transaction.approvedAt && (
+                  <div className="text-[11px] text-emerald-800 font-sans">
+                    تأیید مدیریت: {transaction.approvedAt}
                   </div>
                 )}
               </div>

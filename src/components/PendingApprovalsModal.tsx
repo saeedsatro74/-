@@ -31,6 +31,7 @@ import { Transaction, Person, CompanyBankAccount } from '../types';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
 import { getStoredCompanyBankAccounts } from '../utils/storage';
 import { getTransactionParties } from '../utils/parties';
+import { getTransactionExactTime } from '../utils/persianDate';
 
 interface PendingApprovalsModalProps {
   isOpen: boolean;
@@ -509,8 +510,12 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                             کد پیگیری: {tx.receiptNumber}
                           </span>
                         )}
-                        <span className="text-xs text-stone-500 font-mono">
+                        <span className="text-xs text-stone-700 font-mono font-bold">
                           {tx.date}
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-mono font-bold text-stone-800 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 text-[10px] dir-ltr">
+                          <Clock className="w-2.5 h-2.5 text-blue-600" />
+                          <span>{getTransactionExactTime(tx)}</span>
                         </span>
                       </div>
                     </div>

@@ -39,7 +39,7 @@ import {
 import { soundManager } from '../utils/soundNotifications';
 import { Person, Transaction, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, AuthSession } from '../types';
 import { formatToman, formatWeight, formatNumber } from '../utils/formatters';
-import { getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getPersianFullDate, getPersianDateRelativeInfo, useLivePersianClock, getTransactionExactTime } from '../utils/persianDate';
 import { getTransactionParties } from '../utils/parties';
 import { ClientRequestModal } from './ClientRequestModal';
 import { SupportChatWidget } from './SupportChatWidget';
@@ -70,6 +70,9 @@ interface ClientPortalViewProps {
     unitPrice?: number;
     notes?: string;
     paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
     receiptImageUrl?: string;
     saleCategory?: 'internal' | 'external';
     buyerName?: string;
@@ -110,6 +113,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [activeRequestType, setActiveRequestType] = useState<TransactionType>('deposit');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { date: liveDate, time: liveTime } = useLivePersianClock();
 
   const handleToggleSound = () => {
     soundManager.unlockAudioContext();
@@ -325,6 +329,17 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                   <p className="text-[11px] sm:text-xs text-stone-500 truncate mt-0.5">
                     خوش آمدید، <b className="text-stone-800">{person.name}</b> {person.phone && <span className="dir-ltr text-[11px] text-stone-400">({person.phone})</span>}
                   </p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-500 mt-1">
+                    <div className="flex items-center gap-1 text-stone-600 font-medium">
+                      <Calendar className="w-3 h-3 text-stone-400" />
+                      <span>{liveDate}</span>
+                    </div>
+                    <span className="text-stone-300">•</span>
+                    <div className="flex items-center gap-1 text-stone-900 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200">
+                      <Clock className="w-3 h-3 text-blue-600" />
+                      <span className="font-mono font-bold text-[10px] dir-ltr">{liveTime}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1003,15 +1018,21 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     return (
                       <tr key={tx.id} className="hover:bg-stone-50/80 transition-colors">
                         <td className="p-3 whitespace-nowrap">
-                          <div className="font-mono text-stone-700">{tx.date}</div>
-                          {relInfo.dayOfWeek && (
-                            <div className="text-[10px] text-stone-500 font-sans mt-0.5 flex items-center gap-1">
-                              <span>{relInfo.dayOfWeek}</span>
-                              {relInfo.relative && (
-                                <span className="text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
-                                  {relInfo.relative}
-                                </span>
-                              )}
+                          <div className="font-mono font-bold text-stone-900">{tx.date}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <div className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 dir-ltr">
+                              <Clock className="w-2.5 h-2.5 text-blue-600" />
+                              <span>{getTransactionExactTime(tx)}</span>
+                            </div>
+                            {relInfo.dayOfWeek && (
+                              <span className="text-[10px] text-stone-500 font-sans">
+                                {relInfo.dayOfWeek}
+                              </span>
+                            )}
+                          </div>
+                          {relInfo.relative && relInfo.relative !== 'امروز' && (
+                            <div className="text-[9.5px] text-amber-800 font-sans mt-0.5">
+                              {relInfo.relative}
                             </div>
                           )}
                         </td>
@@ -1037,15 +1058,26 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                                     </span>
                                   )}
                                   {tx.type === 'sell' && (
-                                    <span className={`font-bold px-2 py-0.5 rounded border ${
-                                      tx.saleCategory === 'external'
-                                        ? 'text-amber-950 bg-amber-100 border-amber-300'
-                                        : 'text-blue-800 bg-blue-50 border-blue-200'
-                                    }`}>
-                                      {tx.saleCategory === 'external'
-                                        ? `فروش به خارج (${parties.buyer.name})`
-                                        : 'فروش مس به شرکت'}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className={`font-bold px-2 py-0.5 rounded border ${
+                                        tx.saleCategory === 'external'
+                                          ? 'text-amber-950 bg-amber-100 border-amber-300'
+                                          : 'text-blue-800 bg-blue-50 border-blue-200'
+                                      }`}>
+                                        {tx.saleCategory === 'external'
+                                          ? `فروش به خارج (${parties.buyer.name})`
+                                          : 'فروش مس به شرکت'}
+                                      </span>
+                                      {tx.paymentMethod === 'cheque' ? (
+                                        <span className="text-[10px] font-bold text-purple-900 bg-purple-100 border border-purple-300 px-1.5 py-0.5 rounded">
+                                          چکی {tx.chequeNumber ? `(${tx.chequeNumber})` : ''}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                          نقدی
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                   {tx.type === 'adjustment' && (
                                     <span className="text-purple-800 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-200">

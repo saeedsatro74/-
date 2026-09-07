@@ -33,6 +33,7 @@ export interface Transaction {
   id: string;
   personId: string;
   date: string; // e.g. "1403/12/10"
+  time?: string; // exact time e.g. "14:35:22" or "14:35"
   type: TransactionType;
   amount: number; // in Toman (cash amount transferred or total buy/sell price)
   weightKg?: number; // for buy, sell, adjustment (in Kg)

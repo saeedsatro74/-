@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 /**
  * Persian (Jalali / Solar Hijri) date and time utilities
  */
@@ -19,20 +21,60 @@ export function getTodayJalaliString(): string {
   }
 }
 
-export function getCurrentPersianTimeString(): string {
+export function getCurrentPersianTimeString(includeSeconds = true): string {
   try {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+    if (!includeSeconds) {
+      return `${hours}:${minutes}`;
+    }
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   } catch {
-    return '12:00';
+    return includeSeconds ? '12:00:00' : '12:00';
   }
 }
 
-export function getPersianDateTimeString(dateStr?: string): string {
+export function getCurrentExactPersianTime(includeSeconds = true): string {
+  return getCurrentPersianTimeString(includeSeconds);
+}
+
+/**
+ * Extracts exact formatted time (e.g. "14:35:20" or "14:35") from transaction
+ */
+export function getTransactionExactTime(tx: { time?: string; createdAt?: string; approvedAt?: string }): string {
+  if (tx.time && tx.time.trim()) {
+    return tx.time.trim();
+  }
+
+  if (tx.createdAt) {
+    try {
+      const d = new Date(tx.createdAt);
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (tx.approvedAt && tx.approvedAt.includes('ساعت')) {
+    const match = tx.approvedAt.match(/ساعت\s*([\d:]+)/);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+
+  return '12:00:00';
+}
+
+export function getPersianDateTimeString(dateStr?: string, includeSeconds = true): string {
   const d = dateStr || getTodayJalaliString();
-  const t = getCurrentPersianTimeString();
+  const t = getCurrentPersianTimeString(includeSeconds);
   return `${d} ساعت ${t}`;
 }
 
@@ -189,5 +231,26 @@ export function getPersianDateRelativeInfo(dateStr: string) {
     fullBadge,
   };
 }
+
+/**
+ * React hook that returns live updating Persian date and exact time (HH:mm:ss) every second
+ */
+export function useLivePersianClock() {
+  const [time, setTime] = useState<string>(() => getCurrentPersianTimeString(true));
+  const [date, setDate] = useState<string>(() => getPersianFullDate());
+  const [jalaliDate, setJalaliDate] = useState<string>(() => getTodayJalaliString());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(getCurrentPersianTimeString(true));
+      setDate(getPersianFullDate());
+      setJalaliDate(getTodayJalaliString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return { time, date, jalaliDate };
+}
+
 
 

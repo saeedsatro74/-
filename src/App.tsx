@@ -80,7 +80,7 @@ import { ClientPortalView } from './components/ClientPortalView';
 import { CopperChartView } from './components/CopperChartView';
 import { AiAnalysisView } from './components/AiAnalysisView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
-import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString } from './utils/persianDate';
+import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString, getCurrentPersianTimeString } from './utils/persianDate';
 import { formatToman, formatWeight } from './utils/formatters';
 import { AuthSession } from './types';
 import { WATTEH_BG, WATTEH_LOGO } from './assets/branding';
@@ -727,6 +727,7 @@ export default function App() {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
+      time: getCurrentPersianTimeString(),
       type: data.type,
       amount: data.amount,
       notes: data.notes,
@@ -777,6 +778,7 @@ export default function App() {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
+      time: getCurrentPersianTimeString(),
       type: 'buy',
       amount: data.totalPrice,
       weightKg: data.weightKg,
@@ -846,6 +848,7 @@ export default function App() {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
+      time: getCurrentPersianTimeString(),
       type: 'sell',
       saleCategory: saleCat,
       buyerName: effectiveBuyer,
@@ -897,6 +900,9 @@ export default function App() {
     unitPrice?: number;
     notes?: string;
     paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
     receiptImageUrl?: string;
     saleCategory?: 'internal' | 'external';
     buyerName?: string;
@@ -929,6 +935,7 @@ export default function App() {
       id: `tx-${Date.now()}`,
       personId,
       date: getTodayJalaliString(),
+      time: getCurrentPersianTimeString(),
       type: data.type,
       saleCategory: data.type === 'sell' ? (data.saleCategory || 'internal') : undefined,
       buyerName,
@@ -943,7 +950,11 @@ export default function App() {
       receiptNumber: generateReceiptNumber(data.type),
       cashBalanceBefore: pSummary?.cashBalance ?? 0,
       copperStockBefore: pSummary?.copperStockKg ?? 0,
-      paymentMethod: data.paymentMethod,
+      paymentMethod: data.paymentMethod || 'cash',
+      chequeNumber: data.paymentMethod === 'cheque' ? data.chequeNumber : undefined,
+      chequeDueDate: data.paymentMethod === 'cheque' ? data.chequeDueDate : undefined,
+      chequeBank: data.paymentMethod === 'cheque' ? data.chequeBank : undefined,
+      chequeStatus: data.paymentMethod === 'cheque' ? 'pending' : undefined,
       receiptImageUrl: data.receiptImageUrl,
       createdAt: new Date().toISOString(),
     };
@@ -955,7 +966,11 @@ export default function App() {
     if (data.type === 'deposit') msg = 'درخواست شارژ حساب ثبت گردید. به زودی شماره حساب اختصاصی توسط مدیرعامل برای شما ارسال می‌شود.';
     if (isExternalSell) msg = `درخواست فروش به خارج (${formatWeight(data.weightKg || 0)} مس) ثبت شد. به زودی شماره حساب و شبا توسط مدیریت جهت ارائه به خریدار برای شما ارسال می‌گردد.`;
     if (data.type === 'withdrawal') msg = 'درخواست برداشت موجودی ثبت شد. پس از واریز وجه توسط مدیریت، تایید نهایی می‌شود.';
-    if (data.type === 'sell' && !isExternalSell) msg = `درخواست فروش ${formatWeight(data.weightKg || 0)} مس ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
+    if (data.type === 'sell' && !isExternalSell) {
+      msg = data.paymentMethod === 'cheque'
+        ? `درخواست فروش ${formatWeight(data.weightKg || 0)} مس (تسویه چکی - شماره ${data.chequeNumber || ''}) ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`
+        : `درخواست فروش ${formatWeight(data.weightKg || 0)} مس (تسویه نقدی) ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
+    }
     if (data.type === 'buy') msg = `درخواست خرید ${formatWeight(data.weightKg || 0)} مس ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
 
     showToast(msg);
@@ -1206,6 +1221,7 @@ export default function App() {
       id: `tx-${Date.now()}`,
       personId: data.personId,
       date: data.date,
+      time: getCurrentPersianTimeString(),
       type: 'adjustment',
       amount: data.amount,
       weightKg: data.weightKg,

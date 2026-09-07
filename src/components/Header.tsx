@@ -23,10 +23,11 @@ import {
   Volume2,
   VolumeX,
   FileSpreadsheet,
-  BookOpen
+  BookOpen,
+  Clock
 } from 'lucide-react';
 import { soundManager } from '../utils/soundNotifications';
-import { getPersianFullDate } from '../utils/persianDate';
+import { useLivePersianClock } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
 import { WATTEH_LOGO } from '../assets/branding';
 
@@ -94,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({
   isPersonSelected = false,
   onRefreshData,
 }) => {
-  const persianDate = getPersianFullDate();
+  const { date: liveDate, time: liveTime } = useLivePersianClock();
   const buyRate = marketBuyPrice || marketPrice;
   const sellRate = marketSellPrice || Math.max(0, buyRate - 150000);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -145,9 +146,16 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}>
                     {userRole === 'admin' ? 'مدیرعامل' : 'مشتری'}
                   </span>                </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 mt-0.5">
-                  <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{persianDate}</span>
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-500 mt-0.5">
+                  <div className="flex items-center gap-1 text-stone-600 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                    <span>{liveDate}</span>
+                  </div>
+                  <span className="text-stone-300">•</span>
+                  <div className="flex items-center gap-1 text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+                    <Clock className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="font-mono font-bold text-[11px] dir-ltr">{liveTime}</span>
+                  </div>
                   <span className="text-stone-300">•</span>
                   <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
                 </div>

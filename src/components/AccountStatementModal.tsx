@@ -23,14 +23,15 @@ import {
   Sliders,
   CheckCircle2,
   Sparkles,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Person, Transaction } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
-import { getTodayJalaliString, getPersianFullDate, getPersianDateRelativeInfo } from '../utils/persianDate';
+import { getTodayJalaliString, getPersianFullDate, getPersianDateRelativeInfo, getTransactionExactTime } from '../utils/persianDate';
 import { getTransactionParties } from '../utils/parties';
 
 interface AccountStatementModalProps {
@@ -550,7 +551,11 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
 
                             {/* Date */}
                             <td className="py-1.5 px-2 whitespace-nowrap text-stone-800">
-                              <div className="font-mono">{tx.date}</div>
+                              <div className="font-mono font-bold text-stone-900">{tx.date}</div>
+                              <div className="flex items-center gap-1 text-[9.5px] text-stone-600 font-mono mt-0.5 dir-ltr">
+                                <Clock className="w-2.5 h-2.5 text-blue-600" />
+                                <span>{getTransactionExactTime(tx)}</span>
+                              </div>
                               {relInfo.dayOfWeek && (
                                 <div className="text-[9.5px] text-stone-500 font-sans mt-0.5">
                                   <span>{relInfo.dayOfWeek}</span>

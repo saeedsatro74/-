@@ -15,7 +15,9 @@ import {
   Upload,
   ImageIcon,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  CreditCard,
+  Calendar
 } from 'lucide-react';
 import { Person, PersonWalletSummary, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, Transaction } from '../types';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
@@ -49,6 +51,9 @@ interface ClientRequestModalProps {
     unitPrice?: number;
     notes?: string;
     paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
     receiptImageUrl?: string;
     saleCategory?: 'internal' | 'external';
     buyerName?: string;
@@ -86,6 +91,12 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   );
   const [saleCategory, setSaleCategory] = useState<'internal' | 'external'>('internal');
   const [buyerName, setBuyerName] = useState<string>('');
+
+  // Payment Method & Cheque State for Sell Copper
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [chequeNumber, setChequeNumber] = useState('');
+  const [chequeDueDate, setChequeDueDate] = useState('');
+  const [chequeBank, setChequeBank] = useState('');
   
   // Buy copper multi-step wizard states
   const [buyStep, setBuyStep] = useState<1 | 2>(1);
@@ -114,6 +125,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       setBuyStep(1);
       setBuyBudget(0);
       setBuyerName('');
+      setPaymentMethod('cash');
+      setChequeNumber('');
+      setChequeDueDate('');
+      setChequeBank('');
       setNotes('');
       setError('');
     }
@@ -256,11 +271,22 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         setError('لطفاً نام شخص یا شرکت خریدار مس (مثلاً آقای سهرابی) را وارد نمایید.');
         return;
       }
+      if (paymentMethod === 'cheque') {
+        if (!chequeNumber.trim()) {
+          setError('لطفاً شماره چک یا شناسه صیادی را وارد نمایید.');
+          return;
+        }
+        if (!chequeDueDate.trim()) {
+          setError('لطفاً تاریخ سررسید چک را وارد نمایید.');
+          return;
+        }
+      }
 
       const effectiveBuyer = saleCategory === 'external' ? buyerName.trim() : 'شرکت مس واته';
       const totalCalculated = Math.round(weightKg * unitPrice);
       const catTitle = saleCategory === 'external' ? `فروش به خارج (خریدار: ${effectiveBuyer})` : 'فروش به انبار شرکت (خریدار: شرکت مس واته)';
-      let finalNotes = `[${catTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)} | خریدار: ${effectiveBuyer}`;
+      const payTitle = paymentMethod === 'cheque' ? `تسویه چکی (چک: ${chequeNumber.trim()} - سررسید: ${chequeDueDate.trim()})` : 'تسویه نقد (کیف پول)';
+      let finalNotes = `[${catTitle} | ${payTitle}] درخواست فروش ${formatWeight(weightKg)} مس با نرخ ${formatToman(unitPrice)} | خریدار: ${effectiveBuyer}`;
       if (notes.trim()) finalNotes += ` | توضیحات: ${notes.trim()}`;
 
       onSubmitRequest({
@@ -270,6 +296,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         unitPrice,
         saleCategory,
         buyerName: effectiveBuyer,
+        paymentMethod,
+        chequeNumber: paymentMethod === 'cheque' ? chequeNumber.trim() : undefined,
+        chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
+        chequeBank: paymentMethod === 'cheque' ? chequeBank.trim() : undefined,
         notes: finalNotes,
       });
       onClose();
@@ -365,11 +395,15 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         };
       case 'sell':
         return {
-          title: 'درخواست فروش مس به شرکت',
-          subtitle: 'تبدیل مس موجود در انبار شما به موجودی نقد ریالی',
+          title: saleCategory === 'external'
+            ? 'درخواست فروش مس به خارج (خریدار بیرونی)'
+            : 'درخواست فروش مس به شرکت',
+          subtitle: saleCategory === 'external'
+            ? 'فروش مس به خریدار مدنظر شما با قیمت توافقی و تسویه از طریق شرکت'
+            : 'تبدیل مس موجود در انبار به موجودی ریالی (تسویه نقدی یا چک صیادی)',
           icon: <TrendingUp className="w-6 h-6 text-blue-400" />,
-          colorBg: 'bg-blue-950',
-          btnColor: 'bg-blue-700 hover:bg-blue-800',
+          colorBg: saleCategory === 'external' ? 'bg-amber-950' : 'bg-blue-950',
+          btnColor: saleCategory === 'external' ? 'bg-amber-700 hover:bg-amber-800' : 'bg-blue-700 hover:bg-blue-800',
         };
       case 'buy':
         return {
@@ -1164,6 +1198,119 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     <span className={`font-extrabold font-mono text-base ${saleCategory === 'external' ? 'text-amber-950' : 'text-blue-950'}`}>
                       {formatNumber(Math.round(weightKg * unitPrice))} تومان
                     </span>
+                  </div>
+                )}
+
+                {/* Payment Method Selector (Cash vs Cheque) */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                    نحوه تسویه وجه معامله <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('cash');
+                        setError('');
+                      }}
+                      className={`py-2.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        paymentMethod === 'cash'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs ring-2 ring-emerald-300'
+                          : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4 text-emerald-600" />
+                      <span>تسویه نقد (کیف پول)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('cheque');
+                        setError('');
+                      }}
+                      className={`py-2.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        paymentMethod === 'cheque'
+                          ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs ring-2 ring-purple-300'
+                          : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4 text-purple-700" />
+                      <span>دریافت چک صیادی</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cheque Details Box (Displayed when Cheque payment is selected) */}
+                {paymentMethod === 'cheque' && (
+                  <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-2xl space-y-3 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between text-xs font-bold text-purple-950">
+                      <span className="flex items-center gap-1.5">
+                        <CreditCard className="w-4 h-4 text-purple-700" />
+                        مشخصات چک صیادی دریافتی
+                      </span>
+                      <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
+                        ثبت در کاردکس و بخش چک‌ها
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* Cheque Number */}
+                      <div>
+                        <label htmlFor="client-cheque-num" className="block text-[11px] font-bold text-stone-700 mb-1">
+                          شماره چک / شناسه صیاد <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          id="client-cheque-num"
+                          type="text"
+                          required={paymentMethod === 'cheque'}
+                          value={chequeNumber}
+                          onChange={(e) => {
+                            setChequeNumber(e.target.value);
+                            setError('');
+                          }}
+                          placeholder="مثال: ۱۲۳۴۵۶۷۸۹ یا سریال صیادی"
+                          className="w-full px-3 py-2 text-xs bg-white border border-purple-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-600 font-mono"
+                        />
+                      </div>
+
+                      {/* Cheque Due Date */}
+                      <div>
+                        <label htmlFor="client-cheque-date" className="block text-[11px] font-bold text-stone-700 mb-1">
+                          تاریخ سررسید چک <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Calendar className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            id="client-cheque-date"
+                            type="text"
+                            required={paymentMethod === 'cheque'}
+                            value={chequeDueDate}
+                            onChange={(e) => {
+                              setChequeDueDate(e.target.value);
+                              setError('');
+                            }}
+                            placeholder="مثال: 1404/02/15"
+                            className="w-full pl-2.5 pr-8 py-2 text-xs bg-white border border-purple-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-600 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cheque Bank */}
+                    <div>
+                      <label htmlFor="client-cheque-bank" className="block text-[11px] font-bold text-stone-700 mb-1">
+                        نام بانک صادرکننده <span className="text-stone-400 font-normal">(اختیاری)</span>
+                      </label>
+                      <input
+                        id="client-cheque-bank"
+                        type="text"
+                        value={chequeBank}
+                        onChange={(e) => setChequeBank(e.target.value)}
+                        placeholder="مثال: بانک ملی شعبه مرکزی"
+                        className="w-full px-3 py-2 text-xs bg-white border border-purple-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                      />
+                    </div>
                   </div>
                 )}
 

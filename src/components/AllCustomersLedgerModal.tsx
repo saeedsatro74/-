@@ -20,7 +20,8 @@ import {
   BookOpen,
   SlidersHorizontal,
   ChevronDown,
-  CreditCard
+  CreditCard,
+  Clock
 } from 'lucide-react';
 import { Person, Transaction, MarketPrices } from '../types';
 import {
@@ -35,7 +36,8 @@ import {
   getPersianFullDate,
   getPersianDateRelativeInfo,
   getPersianDayOfWeek,
-  getRelativePersianDays
+  getRelativePersianDays,
+  getTransactionExactTime
 } from '../utils/persianDate';
 import { getTransactionParties } from '../utils/parties';
 
@@ -712,15 +714,21 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
 
                                   {/* Date */}
                                   <td className="py-2.5 px-3 whitespace-nowrap">
-                                    <div className="font-mono font-medium text-stone-800">{tx.date}</div>
-                                    {relInfo.dayOfWeek && (
-                                      <div className="text-[10px] text-stone-500 font-sans mt-0.5 flex items-center gap-1">
-                                        <span className="font-medium text-stone-700">{relInfo.dayOfWeek}</span>
-                                        {relInfo.relative && (
-                                          <span className="text-amber-900 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
-                                            {relInfo.relative}
-                                          </span>
-                                        )}
+                                    <div className="font-mono font-bold text-stone-900">{tx.date}</div>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      <div className="inline-flex items-center gap-1 font-mono font-bold text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 text-[9.5px] dir-ltr">
+                                        <Clock className="w-2.5 h-2.5 text-blue-600" />
+                                        <span>{getTransactionExactTime(tx)}</span>
+                                      </div>
+                                      {relInfo.dayOfWeek && (
+                                        <span className="text-[10px] text-stone-600 font-sans">
+                                          {relInfo.dayOfWeek}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {relInfo.relative && relInfo.relative !== 'امروز' && (
+                                      <div className="text-[9px] text-amber-900 font-sans mt-0.5">
+                                        {relInfo.relative}
                                       </div>
                                     )}
                                   </td>
