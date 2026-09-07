@@ -124,6 +124,7 @@ export function buildNotesWithMetadata(tx: Transaction): string | null {
     buyerName: tx.buyerName,
     sellerName: tx.sellerName,
     counterpartyName: tx.counterpartyName,
+    time: tx.time,
   };
 
   // Filter out undefined/null values to keep string short
@@ -179,11 +180,13 @@ export function toTransaction(row: TransactionRow): Transaction {
   const buyerName = metadata.buyerName || (row as any).buyer_name || undefined;
   const sellerName = metadata.sellerName || (row as any).seller_name || undefined;
   const counterpartyName = metadata.counterpartyName || (row as any).counterparty_name || undefined;
+  const time = metadata.time || (row as any).time || undefined;
 
   const tx: Transaction = {
     id: row.id,
     personId: row.person_id,
     date: row.date,
+    time,
     type: row.type as Transaction['type'],
     amount: Number(row.amount) || 0,
     weightKg: row.weight_kg !== null ? Number(row.weight_kg) : undefined,
