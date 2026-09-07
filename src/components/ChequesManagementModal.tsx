@@ -341,6 +341,7 @@ export const ChequesManagementModal: React.FC<ChequesManagementModalProps> = ({
                 <thead className="bg-stone-50 text-stone-600 border-b border-stone-200">
                   <tr>
                     <th className="py-3 px-3 font-bold text-center w-8">ردیف</th>
+                    <th className="py-3 px-3 font-bold text-center">تیک پاس شدن</th>
                     <th className="py-3 px-3 font-bold">طرف حساب / صادرکننده</th>
                     <th className="py-3 px-3 font-bold">شماره چک / صیادی</th>
                     <th className="py-3 px-3 font-bold text-left">مبلغ چک (تومان)</th>
@@ -368,6 +369,30 @@ export const ChequesManagementModal: React.FC<ChequesManagementModalProps> = ({
                         {/* Index */}
                         <td className="py-3 px-3 font-mono text-center text-stone-400">
                           {idx + 1}
+                        </td>
+
+                        {/* Quick Checkbox / Tick for Cleared Cheque */}
+                        <td className="py-3 px-3 text-center">
+                          <label 
+                            className="inline-flex items-center gap-1.5 cursor-pointer select-none bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-lg border border-stone-300 transition-colors"
+                            title="تیک پاس شدن چک (شاید زودتر پاس بشه و بخوام تیکشو بزنم)"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isCleared}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleMarkAsCleared(tx.id);
+                                } else {
+                                  handleMarkAsPending(tx.id);
+                                }
+                              }}
+                              className="w-5 h-5 accent-emerald-600 rounded cursor-pointer transition-all"
+                            />
+                            <span className={`text-[11px] font-bold ${isCleared ? 'text-emerald-700' : 'text-stone-600'}`}>
+                              {isCleared ? 'پاس شد ✓' : 'تیک وصول'}
+                            </span>
+                          </label>
                         </td>
 
                         {/* Person */}

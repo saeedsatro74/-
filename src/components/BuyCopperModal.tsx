@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, ShoppingBag, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, Wallet, Clock } from 'lucide-react';
-import { Person, PersonWalletSummary } from '../types';
+import { X, ShoppingBag, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, Wallet, Clock, CreditCard, Check } from 'lucide-react';
+import { Person, PersonWalletSummary, Transaction, ChequeStatus } from '../types';
 import { getTodayJalaliString } from '../utils/persianDate';
 import { formatNumber, formatToman, formatWeight } from '../utils/formatters';
 import { NumericInput } from './NumericInput';
@@ -22,6 +22,8 @@ interface BuyCopperModalProps {
   selectedPersonId?: string;
   defaultPricePerKg?: number;
   onOpenDepositForPerson?: (personId: string) => void;
+  transactions?: Transaction[];
+  onUpdateChequeStatus?: (txId: string, status: ChequeStatus, clearedDate?: string) => void;
 }
 
 export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
@@ -33,6 +35,8 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
   selectedPersonId,
   defaultPricePerKg = 3000000,
   onOpenDepositForPerson,
+  transactions,
+  onUpdateChequeStatus,
 }) => {
   const [personId, setPersonId] = useState('');
   const [date, setDate] = useState(getTodayJalaliString());
@@ -70,6 +74,17 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
   const hasUnclearedCheques = selectedPersonSummary?.hasUnclearedCheques || false;
   const pendingChequesCount = selectedPersonSummary?.pendingChequesCount || 0;
   const pendingChequesAmount = selectedPersonSummary?.pendingChequesTotalAmount || 0;
+
+  // Pending cheques for selected person
+  const personPendingCheques = useMemo(() => {
+    if (!transactions || !personId) return [];
+    return transactions.filter(
+      (t) =>
+        t.personId === personId &&
+        (t.paymentMethod === 'cheque' || t.chequeNumber || t.chequeStatus) &&
+        (t.chequeStatus === 'pending' || (!t.chequeStatus && t.paymentMethod === 'cheque'))
+    );
+  }, [transactions, personId]);
 
   // Auto-calculated total purchase amount
   const calculatedTotal = useMemo(() => {
@@ -201,7 +216,7 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
 
           {/* Uncleared Cheque Info Warning */}
           {hasUnclearedCheques && (
-            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs space-y-1.5">
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs space-y-2.5">
               <div className="flex items-center gap-1.5 text-amber-900 font-bold">
                 <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
                 <span>اطلاعیه: این شخص دارای چک پاس‌نشده است</span>
@@ -209,6 +224,59 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
               <p className="text-amber-800 leading-relaxed">
                 این شخص دارای <b>{pendingChequesCount} فقره چک وصول نشده</b> به ارزش کل <b>{formatToman(pendingChequesAmount)}</b> می‌باشد. خرید مس فقط تا سقف موجودی نقدی قابل استفاده (<b>{formatToman(availableCash)}</b>) امکان‌پذیر است.
               </p>
+
+              {personPendingCheques.length > 0 && (
+                <div className="pt-2 border-t border-amber-200/80 space-y-1.5">
+                  <div className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-amber-800" />
+                    <span>چک‌های پاس‌نشده (شاید زودتر پاس شده باشد؛ برای پاس شدن تیک بزنید):</span>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {personPendingCheques.map((pch) => (
+                      <div
+                        key={pch.id}
+                        className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-amber-200 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={false}
+                              onChange={() => onUpdateChequeStatus?.(pch.id, 'cleared')}
+                              className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                              title="تیک پاس شدن چک"
+                            />
+                            <span className="font-mono font-bold text-stone-900 text-xs">
+                              چک {pch.chequeNumber || '—'}
+                            </span>
+                          </label>
+
+                          <span className="font-mono font-bold text-purple-900 text-xs bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                            {formatToman(pch.amount)}
+                          </span>
+
+                          <span className="text-stone-500 font-mono text-[11px]">
+                            ({pch.chequeDueDate || pch.date})
+                          </span>
+                        </div>
+
+                        {onUpdateChequeStatus && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateChequeStatus(pch.id, 'cleared')}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-[11px] transition-colors cursor-pointer shrink-0"
+                            title="ثبت پاس شدن چک"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>تیک پاس شدن ✓</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

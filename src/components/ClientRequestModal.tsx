@@ -118,10 +118,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const defaultPrice = requestType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice;
-      setUnitPrice(defaultPrice);
+      if (requestType === 'sell' && saleCategory === 'external') {
+        // External sale: user specifies custom negotiated price freely
+      } else {
+        const defaultPrice = requestType === 'buy' ? marketPrices.buyPrice : marketPrices.sellPrice;
+        setUnitPrice(defaultPrice);
+      }
     }
-  }, [requestType, isOpen, marketPrices]);
+  }, [requestType, isOpen, marketPrices, saleCategory]);
 
   if (!isOpen) return null;
 
@@ -990,7 +994,11 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     {/* Internal Sale */}
                     <button
                       type="button"
-                      onClick={() => setSaleCategory('internal')}
+                      onClick={() => {
+                        setSaleCategory('internal');
+                        setUnitPrice(marketPrices.sellPrice);
+                        setError('');
+                      }}
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                         saleCategory === 'internal'
                           ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-300 text-blue-950 shadow-xs'
@@ -1000,21 +1008,27 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       <div className="flex items-center justify-between w-full mb-1">
                         <span className="font-extrabold text-xs flex items-center gap-1.5">
                           <Building2 className="w-4 h-4 text-blue-700" />
-                          فروش داخلی (تحویل به شرکت)
+                          فروش به شرکت (نرخ روز)
                         </span>
                         {saleCategory === 'internal' && (
                           <CheckCircle2 className="w-4 h-4 text-blue-600" />
                         )}
                       </div>
                       <p className="text-[11px] text-stone-500 leading-tight">
-                        مس به انبار مرکزی شرکت اضافه می‌گردد (افزایش موجودی انبار شرکت).
+                        مس با نرخ روز شرکت ({formatNumber(marketPrices.sellPrice)} ت) خریداری شده و به انبار شرکت افزوده می‌شود.
                       </p>
                     </button>
 
                     {/* External Sale */}
                     <button
                       type="button"
-                      onClick={() => setSaleCategory('external')}
+                      onClick={() => {
+                        setSaleCategory('external');
+                        if (unitPrice === marketPrices.sellPrice) {
+                          setUnitPrice(0);
+                        }
+                        setError('');
+                      }}
                       className={`p-3 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                         saleCategory === 'external'
                           ? 'bg-amber-50 border-amber-600 ring-2 ring-amber-300 text-amber-950 shadow-xs'
@@ -1031,7 +1045,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         )}
                       </div>
                       <p className="text-[11px] text-stone-500 leading-tight">
-                        مس به شخص یا خریدار بیرون از شرکت فروخته می‌شود (بدون تغییر در موجودی انبار شرکت).
+                        قیمت توافقی توسط شما وارد می‌شود و مدیریت شماره حساب شرکت را جهت پرداخت خریدار و آپلود فیش ارسال می‌کند.
                       </p>
                     </button>
                   </div>
@@ -1058,15 +1072,22 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-xs font-bold text-stone-800">
-                        قیمت هر کیلو (تومان) <span className="text-rose-500">*</span>
+                        {saleCategory === 'external' ? 'قیمت توافقی هر کیلو با خریدار' : 'قیمت هر کیلو (تومان)'}{' '}
+                        <span className="text-rose-500">*</span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setUnitPrice(marketPrices.sellPrice)}
-                        className="text-[11px] text-blue-800 hover:text-blue-950 font-bold underline cursor-pointer"
-                      >
-                        نرخ روز: {formatNumber(marketPrices.sellPrice)} ت
-                      </button>
+                      {saleCategory === 'internal' ? (
+                        <button
+                          type="button"
+                          onClick={() => setUnitPrice(marketPrices.sellPrice)}
+                          className="text-[11px] text-blue-800 hover:text-blue-950 font-bold underline cursor-pointer"
+                        >
+                          نرخ روز شرکت: {formatNumber(marketPrices.sellPrice)} ت
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md font-bold">
+                          قیمت توافقی آزاد شما با خریدار
+                        </span>
+                      )}
                     </div>
                     <NumericInput
                       value={unitPrice}
@@ -1074,7 +1095,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         setUnitPrice(val);
                         setError('');
                       }}
-                      placeholder="قیمت هر کیلو"
+                      placeholder={saleCategory === 'external' ? 'قیمت هر کیلو مس به تومان (مثلاً ۳,۲۰۰,۰۰۰)' : 'قیمت هر کیلو'}
                       unitLabel="تومان"
                       required
                     />
@@ -1082,28 +1103,48 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 </div>
 
                 {weightKg > 0 && unitPrice > 0 && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between text-xs">
-                    <span className="text-blue-900 font-bold">مبلغ کل دریافت فروش:</span>
-                    <span className="font-extrabold text-blue-950 font-mono text-base">
+                  <div className={`p-4 rounded-2xl flex items-center justify-between text-xs border ${
+                    saleCategory === 'external' ? 'bg-amber-50/80 border-amber-200' : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <span className={`font-bold ${saleCategory === 'external' ? 'text-amber-900' : 'text-blue-900'}`}>
+                      {saleCategory === 'external' ? 'مبلغ کل دریافتی از خریدار بیرونی:' : 'مبلغ کل دریافت فروش:'}
+                    </span>
+                    <span className={`font-extrabold font-mono text-base ${saleCategory === 'external' ? 'text-amber-950' : 'text-blue-950'}`}>
                       {formatNumber(Math.round(weightKg * unitPrice))} تومان
                     </span>
                   </div>
                 )}
 
+                {/* Multi-step guidance notice for External Sale */}
+                {saleCategory === 'external' && (
+                  <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl text-xs space-y-2 text-amber-950">
+                    <div className="flex items-center gap-2 font-black text-amber-900">
+                      <Building2 className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>فرآیند تسویه فروش به خارج (مشابه فرآیند شارژ حساب):</span>
+                    </div>
+                    <div className="space-y-1 text-[11px] text-amber-900 leading-relaxed pr-1 border-r-2 border-amber-400 mr-1">
+                      <p><b>۱. ثبت درخواست:</b> مشخصات وزن و قیمت توافقی شما برای مدیریت ارسال می‌شود.</p>
+                      <p><b>۲. ارسال شماره حساب و شبا:</b> مدیرعامل شماره حساب بانکی و شبای شرکت را انتخاب و در پورتال شما نمایش می‌دهد.</p>
+                      <p><b>۳. واریز خریدار و ارسال فیش:</b> شماره شبا/کارت را به خریدار مس تحویل داده و پس از واریز، عکس فیش را بارگذاری می‌فرمایید.</p>
+                      <p><b>۴. بررسی و تایید نهایی:</b> پس از تایید وصول وجه توسط مدیر، معامله قطعی شده و مبلغ به کیفتان واریز می‌گردد.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-stone-800 mb-2">
-                    توضیحات تکمیلی <span className="text-stone-400 font-normal">(اختیاری)</span>
+                    توضیحات تکمیلی {saleCategory === 'external' && 'یا مشخصات خریدار بیرونی'} <span className="text-stone-400 font-normal">(اختیاری)</span>
                   </label>
                   <textarea
                     rows={2}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="توضیحات فروش مس..."
+                    placeholder={saleCategory === 'external' ? 'مثال: نام خریدار، توافقات تحویل یا شماره تماس...' : 'توضیحات فروش مس...'}
                     className="w-full p-3 text-xs bg-stone-50 border border-stone-300 rounded-2xl text-stone-900 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
                   />
                 </div>
 
-                <div className="pt-2 flex justify-end gap-3">
+                <div className="pt-2 flex justify-end gap-3 border-t border-stone-100">
                   <button
                     type="button"
                     onClick={onClose}
@@ -1113,10 +1154,18 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 text-xs font-extrabold text-white bg-blue-700 hover:bg-blue-800 rounded-xl shadow-md cursor-pointer flex items-center gap-2"
+                    className={`px-6 py-2.5 text-xs font-extrabold text-white rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all ${
+                      saleCategory === 'external'
+                        ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                        : 'bg-blue-700 hover:bg-blue-800'
+                    }`}
                   >
                     <Send className="w-4 h-4" />
-                    <span>ارسال درخواست فروش مس</span>
+                    <span>
+                      {saleCategory === 'external'
+                        ? 'ارسال به مدیریت جهت دریافت شماره شبا و حساب'
+                        : 'ارسال درخواست فروش مس به شرکت'}
+                    </span>
                   </button>
                 </div>
               </form>

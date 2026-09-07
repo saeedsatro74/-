@@ -21,6 +21,7 @@ import {
   Info,
   Building2,
   CreditCard,
+  DollarSign,
   Send,
   Copy,
   Check,
@@ -273,15 +274,38 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
           </span>
         );
       case 'sell':
+        const isCheque = tx.paymentMethod === 'cheque';
         return (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${
-            tx.saleCategory === 'external'
-              ? 'bg-amber-100 text-amber-950 border border-amber-300'
-              : 'bg-blue-100 text-blue-900 border border-blue-200'
-          }`}>
-            <TrendingUp className="w-3 h-3" />
-            {tx.saleCategory === 'external' ? 'فروش مس (به خارج - بدون تغییر انبار)' : 'فروش مس (به انبار شرکت - واریز به انبار)'}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${
+                tx.saleCategory === 'external'
+                  ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                  : 'bg-blue-100 text-blue-900 border border-blue-200'
+              }`}
+            >
+              <TrendingUp className="w-3 h-3" />
+              {tx.saleCategory === 'external'
+                ? 'فروش مس (به خارج - بدون تغییر انبار)'
+                : 'فروش مس (به انبار شرکت - واریز به انبار)'}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${
+                isCheque
+                  ? 'bg-purple-100 text-purple-950 border border-purple-300'
+                  : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+              }`}
+            >
+              {isCheque ? (
+                <CreditCard className="w-3 h-3 text-purple-700" />
+              ) : (
+                <DollarSign className="w-3 h-3 text-emerald-700" />
+              )}
+              <span>
+                {isCheque ? `فروش چکی (${tx.chequeNumber || 'چک'})` : 'فروش نقدی'}
+              </span>
+            </span>
+          </div>
         );
       case 'deposit':
         return (
@@ -529,13 +553,31 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
 
                       {/* Sell Balance Impact Preview */}
                       {tx.type === 'sell' && (
-                        <div className="col-span-2 sm:col-span-4 bg-blue-100/70 text-blue-950 p-2 rounded-lg text-xs font-semibold flex items-center justify-between border border-blue-200">
-                          <span>
-                            📈 مانده ریالی مشتری پس از واریز مبلغ فروش:
-                          </span>
-                          <span className="font-bold font-mono text-emerald-800 text-sm">
-                            {formatToman((tx.cashBalanceBefore ?? 0) + tx.amount)}
-                          </span>
+                        <div
+                          className={`col-span-2 sm:col-span-4 p-2.5 rounded-lg text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border ${
+                            tx.paymentMethod === 'cheque'
+                              ? 'bg-purple-50 text-purple-950 border-purple-200'
+                              : 'bg-blue-100/70 text-blue-950 border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold">
+                              {tx.paymentMethod === 'cheque'
+                                ? '💳 تسویه: فروش چکی (غیرنقد)'
+                                : '💵 تسویه: فروش نقدی'}
+                            </span>
+                            {tx.paymentMethod === 'cheque' && (
+                              <span className="text-[11px] text-purple-850 font-normal font-mono">
+                                (سررسید: {tx.chequeDueDate || tx.date} - چک شماره {tx.chequeNumber || '—'} - {tx.chequeStatus === 'cleared' ? 'پاس شده' : 'در انتظار وصول'})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-stone-600 text-[11px]">مانده ریالی پس از ثبت:</span>
+                            <span className="font-bold font-mono text-emerald-800 text-sm">
+                              {formatToman((tx.cashBalanceBefore ?? 0) + tx.amount)}
+                            </span>
+                          </div>
                         </div>
                       )}
 
@@ -594,14 +636,17 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                       </div>
                     )}
 
-                    {/* Step Warning / Helper Banners for Topup */}
-                    {tx.type === 'deposit' && (
+                    {/* Step Warning / Helper Banners for Topup or External Sell */}
+                    {(tx.type === 'deposit' || (tx.type === 'sell' && tx.saleCategory === 'external')) && (
                       <div className="mb-3">
                         {(status === 'topup_step1_pending_bank' || status === 'pending') && (
                           <div className="p-2.5 bg-amber-100/80 border border-amber-300 text-amber-900 rounded-lg text-xs font-medium flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-amber-600 shrink-0 animate-ping" />
                             <span>
-                              <b>مرحله ۱ از ۴:</b> مشتری درخواست شارژ داده است. لطفاً ابتدا روی <b>«انتخاب و ارسال شماره حساب»</b> کلیک کنید. تا زمان ارسال فیش توسط مشتری و تأیید نهایی آن در مرحله ۴، موجودی به حساب افزوده نمی‌شود.
+                              <b>مرحله ۱ از ۴:</b>{' '}
+                              {tx.type === 'sell'
+                                ? `مشتری درخواست فروش ${formatWeight(tx.weightKg || 0)} مس به خارج به مبلغ کل ${formatToman(tx.amount)} با نرخ توافقی هر کیلو ${formatToman(tx.unitPrice || 0)} را ثبت نموده است. لطفاً روی «انتخاب و ارسال شماره حساب/شبا» کلیک کنید تا مشتری شماره حساب را جهت پرداخت به خریدار بیرونی بدهد.`
+                                : 'مشتری درخواست شارژ داده است. لطفاً ابتدا روی «انتخاب و ارسال شماره حساب» کلیک کنید. تا زمان ارسال فیش توسط مشتری و تأیید نهایی آن در مرحله ۴، موجودی به حساب افزوده نمی‌شود.'}
                             </span>
                           </div>
                         )}
@@ -609,7 +654,10 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                           <div className="p-2.5 bg-blue-100/80 border border-blue-300 text-blue-950 rounded-lg text-xs font-medium flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                             <span>
-                              <b>مرحله ۲ از ۴:</b> شماره حساب برای مشتری ارسال شده است. اکنون در انتظار واریز وجه و ارسال عکس فیش توسط مشتری هستید.
+                              <b>مرحله ۲ از ۴:</b>{' '}
+                              {tx.type === 'sell'
+                                ? 'شماره شبا و حساب شرکت برای مشتری ارسال گردید. مشتری مشخصات را به خریدار تحویل داده و منتظر واریز وجه و بارگذاری فیش توسط مشتری هستید.'
+                                : 'شماره حساب برای مشتری ارسال شده است. اکنون در انتظار واریز وجه و ارسال عکس فیش توسط مشتری هستید.'}
                             </span>
                           </div>
                         )}
@@ -617,7 +665,10 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                           <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-lg text-xs font-bold flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0 animate-ping" />
                             <span>
-                              <b>مرحله ۳ از ۴ (آماده تایید نهایی):</b> عکس فیش و کد رهگیری توسط مشتری بارگذاری شد. پس از بررسی حساب بانکی و مطابقت فیش، دکمه <b>«تأیید فیش و شارژ نهایی حساب»</b> را بزنید.
+                              <b>مرحله ۳ از ۴ (آماده تایید نهایی):</b>{' '}
+                              {tx.type === 'sell'
+                                ? `عکس فیش واریزی خریدار مس (${formatWeight(tx.weightKg || 0)}) به مبلغ ${formatToman(tx.amount)} توسط مشتری بارگذاری شد. پس از تطبیق واریزی با حساب شرکت، دکمه «تأیید فیش و تسویه نهایی فروش به خارج» را بزنید.`
+                                : 'عکس فیش و کد رهگیری توسط مشتری بارگذاری شد. پس از بررسی حساب بانکی و مطابقت فیش، دکمه «تأیید فیش و شارژ نهایی حساب» را بزنید.'}
                             </span>
                           </div>
                         )}
@@ -690,7 +741,11 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                               className="px-3.5 py-1.5 text-xs font-black text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                             >
                               <Building2 className="w-3.5 h-3.5" />
-                              <span>مرحله ۲: انتخاب و ارسال شماره حساب</span>
+                              <span>
+                                {tx.type === 'sell'
+                                  ? 'مرحله ۲: انتخاب و ارسال شماره حساب/شبا به مشتری'
+                                  : 'مرحله ۲: انتخاب و ارسال شماره حساب'}
+                              </span>
                             </button>
                           </>
                         )}
@@ -722,7 +777,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                               className="px-3.5 py-1.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                             >
                               <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                              <span>تأیید و شارژ مستقیم حساب</span>
+                              <span>
+                                {tx.type === 'sell' ? 'تأیید مستقیم فروش مس' : 'تأیید و شارژ مستقیم حساب'}
+                              </span>
                             </button>
                           </>
                         )}
@@ -745,7 +802,11 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                               className="px-4 py-1.5 text-xs font-black text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer animate-pulse"
                             >
                               <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                              <span>مرحله ۴: تأیید فیش و شارژ نهایی حساب</span>
+                              <span>
+                                {tx.type === 'sell'
+                                  ? 'مرحله ۴: تأیید فیش و تسویه نهایی فروش به خارج'
+                                  : 'مرحله ۴: تأیید فیش و شارژ نهایی حساب'}
+                              </span>
                             </button>
                           </>
                         )}
@@ -813,7 +874,11 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
             <div className="flex items-center justify-between border-b border-stone-200 pb-3">
               <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-sm">
                 <Building2 className="w-5 h-5 text-emerald-700" />
-                <span>تخصیص شماره حساب اختصاصی (مرحله ۲ از ۴)</span>
+                <span>
+                  {assignBankTx.type === 'sell'
+                    ? 'انتخاب شماره حساب/شبا جهت پرداخت خریدار مس (مرحله ۲ از ۴)'
+                    : 'تخصیص شماره حساب اختصاصی (مرحله ۲ از ۴)'}
+                </span>
               </div>
               <button
                 type="button"
@@ -825,7 +890,9 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              مشتری درخواست شارژ مبلغ <b>{formatToman(assignBankTx.amount)}</b> ثبت کرده است. لطفاً شماره حساب شرکت که مایلید مشتری پول را به آن واریز کند انتخاب نمایید:
+              {assignBankTx.type === 'sell'
+                ? `مشتری درخواست فروش ${formatWeight(assignBankTx.weightKg || 0)} مس با نرخ توافقی هر کیلو ${formatToman(assignBankTx.unitPrice || 0)} (مبلغ کل ${formatToman(assignBankTx.amount)}) را ثبت نموده است. لطفاً حسابی از شرکت را که خریدار بیرونی باید وجه را به آن واریز نماید انتخاب فرمایید:`
+                : `مشتری درخواست شارژ مبلغ ${formatToman(assignBankTx.amount)} ثبت کرده است. لطفاً شماره حساب شرکت که مایلید مشتری پول را به آن واریز کند انتخاب نمایید:`}
             </p>
 
             <form onSubmit={handleConfirmAssignBank} className="space-y-4">
@@ -868,7 +935,11 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                   rows={2}
                   value={bankNote}
                   onChange={(e) => setBankNote(e.target.value)}
-                  placeholder="مثال: لطفاً حداکثر تا ۲ ساعت آینده واریز کرده و تصویر فیش را قرار دهید..."
+                  placeholder={
+                    assignBankTx.type === 'sell'
+                      ? 'مثال: لطفاً به خریدار یادآوری کنید شناسه واریز را درج نماید یا حداکثر تا ۲ ساعت آینده فیش را بارگذاری کنید...'
+                      : 'مثال: لطفاً حداکثر تا ۲ ساعت آینده واریز کرده و تصویر فیش را قرار دهید...'
+                  }
                   className="w-full p-2.5 text-xs bg-stone-50 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
@@ -886,7 +957,11 @@ export const PendingApprovalsModal: React.FC<PendingApprovalsModalProps> = ({
                   className="px-5 py-2 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                 >
                   <Send className="w-4 h-4" />
-                  <span>تخصیص و ارسال شماره حساب به مشتری</span>
+                  <span>
+                    {assignBankTx.type === 'sell'
+                      ? 'ارسال شماره حساب و شبا جهت واریز خریدار'
+                      : 'تخصیص و ارسال شماره حساب به مشتری'}
+                  </span>
                 </button>
               </div>
             </form>

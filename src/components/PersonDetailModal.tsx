@@ -20,9 +20,13 @@ import {
   Tag,
   CheckCircle2,
   XCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CreditCard,
+  Clock,
+  Check,
+  AlertCircle
 } from 'lucide-react';
-import { PersonWalletSummary, Transaction, Person } from '../types';
+import { PersonWalletSummary, Transaction, Person, ChequeStatus } from '../types';
 import { replayAndCalculatePersonLedger } from '../utils/storage';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { getPersianDateRelativeInfo } from '../utils/persianDate';
@@ -43,6 +47,8 @@ interface PersonDetailModalProps {
   onEditPerson: (personId: string) => void;
   onOpenStatement?: (personId: string) => void;
   onViewReceipt?: (tx: Transaction) => void;
+  onUpdateChequeStatus?: (txId: string, status: ChequeStatus, clearedDate?: string) => void;
+  onOpenChequesModal?: () => void;
 }
 
 export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
@@ -61,6 +67,8 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
   onEditPerson,
   onOpenStatement,
   onViewReceipt,
+  onUpdateChequeStatus,
+  onOpenChequesModal,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
 
@@ -87,11 +95,29 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
     .slice()
     .reverse();
 
+  // Cheques belonging to this person
+  const personCheques = useMemo(() => {
+    if (!person) return [];
+    return transactions
+      .filter(
+        (tx) =>
+          tx.personId === person.id &&
+          (tx.paymentMethod === 'cheque' || tx.chequeNumber || tx.chequeStatus)
+      )
+      .sort((a, b) => {
+        const statusA = a.chequeStatus || 'pending';
+        const statusB = b.chequeStatus || 'pending';
+        if (statusA === 'pending' && statusB !== 'pending') return -1;
+        if (statusA !== 'pending' && statusB === 'pending') return 1;
+        return (a.chequeDueDate || a.date).localeCompare(b.chequeDueDate || b.date);
+      });
+  }, [transactions, person]);
+
   const handlePrint = () => {
     window.print();
   };
 
-  const getTransactionBadge = (type: Transaction['type']) => {
+  const getTransactionBadge = (type: Transaction['type'], tx?: Transaction) => {
     switch (type) {
       case 'deposit':
         return (
@@ -115,10 +141,21 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
           </span>
         );
       case 'sell':
+        const isCheque = tx?.paymentMethod === 'cheque';
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 text-xs font-semibold">
-            <TrendingUp className="w-3 h-3 text-blue-700" />
-            <span>فروش مس</span>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${
+              isCheque
+                ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                : 'bg-blue-100 text-blue-900 border border-blue-200'
+            }`}
+          >
+            {isCheque ? (
+              <CreditCard className="w-3 h-3 text-purple-700" />
+            ) : (
+              <TrendingUp className="w-3 h-3 text-blue-700" />
+            )}
+            <span>{isCheque ? 'فروش مس (چکی)' : 'فروش مس (نقدی)'}</span>
           </span>
         );
       case 'adjustment':
@@ -206,17 +243,153 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
         {/* Scrollable Content */}
         <div className="overflow-y-auto p-4 sm:p-6 space-y-5">
           
-          {/* Uncleared Cheque Warning Banner */}
-          {summary.hasUnclearedCheques && (
-            <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl flex items-start gap-2.5 text-xs text-rose-900 shadow-xs">
-              <Info className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-bold text-sm text-rose-950">
-                  هشدار: خرید مس برای این شخص مسدود است!
+          {/* Dedicated Cheques Management & Uncleared Cheques Banner with Interactive Ticking */}
+          {(summary.hasUnclearedCheques || personCheques.length > 0) && (
+            <div className="bg-stone-50 border border-stone-300 rounded-2xl overflow-hidden shadow-xs">
+              <div className="p-3.5 sm:p-4 bg-amber-50/90 border-b border-amber-200/80 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-800 text-white flex items-center justify-center shadow-xs shrink-0">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-stone-900 flex items-center gap-2 flex-wrap">
+                      <span>لیست چک‌های دریافتی از این طرف حساب</span>
+                      {summary.pendingChequesCount > 0 ? (
+                        <span className="text-xs bg-rose-600 text-white px-2.5 py-0.5 rounded-full font-bold">
+                          {summary.pendingChequesCount} فقره چک پاس‌نشده (خرید مس مسدود است)
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-emerald-600 text-white px-2.5 py-0.5 rounded-full font-bold">
+                          تمامی چک‌ها پاس شده‌اند ✓
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-xs text-stone-600 mt-0.5">
+                      {summary.pendingChequesCount > 0
+                        ? `مبلغ کل چک‌های پاس‌نشده: ${formatToman(summary.pendingChequesTotalAmount)}. هر چکی که زودتر پاس شد، کافیست تیک آن را بزنید تا حساب تسویه شود.`
+                        : 'کلیه چک‌های این مشتری وصول شده و امکان ثبت سفارش خرید مس فعال است.'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-rose-800 mt-0.5 leading-relaxed">
-                  این طرف حساب دارای <b>{summary.pendingChequesCount} فقره چک پاس‌نشده</b> به مبلغ <b>{formatToman(summary.pendingChequesTotalAmount)}</b> می‌باشد. طبق قوانین سیستم، تا زمان پاس شدن تمامی چک‌ها، ثبت فاکتور خرید جدید مس غیرفعال است.
-                </div>
+
+                {onOpenChequesModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenChequesModal}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-800 text-xs font-semibold rounded-lg border border-stone-300 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <CreditCard className="w-3.5 h-3.5 text-stone-500" />
+                    <span>مدیریت کلیه چک‌های سیستم</span>
+                  </button>
+                )}
+              </div>
+
+              {/* List of Cheques with direct checkbox / tick */}
+              <div className="p-3.5 sm:p-4 divide-y divide-stone-200">
+                {personCheques.map((ch) => {
+                  const isCleared = ch.chequeStatus === 'cleared';
+                  const isPending = !ch.chequeStatus || ch.chequeStatus === 'pending';
+                  const isBounced = ch.chequeStatus === 'bounced';
+
+                  return (
+                    <div
+                      key={ch.id}
+                      className={`py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                        isCleared
+                          ? 'opacity-85'
+                          : isBounced
+                          ? 'bg-amber-50/50 p-2.5 rounded-xl border border-amber-200'
+                          : 'bg-white p-3 rounded-xl border border-rose-200 shadow-2xs'
+                      }`}
+                    >
+                      {/* Checkbox and Cheque Information */}
+                      <div className="flex items-start sm:items-center gap-3">
+                        {/* Direct Checkbox */}
+                        <label 
+                          className="flex items-center gap-2 cursor-pointer select-none bg-stone-100 hover:bg-stone-200 p-2 rounded-lg border border-stone-300 transition-colors shrink-0"
+                          title="تیک پاس شدن چک (شاید زودتر پاس بشه و بخوام تیکشو بزنم)"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isCleared}
+                            onChange={() => {
+                              if (onUpdateChequeStatus) {
+                                onUpdateChequeStatus(ch.id, isCleared ? 'pending' : 'cleared');
+                              }
+                            }}
+                            className="w-5 h-5 accent-emerald-600 rounded cursor-pointer transition-all"
+                          />
+                          <span className={`text-xs font-bold ${isCleared ? 'text-emerald-700' : 'text-stone-800'}`}>
+                            {isCleared ? 'پاس شد ✓' : 'تیک پاس شدن چک'}
+                          </span>
+                        </label>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-stone-950 text-xs sm:text-sm">
+                              شماره چک: {ch.chequeNumber || 'ثبت نشده'}
+                            </span>
+                            {ch.chequeBank && (
+                              <span className="text-[11px] text-stone-600 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                                بانک {ch.chequeBank}
+                              </span>
+                            )}
+                            <span className="font-bold font-mono text-purple-900 text-xs sm:text-sm bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                              مبلغ: {formatToman(ch.amount)}
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] text-stone-500 flex items-center gap-3 flex-wrap">
+                            <span>
+                              تاریخ سررسید: <b className="font-mono text-stone-800">{ch.chequeDueDate || ch.date}</b>
+                            </span>
+                            {ch.weightKg && (
+                              <span>
+                                بابت فروش: <b className="text-amber-900 font-mono">{formatWeight(ch.weightKg)}</b> مس
+                              </span>
+                            )}
+                            {isCleared && ch.chequeClearedDate && (
+                              <span className="text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.2 rounded">
+                                وصول و پاس شده در تاریخ: {ch.chequeClearedDate}
+                              </span>
+                            )}
+                            {isPending && (
+                              <span className="text-rose-700 font-semibold bg-rose-100 px-1.5 py-0.2 rounded">
+                                در انتظار وصول ⏳ (خرید مس مسدود)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 justify-end shrink-0">
+                        {isPending && onUpdateChequeStatus && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateChequeStatus(ch.id, 'cleared')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            title="ثبت پاس شدن چک (حساب شخص بلافاصله تسویه و قفل خرید مس باز می‌شود)"
+                          >
+                            <Check className="w-4 h-4" />
+                            <span>چک پاس شد (تیک وصول)</span>
+                          </button>
+                        )}
+                        {isCleared && onUpdateChequeStatus && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateChequeStatus(ch.id, 'pending')}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                            title="برگشت به حالت پاس‌نشده (در انتظار)"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-stone-500" />
+                            <span>تغییر به در انتظار وصول</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -471,8 +644,47 @@ export const PersonDetailModal: React.FC<PersonDetailModalProps> = ({
                           <td className="py-3 px-3 whitespace-nowrap">
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                {getTransactionBadge(tx.type)}
+                                {getTransactionBadge(tx.type, tx)}
                               </div>
+
+                              {/* Cheque details & Quick Tick Action */}
+                              {tx.paymentMethod === 'cheque' && (
+                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] bg-purple-50/70 p-1.5 rounded-lg border border-purple-200/80 mt-0.5">
+                                  <span className="font-mono font-bold text-purple-950">
+                                    چک: {tx.chequeNumber || '—'}
+                                  </span>
+                                  {tx.chequeDueDate && (
+                                    <span className="text-stone-500 font-mono text-[10px]">
+                                      (سررسید: {tx.chequeDueDate})
+                                    </span>
+                                  )}
+                                  {onUpdateChequeStatus && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onUpdateChequeStatus(
+                                          tx.id,
+                                          tx.chequeStatus === 'cleared' ? 'pending' : 'cleared'
+                                        )
+                                      }
+                                      className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs ${
+                                        tx.chequeStatus === 'cleared'
+                                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                                          : 'bg-rose-100 text-rose-800 border border-rose-300 hover:bg-emerald-100 hover:text-emerald-800'
+                                      }`}
+                                      title={
+                                        tx.chequeStatus === 'cleared'
+                                          ? 'چک پاس شده است (برای بازگشت به در انتظار کلیک کنید)'
+                                          : 'تیک پاس شدن چک (شاید زودتر پاس بشه و بخوام تیکشو بزنم)'
+                                      }
+                                    >
+                                      <span>
+                                        {tx.chequeStatus === 'cleared' ? '✓ پاس شد' : '⏳ تیک پاس شدن'}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
 
                               <div>
                                 {tx.approvalStatus === 'topup_step1_pending_bank' && (

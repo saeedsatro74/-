@@ -19,7 +19,8 @@ import {
   Phone,
   BookOpen,
   SlidersHorizontal,
-  ChevronDown
+  ChevronDown,
+  CreditCard
 } from 'lucide-react';
 import { Person, Transaction, MarketPrices } from '../types';
 import {
@@ -254,7 +255,7 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
                   <div style="font-size:10px;color:#64748b;margin-top:2px">${rel.dayOfWeek ? `${rel.dayOfWeek} (${rel.relative})` : ''}</div>
                 </td>
                 <td style="text-align:center">
-                  <span class="badge badge-${tx.type}">${tx.type === 'buy' ? 'خرید مس' : tx.type === 'sell' ? 'فروش مس' : tx.type === 'deposit' ? 'واریز وجه' : tx.type === 'withdrawal' ? 'برداشت وجه' : 'سند اصلاحی'}</span>
+                  <span class="badge badge-${tx.type}">${tx.type === 'buy' ? 'خرید مس' : tx.type === 'sell' ? (tx.paymentMethod === 'cheque' ? `فروش مس (چکی - ${tx.chequeNumber || 'ثبت‌نشده'})` : 'فروش مس (نقدی)') : tx.type === 'deposit' ? 'واریز وجه' : tx.type === 'withdrawal' ? 'برداشت وجه' : 'سند اصلاحی'}</span>
                 </td>
                 <td style="text-align:center">${tx.weightKg ? formatWeight(tx.weightKg) : '-'}</td>
                 <td style="text-align:center">${tx.unitPrice ? formatNumber(tx.unitPrice) : '-'}</td>
@@ -308,7 +309,7 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
     }
   };
 
-  const getTransactionBadge = (type: Transaction['type']) => {
+  const getTransactionBadge = (type: Transaction['type'], tx?: Transaction) => {
     switch (type) {
       case 'deposit':
         return (
@@ -332,10 +333,21 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
           </span>
         );
       case 'sell':
+        const isCheque = tx?.paymentMethod === 'cheque';
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 text-[11px] font-semibold">
-            <TrendingUp className="w-3 h-3 text-blue-700" />
-            <span>فروش مس</span>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+              isCheque
+                ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                : 'bg-blue-100 text-blue-900 border border-blue-200'
+            }`}
+          >
+            {isCheque ? (
+              <CreditCard className="w-3 h-3 text-purple-700" />
+            ) : (
+              <TrendingUp className="w-3 h-3 text-blue-700" />
+            )}
+            <span>{isCheque ? 'فروش مس (چکی)' : 'فروش مس (نقدی)'}</span>
           </span>
         );
       case 'adjustment':
@@ -702,8 +714,13 @@ export const AllCustomersLedgerModal: React.FC<AllCustomersLedgerModalProps> = (
                                   <td className="py-2.5 px-3 whitespace-nowrap">
                                     <div className="flex flex-col gap-1">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        {getTransactionBadge(tx.type)}
+                                        {getTransactionBadge(tx.type, tx)}
                                       </div>
+                                      {tx.paymentMethod === 'cheque' && (
+                                        <div className="text-[10px] text-purple-900 font-mono bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                                          چک: {tx.chequeNumber || '—'} {tx.chequeStatus === 'cleared' ? '✓ پاس شد' : '⏳ در انتظار'}
+                                        </div>
+                                      )}
 
                                       <div>
                                         {(!tx.approvalStatus || tx.approvalStatus === 'approved') && (

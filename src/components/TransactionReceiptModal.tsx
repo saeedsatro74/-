@@ -48,7 +48,7 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
   const getTypeName = () => {
     switch (transaction.type) {
       case 'buy': return 'خرید مس (افزایش انبار / کسر وجه)';
-      case 'sell': return 'فروش مس (تحویل کالا / افزایش وجه)';
+      case 'sell': return transaction.paymentMethod === 'cheque' ? 'فروش مس (تسویه با چک صیادی)' : 'فروش مس (تسویه نقدی)';
       case 'deposit': return 'واریز وجه نقد به حساب';
       case 'withdrawal': return 'برداشت وجه نقد از حساب';
       case 'adjustment': return 'اصلاح و تعدیل موجودی حساب';
@@ -59,7 +59,7 @@ export const TransactionReceiptModal: React.FC<TransactionReceiptModalProps> = (
   const getTypeShortName = () => {
     switch (transaction.type) {
       case 'buy': return 'خرید مس';
-      case 'sell': return 'فروش مس';
+      case 'sell': return transaction.paymentMethod === 'cheque' ? 'فروش مس (چکی)' : 'فروش مس (نقدی)';
       case 'deposit': return 'واریز وجه';
       case 'withdrawal': return 'برداشت وجه';
       case 'adjustment': return 'اصلاح حساب';
@@ -294,11 +294,15 @@ ${transaction.weightKg ? `*وزن:* ${formatWeight(transaction.weightKg)}\n` : '
                 <tr className="bg-white">
                   <td className="py-3 px-3 font-semibold text-stone-900">
                     {getTypeName()}
-                    {transaction.paymentMethod === 'cheque' && (
-                      <span className="block text-[11px] text-stone-500 font-normal mt-0.5">
-                        پرداخت با چک صیادی شماره {transaction.chequeNumber} (سررسید: {transaction.chequeDueDate} - {transaction.chequeBank})
+                    {transaction.paymentMethod === 'cheque' ? (
+                      <span className="block text-[11px] text-purple-800 font-medium mt-1 bg-purple-50 p-1.5 rounded border border-purple-200">
+                        تسویه با چک صیادی شماره {transaction.chequeNumber || '—'} (سررسید: {transaction.chequeDueDate || '—'} - بانک {transaction.chequeBank || '—'}) {transaction.chequeStatus === 'cleared' ? '• وضعیت: پاس شده ✓' : '• وضعیت: در انتظار وصول ⏳'}
                       </span>
-                    )}
+                    ) : transaction.type === 'sell' ? (
+                      <span className="block text-[11px] text-blue-700 font-medium mt-0.5">
+                        نوع تسویه: نقدی (واریز آنی به مانده ریالی کیف پول)
+                      </span>
+                    ) : null}
                   </td>
                   {transaction.weightKg !== undefined && (
                     <td className="py-3 px-3 text-center font-mono font-bold text-amber-900">

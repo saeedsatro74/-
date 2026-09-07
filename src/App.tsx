@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, CompanyBankAccount } from './types';
+import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, CompanyBankAccount, ChequeStatus } from './types';
 import { 
   getStoredPeople, 
   getStoredTransactions, 
@@ -68,6 +68,7 @@ import { FactoryResetModal } from './components/FactoryResetModal';
 import { AccountStatementModal } from './components/AccountStatementModal';
 import { AllCustomersLedgerModal } from './components/AllCustomersLedgerModal';
 import { PendingApprovalsModal } from './components/PendingApprovalsModal';
+import { ChequesManagementModal } from './components/ChequesManagementModal';
 import { TransactionReceiptModal } from './components/TransactionReceiptModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { CompanyBankModal } from './components/CompanyBankModal';
@@ -134,6 +135,7 @@ export default function App() {
 
   // Approvals & Receipts Modal State
   const [isApprovalsModalOpen, setIsApprovalsModalOpen] = useState(false);
+  const [isChequesModalOpen, setIsChequesModalOpen] = useState(false);
   const [receiptModalTx, setReceiptModalTx] = useState<Transaction | null>(null);
 
   // Modal States
@@ -573,6 +575,15 @@ export default function App() {
     return people.find((p) => p.id === statementPersonId) || null;
   }, [statementPersonId, people]);
 
+  // Cheques management: calculate pending cheques count
+  const totalPendingChequesCount = useMemo(() => {
+    return transactions.filter(
+      (t) =>
+        (t.paymentMethod === 'cheque' || t.chequeNumber || t.chequeStatus) &&
+        (t.chequeStatus === 'pending' || (!t.chequeStatus && t.paymentMethod === 'cheque'))
+    ).length;
+  }, [transactions]);
+
   // --- Handlers for Person ---
   const handleOpenAddPerson = () => {
     setEditingPerson(null);
@@ -656,6 +667,35 @@ export default function App() {
     const { recalculatedTransactions } = replayAndCalculatePersonLedger(personId, updatedAllTxs);
     await dbBatchUpsertTransactions(recalculatedTransactions);
     setSyncingState(false);
+  };
+
+  // Cheque Status Update Handler (Passed / Cleared / Pending / Bounced)
+  const handleUpdateChequeStatus = async (txId: string, status: ChequeStatus, clearedDate?: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    const updatedTxs = transactions.map((t) => {
+      if (t.id === txId) {
+        return {
+          ...t,
+          chequeStatus: status,
+          chequeClearedDate: status === 'cleared' ? (clearedDate || getTodayJalaliString()) : undefined,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    });
+    const replayed = await updateTransactions(updatedTxs);
+    if (targetTx) {
+      await syncPersonLedgerToCloud(targetTx.personId, replayed);
+    }
+
+    const person = people.find((p) => p.id === targetTx?.personId);
+    if (status === 'cleared') {
+      showToast(`چک شماره ${targetTx?.chequeNumber || '—'} (${person?.name || 'طرف حساب'}) با موفقیت پاس شد و وضعیت آن به «وصول شده» تغییر یافت.`);
+    } else if (status === 'bounced') {
+      showToast(`چک شماره ${targetTx?.chequeNumber || '—'} به عنوان برگشت خورده علامت‌گذاری شد.`);
+    } else {
+      showToast(`وضعیت چک شماره ${targetTx?.chequeNumber || '—'} به حالت در انتظار وصول تغییر یافت.`);
+    }
   };
 
   // --- Handlers for Deposits & Withdrawals ---
@@ -852,6 +892,8 @@ export default function App() {
     const pSummary = summaries.find((s) => s.person.id === personId);
     const registeredBy = `درخواست مشتری (${clientPerson?.name || ''})`;
 
+    const isExternalSell = data.type === 'sell' && data.saleCategory === 'external';
+
     const newTx: Transaction = {
       id: `tx-${Date.now()}`,
       personId,
@@ -862,7 +904,7 @@ export default function App() {
       weightKg: data.weightKg,
       unitPrice: data.unitPrice,
       notes: data.notes,
-      approvalStatus: data.type === 'deposit' ? 'topup_step1_pending_bank' : 'pending',
+      approvalStatus: (data.type === 'deposit' || isExternalSell) ? 'topup_step1_pending_bank' : 'pending',
       registeredBy,
       receiptNumber: generateReceiptNumber(data.type),
       cashBalanceBefore: pSummary?.cashBalance ?? 0,
@@ -877,8 +919,9 @@ export default function App() {
 
     let msg = 'درخواست شما ثبت گردید و جهت بررسی به مدیرعامل ارسال شد.';
     if (data.type === 'deposit') msg = 'درخواست شارژ حساب ثبت گردید. به زودی شماره حساب اختصاصی توسط مدیرعامل برای شما ارسال می‌شود.';
+    if (isExternalSell) msg = `درخواست فروش به خارج (${formatWeight(data.weightKg || 0)} مس) ثبت شد. به زودی شماره حساب و شبا توسط مدیریت جهت ارائه به خریدار برای شما ارسال می‌گردد.`;
     if (data.type === 'withdrawal') msg = 'درخواست برداشت موجودی ثبت شد. پس از واریز وجه توسط مدیریت، تایید نهایی می‌شود.';
-    if (data.type === 'sell') msg = `درخواست فروش ${formatWeight(data.weightKg || 0)} مس ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
+    if (data.type === 'sell' && !isExternalSell) msg = `درخواست فروش ${formatWeight(data.weightKg || 0)} مس ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
     if (data.type === 'buy') msg = `درخواست خرید ${formatWeight(data.weightKg || 0)} مس ثبت و جهت بررسی برای مدیرعامل ارسال گردید.`;
 
     showToast(msg);
@@ -911,7 +954,12 @@ export default function App() {
 
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
-    showToast(`شماره حساب (${bankDetails.bankName}) جهت واریز وجه برای مشتری ارسال گردید.`);
+    const isExternalSell = targetTx.type === 'sell' && targetTx.saleCategory === 'external';
+    showToast(
+      isExternalSell
+        ? `شماره حساب و شبای (${bankDetails.bankName}) جهت ارائه به خریدار بیرونی برای مشتری ارسال گردید.`
+        : `شماره حساب (${bankDetails.bankName}) جهت واریز وجه برای مشتری ارسال گردید.`
+    );
   };
 
   const handleSubmitTopupReceipt = async (
@@ -938,7 +986,12 @@ export default function App() {
 
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
-    showToast('عکس فیش و کد پیگیری با موفقیت جهت تأیید نهایی برای مدیرعامل ارسال شد.');
+    const isExternalSell = targetTx.type === 'sell' && targetTx.saleCategory === 'external';
+    showToast(
+      isExternalSell
+        ? 'عکس فیش پرداخت خریدار مس با موفقیت جهت بررسی و تأیید نهایی برای مدیرعامل ارسال شد.'
+        : 'عکس فیش و کد پیگیری با موفقیت جهت تأیید نهایی برای مدیرعامل ارسال شد.'
+    );
   };
 
   const handleCancelClientRequest = async (txId: string) => {
@@ -997,7 +1050,12 @@ export default function App() {
     const replayed = await updateTransactions(updatedTxs);
     await syncPersonLedgerToCloud(targetTx.personId, replayed);
     soundManager.playApprovedChime();
-    showToast(`معامله مس (${targetTx.type === 'buy' ? 'خرید' : 'فروش'}) توسط ${approverName} تأیید شد و اثر مالی آن اعمال گردید.`);
+    const isExternalSell = targetTx.type === 'sell' && targetTx.saleCategory === 'external';
+    if (isExternalSell) {
+      showToast(`فروش به خارج (${formatWeight(targetTx.weightKg || 0)} مس) توسط ${approverName} تأیید شد و مبلغ آن به کیف پول ریالی مشتری منظور گردید.`);
+    } else {
+      showToast(`معامله مس (${targetTx.type === 'buy' ? 'خرید' : 'فروش'}) توسط ${approverName} تأیید شد و اثر مالی آن اعمال گردید.`);
+    }
   };
 
   const handleRejectTransaction = async (txId: string, reason: string, approverName: string = 'مدیرعامل') => {
@@ -1389,6 +1447,8 @@ export default function App() {
         onOpenFactoryReset={() => setIsFactoryResetModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
         pendingApprovalsCount={overallStats.pendingApprovalsCount || 0}
+        onOpenChequesModal={() => setIsChequesModalOpen(true)}
+        pendingChequesCount={totalPendingChequesCount}
         onOpenBankModal={() => setIsCompanyBankModalOpen(true)}
         onChangePassword={() => setIsChangePassModalOpen(true)}
         onLogout={handleLogout}
@@ -1487,6 +1547,8 @@ export default function App() {
           onEditPerson={handleOpenEditPerson}
           onOpenStatement={(personId) => setStatementPersonId(personId)}
           onViewReceipt={(tx) => setReceiptModalTx(tx)}
+          onUpdateChequeStatus={handleUpdateChequeStatus}
+          onOpenChequesModal={() => setIsChequesModalOpen(true)}
         />
       )}
 
@@ -1527,6 +1589,16 @@ export default function App() {
         onDeleteTransaction={handlePromptDeleteTransaction}
       />
 
+      {/* Global Cheques Management Modal */}
+      <ChequesManagementModal
+        isOpen={isChequesModalOpen}
+        onClose={() => setIsChequesModalOpen(false)}
+        transactions={transactions}
+        people={people}
+        onUpdateChequeStatus={handleUpdateChequeStatus}
+        onSelectPerson={(personId) => setSelectedPersonId(personId)}
+      />
+
       {/* Official Transaction Receipt Modal */}
       <TransactionReceiptModal
         isOpen={!!receiptModalTx}
@@ -1564,6 +1636,8 @@ export default function App() {
         selectedPersonId={buyCopperState.targetPersonId}
         defaultPricePerKg={marketPrices.buyPrice}
         onOpenDepositForPerson={(pId) => handleOpenDeposit(pId)}
+        transactions={transactions}
+        onUpdateChequeStatus={handleUpdateChequeStatus}
       />
 
       {/* Sell Copper Modal */}

@@ -185,26 +185,31 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const approvedTxList = clientTxList.filter((t) => (t.approvalStatus || 'approved') === 'approved');
   const rejectedTxs = clientTxList.filter((t) => t.approvalStatus === 'rejected');
   
-  // Pending topup workflow transactions
-  const pendingDepositTxs = clientTxList.filter(
-    (t) => t.type === 'deposit' && t.approvalStatus !== 'approved' && t.approvalStatus !== 'rejected'
-  );
+  // Multi-step bank workflow transactions (Deposit OR External Sell)
+  const isBankWorkflowTx = (t: Transaction) =>
+    (t.type === 'deposit' || (t.type === 'sell' && t.saleCategory === 'external')) &&
+    t.approvalStatus !== 'approved' &&
+    t.approvalStatus !== 'rejected';
 
-  const step1Txs = pendingDepositTxs.filter(
+  const pendingBankWorkflowTxs = clientTxList.filter(isBankWorkflowTx);
+
+  const step1Txs = pendingBankWorkflowTxs.filter(
     (t) => t.approvalStatus === 'topup_step1_pending_bank' || (t.approvalStatus === 'pending' && !t.assignedCardNumber)
   );
 
-  const step2Txs = pendingDepositTxs.filter(
+  const step2Txs = pendingBankWorkflowTxs.filter(
     (t) => t.approvalStatus === 'topup_step2_awaiting_receipt' || (t.approvalStatus === 'pending' && !!t.assignedCardNumber)
   );
 
-  const step3Txs = pendingDepositTxs.filter(
+  const step3Txs = pendingBankWorkflowTxs.filter(
     (t) => t.approvalStatus === 'topup_step3_pending_approval'
   );
 
-  const standardPendingTxs = clientTxList.filter((t) => t.type !== 'deposit' && t.approvalStatus === 'pending');
+  const standardPendingTxs = clientTxList.filter(
+    (t) => !isBankWorkflowTx(t) && t.approvalStatus === 'pending'
+  );
 
-  // Currently active topup transaction for 4-step wizard
+  // Currently active topup/bank transaction for 4-step wizard
   const activeTopupTx = step2Txs[0] || step1Txs[0] || step3Txs[0] || null;
 
   const hasPendingDeposit = clientTxList.some(
@@ -473,10 +478,16 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         </div>
                         <div>
                           <div className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 px-2 py-0.5 rounded-md text-[11px] font-black">
-                            <span>مرحله ۳ از ۴: شماره حساب صادر شد</span>
+                            <span>
+                              {tx.type === 'sell'
+                                ? 'مرحله ۳ از ۴: شماره شبا و حساب صادر شد'
+                                : 'مرحله ۳ از ۴: شماره حساب صادر شد'}
+                            </span>
                           </div>
                           <h3 className="font-black text-sm sm:text-base text-emerald-100 mt-0.5">
-                            واریز به حساب جهت شارژ مبلغ {formatToman(tx.amount)}
+                            {tx.type === 'sell'
+                              ? `دریافت وجه از خریدار مس (${formatWeight(tx.weightKg || 0)}) به مبلغ ${formatToman(tx.amount)}`
+                              : `واریز به حساب جهت شارژ مبلغ ${formatToman(tx.amount)}`}
                           </h3>
                         </div>
                       </div>
@@ -492,9 +503,19 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0 animate-bounce"
                       >
                         <Upload className="w-4 h-4" />
-                        <span>بارگذاری عکس فیش بانکی ➔</span>
+                        <span>
+                          {tx.type === 'sell' ? 'بارگذاری فیش پرداخت خریدار ➔' : 'بارگذاری عکس فیش بانکی ➔'}
+                        </span>
                       </button>
                     </div>
+
+                    {tx.type === 'sell' && (
+                      <div className="p-2.5 bg-amber-950/70 border border-amber-500/40 rounded-xl text-xs text-amber-100 leading-relaxed">
+                        📢 <b>راهنما:</b> شماره حساب/شبای زیر را به خریدار مس تحویل داده تا مبلغ{' '}
+                        <b className="text-amber-300 font-mono font-black">{formatToman(tx.amount)}</b>{' '}
+                        (به ازای {formatWeight(tx.weightKg || 0)} مس) را واریز نماید. سپس عکس فیش را آپلود فرمایید.
+                      </div>
+                    )}
 
                     {/* Bank Card Info */}
                     <div className="bg-stone-950/60 backdrop-blur-md p-3.5 sm:p-4 rounded-xl border border-emerald-500/30 space-y-2.5 text-xs">
@@ -556,22 +577,33 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
             )}
 
         {step1Txs.length > 0 && (
-          <div 
-            onClick={() => handleOpenRequest('deposit')}
-            className="p-2.5 bg-amber-50 border border-amber-200 hover:border-amber-300 rounded-lg text-amber-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
-          >
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin-slow" />
-              <div className="text-[11px] space-y-0.5">
-                <span className="font-bold block">مرحله ۲: درخواست شارژ در حال بررسی مدیرعامل</span>
-                <p className="text-amber-800 text-[10px]">
-                  درخواست شارژ مبلغ <b>{formatToman(step1Txs[0].amount)}</b> ثبت شده و در انتظار تعیین حساب است.
-                </p>
+          <div className="space-y-2">
+            {step1Txs.map((tx) => (
+              <div 
+                key={tx.id}
+                onClick={() => handleOpenRequest(tx.type === 'sell' ? 'sell' : 'deposit')}
+                className="p-2.5 bg-amber-50 border border-amber-200 hover:border-amber-300 rounded-lg text-amber-950 flex items-center justify-between gap-3 shadow-xs cursor-pointer transition-all group"
+              >
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin-slow" />
+                  <div className="text-[11px] space-y-0.5">
+                    <span className="font-bold block">
+                      {tx.type === 'sell'
+                        ? 'مرحله ۲: درخواست فروش به خارج در انتظار ارسال شماره شبا/حساب مدیریت'
+                        : 'مرحله ۲: درخواست شارژ در حال بررسی مدیرعامل'}
+                    </span>
+                    <p className="text-amber-800 text-[10px]">
+                      {tx.type === 'sell'
+                        ? `درخواست فروش ${formatWeight(tx.weightKg || 0)} مس به مبلغ ${formatToman(tx.amount)} ثبت گردیده و به زودی شماره شبا جهت واریز خریدار صادر می‌شود.`
+                        : `درخواست شارژ مبلغ ${formatToman(tx.amount)} ثبت شده و در انتظار تعیین حساب است.`}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-amber-900 underline group-hover:text-amber-950 shrink-0">
+                  پیگیری ➔
+                </span>
               </div>
-            </div>
-            <span className="text-[10px] font-bold text-amber-900 underline group-hover:text-amber-950 shrink-0">
-              بررسی ➔
-            </span>
+            ))}
           </div>
         )}
 
@@ -592,20 +624,26 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                         <span>مرحله ۴ از ۴: فیش ارسال شد</span>
                       </div>
                       <h3 className="font-black text-sm sm:text-base text-blue-100 mt-0.5">
-                        فیش واریزی مبلغ {formatToman(tx.amount)} جهت بررسی نهایی ثبت شد
+                        {tx.type === 'sell'
+                          ? `فیش واریزی خریدار مس (${formatWeight(tx.weightKg || 0)}) به مبلغ ${formatToman(tx.amount)} ثبت شد`
+                          : `فیش واریزی مبلغ ${formatToman(tx.amount)} جهت بررسی نهایی ثبت شد`}
                       </h3>
                     </div>
                   </div>
 
                   <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-200 border border-blue-400/40 px-3 py-1 rounded-xl text-xs font-bold shrink-0">
                     <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
-                    <span>در انتظار بررسی و شارژ مدیرعامل</span>
+                    <span>
+                      {tx.type === 'sell' ? 'در انتظار تایید وصول و تسویه مدیریت' : 'در انتظار بررسی و شارژ مدیرعامل'}
+                    </span>
                   </span>
                 </div>
 
                 <div className="bg-slate-950/70 p-3.5 rounded-xl border border-blue-500/30 text-xs space-y-2">
                   <p className="text-stone-300 leading-relaxed">
-                    رسید واریزی بانکی و کد پیگیری <b className="font-mono text-amber-300">{tx.receiptNumber || 'ثبت شده'}</b> با موفقیت دریافت شد. پس از بررسی حساب بانکی توسط مدیرعامل، کیف پول شما به مبلغ <b>{formatToman(tx.amount)}</b> شارژ می‌گردد.
+                    {tx.type === 'sell'
+                      ? `رسید واریزی خریدار مس با کد پیگیری «${tx.receiptNumber || 'ثبت شده'}» ارسال شد. پس از بررسی وصول وجه توسط مدیرعامل، مبلغ ${formatToman(tx.amount)} به کیف پول شما واریز و فروش نهایی می‌گردد.`
+                      : `رسید واریزی بانکی و کد پیگیری «${tx.receiptNumber || 'ثبت شده'}» با موفقیت دریافت شد. پس از بررسی حساب بانکی توسط مدیرعامل، کیف پول شما به مبلغ ${formatToman(tx.amount)} شارژ می‌گردد.`}
                   </p>
 
                   {tx.receiptImageUrl && (
@@ -1054,10 +1092,14 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-sm sm:text-base text-white">
-                    واریز وجه و بارگذاری فیش (مرحله ۳ از ۴)
+                    {uploadReceiptTx.type === 'sell'
+                      ? 'بارگذاری فیش پرداخت خریدار مس (مرحله ۳ از ۴)'
+                      : 'واریز وجه و بارگذاری فیش (مرحله ۳ از ۴)'}
                   </h3>
                   <p className="text-[10px] text-stone-300">
-                    شماره حساب اختصاصی را کپی کرده، وجه را واریز و عکس فیش را آپلود کنید.
+                    {uploadReceiptTx.type === 'sell'
+                      ? 'شماره حساب شرکت را به خریدار داده و پس از واریز، فیش پرداخت را ارسال نمایید.'
+                      : 'شماره حساب اختصاصی را کپی کرده، وجه را واریز و عکس فیش را آپلود کنید.'}
                   </p>
                 </div>
               </div>
@@ -1078,7 +1120,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                 <div className="flex items-center justify-between border-b border-emerald-200/80 pb-1.5">
                   <span className="text-xs font-bold text-emerald-950 flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>شماره حساب اختصاصی صادر شده توسط مدیرعامل</span>
+                    <span>
+                      {uploadReceiptTx.type === 'sell'
+                        ? `شماره حساب شرکت جهت دریافت وجه از خریدار مس (${formatWeight(uploadReceiptTx.weightKg || 0)})`
+                        : 'شماره حساب اختصاصی صادر شده توسط مدیرعامل'}
+                    </span>
                   </span>
                   <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
                     مبلغ: {formatToman(uploadReceiptTx.amount)}
@@ -1211,7 +1257,11 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
                     className="px-6 py-2 text-xs font-extrabold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-md cursor-pointer flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" />
-                    <span>ارسال فیش جهت شارژ نهایی کیف پول (مرحله ۳)</span>
+                    <span>
+                      {uploadReceiptTx.type === 'sell'
+                        ? 'ارسال فیش پرداخت خریدار جهت تأیید فروش مس'
+                        : 'ارسال فیش جهت شارژ نهایی کیف پول (مرحله ۳)'}
+                    </span>
                   </button>
                 </div>
               </form>

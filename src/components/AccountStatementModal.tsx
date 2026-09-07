@@ -227,12 +227,12 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
     window.print();
   };
 
-  const getTxTypeLabel = (type: Transaction['type']) => {
+  const getTxTypeLabel = (type: Transaction['type'], tx?: Transaction) => {
     switch (type) {
       case 'deposit': return 'واریز وجه';
       case 'withdrawal': return 'برداشت وجه';
       case 'buy': return 'خرید مس';
-      case 'sell': return 'فروش مس';
+      case 'sell': return tx?.paymentMethod === 'cheque' ? `فروش مس (چکی${tx.chequeNumber ? ` - ${tx.chequeNumber}` : ''})` : 'فروش مس (نقدی)';
       case 'adjustment': return 'اصلاح حساب';
     }
   };
@@ -549,9 +549,9 @@ export const AccountStatementModal: React.FC<AccountStatementModalProps> = ({
                                   tx.type === 'deposit' ? 'text-emerald-800' :
                                   tx.type === 'withdrawal' ? 'text-rose-800' :
                                   tx.type === 'buy' ? 'text-amber-900' :
-                                  tx.type === 'sell' ? 'text-blue-900' : 'text-stone-800'
+                                  tx.type === 'sell' ? (tx.paymentMethod === 'cheque' ? 'text-purple-900' : 'text-blue-900') : 'text-stone-800'
                                 }>
-                                  {getTxTypeLabel(tx.type)}
+                                  {getTxTypeLabel(tx.type, tx)}
                                 </span>
                               </div>
                             </td>
