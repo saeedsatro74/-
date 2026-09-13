@@ -1,6 +1,8 @@
 {
   "name": "پلتفرم مس واته",
   "description": "پلتفرم معاملاتی، حسابداری و مدیریت کاردکس مس واته",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "camera"
+  ],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

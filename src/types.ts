@@ -232,3 +232,27 @@ export interface ChatMessage {
   imageUrl?: string;
 }
 
+export interface CopperPalletData {
+  companyName: string; // e.g. "ASTERIA COPPER", "صنایع مس باهنر کرمان"
+  productShape: string; // e.g. "LWC Coil", "کلاف بدون درز"
+  alloyStandard: string; // e.g. "SEAMLESS, C12200, ASTM B75"
+  sizeMetric: string; // e.g. "15.87*0.45"
+  sizeInch: string; // e.g. "5/8*0.018"
+  lengthMeters: number; // e.g. 545
+  netWeightPerRoll: number; // e.g. 105.8 kg
+  grossWeightPerRoll: number; // e.g. 119.0 kg
+  numberOfCoils: number; // e.g. 5
+  totalPalletNetWeight: number; // e.g. 531.0 kg
+  totalPalletGrossWeight: number; // e.g. 613.9 kg
+  palletBaseTareWeight: number; // e.g. 35.0 kg
+  temper: string; // e.g. "O60"
+  defectNo: number; // e.g. 1
+  mfgDate: string; // e.g. "2026.02.23"
+  batchNo: string; // e.g. "260222PG21009"
+  palletNo: string; // e.g. "260224PG101"
+  orderNo: string; // e.g. "20260214006"
+  uploadedImageUrl?: string;
+  coilWeights?: { [id: number]: { net: number; gross: number; batchNo: string } };
+}
+
+
