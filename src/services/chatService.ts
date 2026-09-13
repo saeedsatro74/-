@@ -273,7 +273,7 @@ class ChatService {
     return updated;
   }
 
-  public markAsRead(personId: string, role: 'client' | 'admin' | 'staff'): void {
+  public markAsRead(personId: string, role: 'client' | 'admin' | 'staff' | 'warehouse'): void {
     const currentList = getStoredChatMessages();
     let hasChanges = false;
 

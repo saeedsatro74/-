@@ -11,13 +11,88 @@ export type ApprovalStatus =
   | 'approved'                       // مرحله ۴: تأیید نهایی توسط مدیرعامل و شارژ موجودی کیف پول
   | 'rejected';
 
-export type UserRole = 'admin' | 'staff' | 'client';
+export type UserRole = 'admin' | 'staff' | 'client' | 'warehouse';
 
 export interface AuthSession {
   role: UserRole;
   personId?: string; // If role === 'client', personId is set
-  username?: string; // e.g. "مدیرعامل", "مسئول مس", or person name
+  username?: string; // e.g. "مدیرعامل", "مسئول مس", "انباردار مس واته", or person name
   loginAt: string;
+}
+
+export type CopperPackagingType = 'coil' | 'straight' | 'spool'; // کلاف، شاخه، قرقره (رول حذف شد)
+
+export type CoilLengthType = '15m' | '50m'; // کلاف ۱۵ متری و کلاف ۵۰ متری
+
+export type SpoolPackagingType = 'pallet' | 'non_pallet'; // قرقره پالتی (با پالت) و قرقره غیر پالتی (فله/تکی)
+
+export type CopperBrand = 'bahonar' | 'mehrasl' | 'ghaem' | 'babak' | 'asteria' | 'other'; // باهنر، مهراصل، قائم، بابک، استریا، سایر
+
+export type WarehouseEntryType = 'inbound' | 'outbound'; // ورود به انبار (رسید)، خروج از انبار (حواله)
+
+export interface WarehouseCargoItem {
+  id: string;
+  packagingType: CopperPackagingType; // 'coil' | 'straight' | 'spool'
+  brand: string; // 'باهنر' | 'مهراصل' | 'قائم' | 'بابک' | 'استریا' | string
+  thicknessMm: number; // 0.15 to 3.00 mm
+  diameterInch: string; // e.g. "3/16", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8", "1", "1 1/8", ...
+  diameterMm?: number;
+  
+  // Specific properties per packaging type:
+  coilLength?: CoilLengthType; // '15m' | '50m' for coils
+  straightMode?: 'total_weight' | 'count_and_weight'; // for straight branches
+  spoolType?: SpoolPackagingType; // 'pallet' (پالتی) | 'non_pallet' (غیر پالتی / تکی)
+  spoolWeights?: number[]; // Individual spool weights in kg (e.g. [210.5, 230, 245.2])
+  
+  quantity: number; // تعداد (تعداد کلاف، تعداد شاخه، تعداد قرقره)
+  unitWeightKg?: number; // وزن تقریبی یا دقیق هر واحد (کیلوگرم)
+  totalWeightKg: number; // مجموع وزن این قلم به کیلوگرم
+  notes?: string;
+}
+
+export interface WarehouseItem {
+  id: string;
+  entryType: WarehouseEntryType; // 'inbound' (ورود) | 'outbound' (خروج)
+  date: string; // e.g. "1403/12/10"
+  time?: string; // e.g. "14:35:20"
+  referenceDocNumber?: string; // شماره بارنامه، حواله یا قبض انبار
+  targetPartyName?: string; // نام طرف‌حساب (مشتری، خریدار، فروشنده، کارخانه)
+  driverName?: string; // نام راننده
+  vehiclePlate?: string; // شماره پلاک خودرو
+  registeredBy?: string; // e.g. "انباردار مس واته"
+  notes?: string; // توضیحات کلی بارنامه
+  createdAt: string;
+
+  // Consignment items (چندین قلم در یک بارنامه / ماشین)
+  items: WarehouseCargoItem[];
+  totalWeightKg: number; // مجموع وزن کل محموله (کیلوگرم)
+  totalItemsCount: number; // مجموع تعداد اقلام محموله
+
+  // Backward compatibility legacy single item fields:
+  packagingType?: CopperPackagingType;
+  brand?: string;
+  thicknessMm?: number;
+  diameterInch?: string;
+  quantity?: number;
+  unitWeightKg?: number;
+  coilLength?: CoilLengthType;
+  spoolType?: SpoolPackagingType;
+  spoolWeights?: number[];
+}
+
+export interface WarehouseInventorySummary {
+  totalStockKg: number;
+  totalCoils: number;
+  totalCoils15m: number;
+  totalCoils50m: number;
+  totalStraights: number;
+  totalSpools: number;
+  totalSpoolsPallet: number; // تعداد قرقره‌های پالتی
+  totalSpoolsNonPallet: number; // تعداد قرقره‌های غیر پالتی
+  spoolPalletWeightKg: number; // مجموع وزن قرقره‌های پالتی
+  spoolNonPalletWeightKg: number; // مجموع وزن قرقره‌های غیر پالتی
+  brandBreakdown: Record<string, { weightKg: number; count: number }>;
+  packagingBreakdown: Record<CopperPackagingType, { weightKg: number; count: number }>;
 }
 
 export interface Person {

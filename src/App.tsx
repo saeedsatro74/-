@@ -4,7 +4,19 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, TransactionType, PaymentMethod, CompanyBankInfo, CompanyBankAccount, ChequeStatus } from './types';
+import { 
+  Person, 
+  Transaction, 
+  PersonWalletSummary, 
+  OverallStats, 
+  MarketPrices, 
+  TransactionType, 
+  PaymentMethod, 
+  CompanyBankInfo, 
+  CompanyBankAccount, 
+  ChequeStatus,
+  WarehouseItem
+} from './types';
 import { 
   getStoredPeople, 
   getStoredTransactions, 
@@ -19,6 +31,13 @@ import {
   saveMarketPrice,
   saveMarketPrices,
   saveAdminPassword,
+  saveStaffPassword,
+  saveWarehousePassword,
+  getStoredWarehouseItems,
+  saveWarehouseItems,
+  addWarehouseItem,
+  updateWarehouseItem,
+  deleteWarehouseItem,
   saveClientPassword,
   clearAllData,
   calculatePersonSummary, 
@@ -79,6 +98,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { ClientPortalView } from './components/ClientPortalView';
 import { CopperChartView } from './components/CopperChartView';
 import { AiAnalysisView } from './components/AiAnalysisView';
+import { WarehousePortalView } from './components/WarehousePortalView';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString, getCurrentPersianTimeString } from './utils/persianDate';
 import { formatToman, formatWeight } from './utils/formatters';
@@ -126,7 +146,13 @@ export default function App() {
     setIsSyncing(val);
     isSyncingRef.current = val;
   }, []);
-  const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart' | 'ai-analysis'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'copper-chart' | 'ai-analysis' | 'warehouse'>('dashboard');
+
+  // Warehouse Items State
+  const [warehouseItems, setWarehouseItems] = useState<WarehouseItem[]>(() => getStoredWarehouseItems());
+  const [isWarehouseEntryModalOpen, setIsWarehouseEntryModalOpen] = useState(false);
+  const [editingWarehouseItem, setEditingWarehouseItem] = useState<WarehouseItem | null>(null);
+  const [warehouseReceiptModalItem, setWarehouseReceiptModalItem] = useState<WarehouseItem | null>(null);
 
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -1371,6 +1397,29 @@ export default function App() {
     return handleSavePersonPassword(personId, newPass);
   };
 
+  // --- Warehouse Item Management Handlers ---
+  const handleAddWarehouseItem = (item: WarehouseItem) => {
+    const updated = addWarehouseItem(item);
+    setWarehouseItems(updated);
+    showToast(
+      item.entryType === 'inbound'
+        ? `ورود محموله مس (${item.brand} - ${item.packagingType}) با موفقیت ثبت شد.`
+        : `خروج محموله مس (${item.brand} - ${item.packagingType}) با موفقیت ثبت شد.`
+    );
+  };
+
+  const handleUpdateWarehouseItem = (item: WarehouseItem) => {
+    const updated = updateWarehouseItem(item);
+    setWarehouseItems(updated);
+    showToast('مشخصات بار مس با موفقیت ویرایش شد.');
+  };
+
+  const handleDeleteWarehouseItem = (itemId: string) => {
+    const updated = deleteWarehouseItem(itemId);
+    setWarehouseItems(updated);
+    showToast('ردیف انبار با موفقیت حذف شد.');
+  };
+
   if (!isAuthenticated) {
     return <LoginScreen people={people} onLoginSuccess={handleLoginSuccess} />;
   }
@@ -1383,6 +1432,45 @@ export default function App() {
           <p className="text-sm font-semibold text-stone-800">در حال بارگذاری داده‌های سامانه معاملات واته...</p>
           <p className="text-xs text-stone-500">همگام‌سازی اطلاعات حساب‌ها و انبار مس</p>
         </div>
+      </div>
+    );
+  }
+
+  // --- WAREHOUSE KEEPER ROLE PORTAL VIEW ---
+  if (authSession?.role === 'warehouse') {
+    return (
+      <div className="min-h-screen bg-stone-100 text-stone-900 relative flex flex-col selection:bg-blue-600 selection:text-white">
+        <WarehousePortalView
+          items={warehouseItems}
+          onAddItem={handleAddWarehouseItem}
+          onUpdateItem={handleUpdateWarehouseItem}
+          onDeleteItem={handleDeleteWarehouseItem}
+          onLogout={handleLogout}
+          onChangePassword={() => setIsChangePassModalOpen(true)}
+          userRole="warehouse"
+        />
+
+        {/* Change Password Modal for Warehouse Keeper */}
+        {isChangePassModalOpen && (
+          <ChangePasswordModal
+            role="warehouse"
+            onClose={() => setIsChangePassModalOpen(false)}
+            onSaveWarehousePassword={(newPass) => {
+              saveWarehousePassword(newPass);
+              showToast('رمز عبور انباردار با موفقیت بروزرسانی شد.');
+            }}
+          />
+        )}
+
+        {/* Toast Notification Alert */}
+        {toast && (
+          <div className="fixed bottom-5 left-5 z-50 animate-in fade-in slide-in-from-bottom-5 duration-200">
+            <div className="bg-stone-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm border border-stone-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{toast.message}</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1493,6 +1581,7 @@ export default function App() {
         onOpenMarketPrice={() => setIsMarketPriceOpen(true)}
         onOpenCopperChart={() => setActiveView(activeView === 'copper-chart' ? 'dashboard' : 'copper-chart')}
         onOpenAiAnalysis={() => setActiveView(activeView === 'ai-analysis' ? 'dashboard' : 'ai-analysis')}
+        onOpenWarehouse={() => setActiveView(activeView === 'warehouse' ? 'dashboard' : 'warehouse')}
         activeView={activeView}
         onOpenFactoryReset={() => setIsFactoryResetModalOpen(true)}
         onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
@@ -1530,6 +1619,17 @@ export default function App() {
             activeStockPeople={summaries.filter((s) => s.copperStockKg > 0).length}
             companyStock={companyCopperStockKg}
             livePrices={null}
+          />
+        ) : activeView === 'warehouse' ? (
+          <WarehousePortalView
+            items={warehouseItems}
+            onAddItem={handleAddWarehouseItem}
+            onUpdateItem={handleUpdateWarehouseItem}
+            onDeleteItem={handleDeleteWarehouseItem}
+            onBack={() => setActiveView('dashboard')}
+            onLogout={handleLogout}
+            onChangePassword={() => setIsChangePassModalOpen(true)}
+            userRole={authSession?.role || 'admin'}
           />
         ) : (
           <>
@@ -1746,7 +1846,7 @@ export default function App() {
         userRole={authSession?.role || 'admin'}
       />
 
-      {/* Change Password Modal for CEO / Client */}
+      {/* Change Password Modal for CEO / Client / Warehouse */}
       {isChangePassModalOpen && (
         <ChangePasswordModal
           role={authSession?.role || 'admin'}
@@ -1755,6 +1855,14 @@ export default function App() {
           onSaveAdminPassword={(newPass) => {
             saveAdminPassword(newPass);
             showToast('رمز عبور مدیرعامل با موفقیت بروزرسانی شد.');
+          }}
+          onSaveStaffPassword={(newPass) => {
+            saveStaffPassword(newPass);
+            showToast('رمز عبور حسابدار با موفقیت بروزرسانی شد.');
+          }}
+          onSaveWarehousePassword={(newPass) => {
+            saveWarehousePassword(newPass);
+            showToast('رمز عبور انباردار با موفقیت بروزرسانی شد.');
           }}
           onSavePassword={(personId, newPass) => {
             handleSavePersonPassword(personId, newPass);

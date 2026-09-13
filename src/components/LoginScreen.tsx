@@ -11,7 +11,9 @@ import {
   Phone,
   KeyRound,
   CheckCircle2,
-  HelpCircle
+  HelpCircle,
+  Boxes,
+  Layers
 } from 'lucide-react';
 import { Person, AuthSession, UserRole } from '../types';
 import { WATTEH_LOGO, WATTEH_BG } from '../assets/branding';
@@ -19,6 +21,7 @@ import {
   getStoredPeople, 
   getStoredAdminPassword, 
   getStoredStaffPassword, 
+  getStoredWarehousePassword,
   getClientPassword,
   getStoredTransactions,
   getStoredDeletedPersonIds,
@@ -31,13 +34,18 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'management' | 'client'>('client');
+  const [activeTab, setActiveTab] = useState<'management' | 'warehouse' | 'client'>('management');
 
   // Management Form State
   const [mgmtRole, setMgmtRole] = useState<'admin' | 'staff'>('admin');
   const [mgmtPassword, setMgmtPassword] = useState('');
   const [showMgmtPassword, setShowMgmtPassword] = useState(false);
   const [mgmtError, setMgmtError] = useState('');
+
+  // Warehouse Form State
+  const [warehousePassword, setWarehousePassword] = useState('');
+  const [showWarehousePassword, setShowWarehousePassword] = useState(false);
+  const [warehouseError, setWarehouseError] = useState('');
 
   // Client Form State
   const [clientPhone, setClientPhone] = useState('');
@@ -86,6 +94,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
       } else {
         setMgmtError('رمز عبور حسابدار مس نادرست است.');
       }
+    }
+  };
+
+  // Handle Warehouse Login
+  const handleWarehouseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setWarehouseError('');
+
+    const cleanPass = warehousePassword.trim();
+    const storedWarehousePass = getStoredWarehousePassword();
+
+    if (cleanPass === storedWarehousePass) {
+      const session: AuthSession = {
+        role: 'warehouse',
+        username: 'انباردار مس واته',
+        loginAt: new Date().toISOString(),
+      };
+      sessionStorage.setItem('waateh_auth_session', JSON.stringify(session));
+      sessionStorage.setItem('waateh_auth_token', 'authenticated_' + Date.now());
+      localStorage.removeItem('waateh_auth_session');
+      localStorage.removeItem('waateh_auth_token');
+      onLoginSuccess(session);
+    } else {
+      setWarehouseError('رمز عبور نادرست است.');
     }
   };
 
@@ -185,37 +217,50 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
                 referrerPolicy="no-referrer"
               />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">سامانه معاملات مس واته</h1>
-            <p className="text-xs text-blue-200/80 mt-1">مدیریت هوشمند کیف پول، معاملات مس و پورتال مشتریان</p>
+            <h1 className="text-xl font-bold tracking-tight text-white">سامانه بازرگانی و انبار مس واته</h1>
+            <p className="text-xs text-blue-200/80 mt-1">مدیریت معاملات، کیف پول طرف‌حساب‌ها و انبارداری مرکزی مس</p>
           </div>
         </div>
 
         {/* Role Switch Tabs */}
-        <div className="flex border-b border-stone-200 bg-stone-50 p-1.5 gap-1.5">
+        <div className="flex border-b border-stone-200 bg-stone-50 p-1.5 gap-1">
           <button
             type="button"
             onClick={() => setActiveTab('management')}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               activeTab === 'management'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
             <span>ورود مدیریت</span>
           </button>
 
           <button
             type="button"
+            onClick={() => setActiveTab('warehouse')}
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              activeTab === 'warehouse'
+                ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
+                : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5 text-blue-600" />
+            <span>ورود انباردار</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('client')}
-            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               activeTab === 'client'
                 ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
                 : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
             }`}
           >
-            <User className="w-4 h-4 text-emerald-600" />
-            <span>پورتال مشتریان (طرف حساب)</span>
+            <User className="w-3.5 h-3.5 text-emerald-600" />
+            <span>پورتال مشتریان</span>
           </button>
         </div>
 
@@ -269,13 +314,68 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
               type="submit"
               className="w-full py-3 px-4 bg-stone-900 hover:bg-stone-800 active:bg-black text-white font-bold text-sm rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm"
             >
-              <span>ورود به عنوان {mgmtRole === 'admin' ? 'مدیرعامل' : 'حسابدار مس'}</span>
+              <span>ورود به پنل مدیریت کل مس واته</span>
               <ArrowLeft className="w-4 h-4" />
             </button>
           </form>
         )}
 
-        {/* Tab 2: Client Portal Login */}
+        {/* Tab 2: Warehouse Keeper Login */}
+        {activeTab === 'warehouse' && (
+          <form onSubmit={handleWarehouseSubmit} className="p-6 space-y-4">
+            {/* Password Input */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                رمز عبور
+              </label>
+              
+              <div className="relative">
+                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-stone-400">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <input
+                  type={showWarehousePassword ? 'text' : 'password'}
+                  value={warehousePassword}
+                  onChange={(e) => {
+                    setWarehousePassword(e.target.value);
+                    if (warehouseError) setWarehouseError('');
+                  }}
+                  placeholder="رمز عبور..."
+                  autoFocus
+                  className={`w-full pr-10 pl-10 py-3 text-sm rounded-xl border bg-stone-50 text-stone-900 focus:outline-none focus:bg-white transition-all font-mono ${
+                    warehouseError 
+                      ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200' 
+                      : 'border-stone-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowWarehousePassword(!showWarehousePassword)}
+                  className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-stone-400 hover:text-stone-700 cursor-pointer"
+                >
+                  {showWarehousePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {warehouseError && (
+                <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{warehouseError}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+            >
+              <span>ورود به سامانه</span>
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          </form>
+        )}
+
+        {/* Tab 3: Client Portal Login */}
         {activeTab === 'client' && (
           <form onSubmit={handleClientSubmit} className="p-6 space-y-4">
             
@@ -376,3 +476,4 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
     </div>
   );
 };
+

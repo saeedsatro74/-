@@ -1,4 +1,18 @@
-import { Person, Transaction, PersonWalletSummary, OverallStats, MarketPrices, CompanyBankInfo, CompanyBankAccount, ChatMessage } from '../types';
+import { 
+  Person, 
+  Transaction, 
+  PersonWalletSummary, 
+  OverallStats, 
+  MarketPrices, 
+  CompanyBankInfo, 
+  CompanyBankAccount, 
+  ChatMessage,
+  WarehouseItem,
+  WarehouseInventorySummary,
+  CopperPackagingType,
+  CoilLengthType,
+  SpoolPackagingType
+} from '../types';
 
 const STORAGE_KEYS = {
   PEOPLE: 'copper_wallet_people_v2',
@@ -7,12 +21,14 @@ const STORAGE_KEYS = {
   MARKET_PRICES: 'copper_wallet_market_prices_v3',
   ADMIN_PASSWORD: 'waateh_admin_password_v1',
   STAFF_PASSWORD: 'waateh_staff_password_v1',
+  WAREHOUSE_PASSWORD: 'waateh_warehouse_password_v1',
   CLIENT_PASSWORDS: 'waateh_client_passwords_v1',
   COMPANY_BANK_INFO: 'waateh_company_bank_info_v1',
   COMPANY_BANK_ACCOUNTS: 'waateh_company_bank_accounts_v1',
   CHAT_MESSAGES: 'waateh_chat_messages_v1',
   COMPANY_COPPER_STOCK: 'waateh_company_copper_stock_v1',
   DELETED_PEOPLE_IDS: 'copper_wallet_deleted_people_ids_v1',
+  WAREHOUSE_ITEMS: 'waateh_warehouse_items_v1',
 };
 
 export function getStoredDeletedPersonIds(): string[] {
@@ -173,6 +189,7 @@ export function addChatMessage(msg: ChatMessage): ChatMessage[] {
 
 export const DEFAULT_ADMIN_PASSWORD = 'milad@68';
 export const DEFAULT_STAFF_PASSWORD = 'staff123';
+export const DEFAULT_WAREHOUSE_PASSWORD = '1234';
 
 export function getStoredAdminPassword(): string {
   try {
@@ -187,6 +204,22 @@ export function saveAdminPassword(pass: string): void {
     localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, pass.trim());
   } catch (e) {
     console.error('Failed to save admin password', e);
+  }
+}
+
+export function getStoredWarehousePassword(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.WAREHOUSE_PASSWORD) || DEFAULT_WAREHOUSE_PASSWORD;
+  } catch {
+    return DEFAULT_WAREHOUSE_PASSWORD;
+  }
+}
+
+export function saveWarehousePassword(pass: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.WAREHOUSE_PASSWORD, pass.trim());
+  } catch (e) {
+    console.error('Failed to save warehouse password', e);
   }
 }
 
@@ -856,5 +889,378 @@ export function calculateOverallStats(
     marketBuyPrice: buyPrice,
     marketSellPrice: sellPrice,
     pendingApprovalsCount,
+  };
+}
+
+/**
+ * Standard Copper Specs & Brands Constants
+ */
+export const COPPER_BRANDS: string[] = ['باهنر', 'مهراصل', 'قائم', 'بابک', 'استریا', 'سایر'];
+
+export const COPPER_PACKAGING_TYPES: { id: CopperPackagingType; label: string; unitName: string }[] = [
+  { id: 'coil', label: 'کلاف', unitName: 'کلاف' },
+  { id: 'straight', label: 'شاخه', unitName: 'شاخه' },
+  { id: 'spool', label: 'قرقره', unitName: 'قرقره' },
+];
+
+export const COIL_LENGTH_OPTIONS: { id: CoilLengthType; label: string; meters: number }[] = [
+  { id: '15m', label: 'کلاف ۱۵ متری', meters: 15 },
+  { id: '50m', label: 'کلاف ۵۰ متری', meters: 50 },
+];
+
+export const SPOOL_PACKAGING_OPTIONS: { id: SpoolPackagingType; label: string; description: string }[] = [
+  { id: 'pallet', label: 'قرقره پالتی', description: 'دارای پالت استاندارد' },
+  { id: 'non_pallet', label: 'قرقره غیر پالتی (فله/تکی)', description: 'بدون پالت / تک‌قرقره' },
+];
+
+export const COPPER_THICKNESSES: number[] = [
+  0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 
+  0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 
+  1.00, 1.20, 1.50, 2.00, 2.50, 3.00
+];
+
+export const COPPER_DIAMETERS: string[] = [
+  '3/16', '1/4', '5/16', '3/8', '1/2', '5/8', '3/4', '7/8',
+  '1', '1 1/8', '1 1/4', '1 3/8', '1 1/2', '1 5/8', '1 3/4',
+  '2', '2 1/8', '2 3/8', '2 1/2', '2 5/8', '2 7/8', '3', '3 1/8'
+];
+
+export const INITIAL_SAMPLE_WAREHOUSE_ITEMS: WarehouseItem[] = [
+  {
+    id: 'wh-entry-101',
+    entryType: 'inbound',
+    referenceDocNumber: 'BAR-1403-9101',
+    date: '1403/12/10',
+    time: '09:30',
+    targetPartyName: 'مجتمع صنایع مس شهید باهنر',
+    driverName: 'رسول موسوی',
+    vehiclePlate: '۲۴ ع ۵۶۷ ایران ۱۱',
+    registeredBy: 'انباردار مرکزی',
+    notes: 'ورود محموله پالت‌های قرقره ۵ تایی و کلاف باهنر',
+    createdAt: '2025-03-01T09:30:00.000Z',
+    items: [
+      {
+        id: 'wh-sub-101-1',
+        packagingType: 'spool',
+        brand: 'باهنر',
+        diameterInch: '5/8',
+        thicknessMm: 0.75,
+        spoolType: 'pallet',
+        spoolWeights: [225.5, 230.2, 228.0, 234.8, 239.5],
+        quantity: 5,
+        totalWeightKg: 1158.0,
+        unitWeightKg: 231.6,
+        notes: 'پالت شماره ۱ باهنر (۵ قرقره سالم)',
+      },
+      {
+        id: 'wh-sub-101-2',
+        packagingType: 'spool',
+        brand: 'باهنر',
+        diameterInch: '3/4',
+        thicknessMm: 0.80,
+        spoolType: 'pallet',
+        spoolWeights: [229.0, 231.5, 227.4, 233.0, 236.1],
+        quantity: 5,
+        totalWeightKg: 1157.0,
+        unitWeightKg: 231.4,
+        notes: 'پالت شماره ۲ باهنر (۵ قرقره)',
+      },
+      {
+        id: 'wh-sub-101-3',
+        packagingType: 'coil',
+        brand: 'باهنر',
+        diameterInch: '3/8',
+        thicknessMm: 0.70,
+        coilLength: '15m',
+        quantity: 20,
+        totalWeightKg: 68.0,
+        unitWeightKg: 3.4,
+        notes: 'کلاف‌های ۱۵ متری باهنر',
+      },
+    ],
+    totalWeightKg: 2383.0,
+    totalItemsCount: 30,
+  },
+  {
+    id: 'wh-entry-102',
+    entryType: 'inbound',
+    referenceDocNumber: 'BAR-1403-9102',
+    date: '1403/12/11',
+    time: '11:15',
+    targetPartyName: 'شرکت صنایع مس مهراصل',
+    driverName: 'جواد کریمی',
+    vehiclePlate: '۶۸ ج ۹۸۴ ایران ۷۷',
+    registeredBy: 'انباردار مرکزی',
+    notes: 'ورود ۲ پالت قرقره مهراصل و کلاف‌های ۵۰ متری',
+    createdAt: '2025-03-02T11:15:00.000Z',
+    items: [
+      {
+        id: 'wh-sub-102-1',
+        packagingType: 'spool',
+        brand: 'مهراصل',
+        diameterInch: '1/2',
+        thicknessMm: 0.75,
+        spoolType: 'pallet',
+        spoolWeights: [224.0, 226.5, 228.2, 230.1, 232.0],
+        quantity: 5,
+        totalWeightKg: 1140.8,
+        unitWeightKg: 228.16,
+        notes: 'پالت شماره ۳ مهراصل (۵ قرقره)',
+      },
+      {
+        id: 'wh-sub-102-2',
+        packagingType: 'spool',
+        brand: 'مهراصل',
+        diameterInch: '5/8',
+        thicknessMm: 0.80,
+        spoolType: 'pallet',
+        spoolWeights: [238.0, 241.2, 239.5, 242.3, 240.0],
+        quantity: 5,
+        totalWeightKg: 1201.0,
+        unitWeightKg: 240.2,
+        notes: 'پالت شماره ۴ مهراصل (۵ قرقره)',
+      },
+      {
+        id: 'wh-sub-102-3',
+        packagingType: 'coil',
+        brand: 'مهراصل',
+        diameterInch: '1/2',
+        thicknessMm: 0.75,
+        coilLength: '50m',
+        quantity: 8,
+        totalWeightKg: 112.0,
+        unitWeightKg: 14.0,
+        notes: 'کلاف ۵۰ متری مهراصل',
+      },
+      {
+        id: 'wh-sub-102-4',
+        packagingType: 'straight',
+        brand: 'مهراصل',
+        diameterInch: '7/8',
+        thicknessMm: 1.00,
+        quantity: 25,
+        totalWeightKg: 75.0,
+        unitWeightKg: 3.0,
+        notes: 'شاخه ۶ متری مهراصل',
+      }
+    ],
+    totalWeightKg: 2528.8,
+    totalItemsCount: 43,
+  },
+  {
+    id: 'wh-entry-103',
+    entryType: 'inbound',
+    referenceDocNumber: 'BAR-1403-9103',
+    date: '1403/12/12',
+    time: '14:00',
+    targetPartyName: 'مجتمع مس قائم',
+    driverName: 'اصغر رستمی',
+    vehiclePlate: '۱۵ ب ۷۲۹ ایران ۴۴',
+    registeredBy: 'انباردار مرکزی',
+    notes: 'ورود ۱ پالت ۵ تایی قرقره قائم و شاخه‌های مس',
+    createdAt: '2025-03-03T14:00:00.000Z',
+    items: [
+      {
+        id: 'wh-sub-103-1',
+        packagingType: 'spool',
+        brand: 'قائم',
+        diameterInch: '1/4',
+        thicknessMm: 0.65,
+        spoolType: 'pallet',
+        spoolWeights: [220.0, 222.5, 219.0, 224.5, 223.0],
+        quantity: 5,
+        totalWeightKg: 1109.0,
+        unitWeightKg: 221.8,
+        notes: 'پالت شماره ۵ قائم (۵ قرقره)',
+      },
+      {
+        id: 'wh-sub-103-2',
+        packagingType: 'straight',
+        brand: 'قائم',
+        diameterInch: '1 1/8',
+        thicknessMm: 1.20,
+        quantity: 30,
+        totalWeightKg: 150.0,
+        unitWeightKg: 5.0,
+        notes: 'شاخه ۶ متری قائم',
+      }
+    ],
+    totalWeightKg: 1259.0,
+    totalItemsCount: 35,
+  }
+];
+
+export function getStoredWarehouseItems(): WarehouseItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.WAREHOUSE_ITEMS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Migrate legacy single items to multi-item structure if needed
+        return parsed.map((item: any) => {
+          if (!item.items || !Array.isArray(item.items) || item.items.length === 0) {
+            const pkg = (item.packagingType === 'roll' ? 'coil' : item.packagingType) || 'coil';
+            const subItem = {
+              id: item.id + '-sub-1',
+              packagingType: pkg,
+              brand: item.brand || 'باهنر',
+              thicknessMm: Number(item.thicknessMm) || 0.75,
+              diameterInch: item.diameterInch || '5/8',
+              coilLength: item.coilLength || '15m',
+              quantity: Number(item.quantity) || 1,
+              unitWeightKg: Number(item.unitWeightKg) || 0,
+              totalWeightKg: Number(item.totalWeightKg) || 0,
+              spoolWeights: item.spoolWeights || (pkg === 'spool' ? [Number(item.totalWeightKg) || 0] : undefined),
+              notes: item.notes || '',
+            };
+            return {
+              ...item,
+              items: [subItem],
+              totalWeightKg: Number(item.totalWeightKg) || 0,
+              totalItemsCount: Number(item.quantity) || 1,
+            };
+          }
+          return item;
+        });
+      }
+    }
+    // Set initial sample items
+    saveWarehouseItems(INITIAL_SAMPLE_WAREHOUSE_ITEMS);
+    return INITIAL_SAMPLE_WAREHOUSE_ITEMS;
+  } catch (err) {
+    console.warn('Failed to parse warehouse items:', err);
+    return INITIAL_SAMPLE_WAREHOUSE_ITEMS;
+  }
+}
+
+export function saveWarehouseItems(items: WarehouseItem[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(items));
+  } catch (err) {
+    console.error('Failed to save warehouse items:', err);
+  }
+}
+
+export function addWarehouseItem(item: WarehouseItem): WarehouseItem[] {
+  const items = getStoredWarehouseItems();
+  const updated = [item, ...items];
+  saveWarehouseItems(updated);
+  return updated;
+}
+
+export function updateWarehouseItem(updatedItem: WarehouseItem): WarehouseItem[] {
+  const items = getStoredWarehouseItems();
+  const updated = items.map((it) => (it.id === updatedItem.id ? updatedItem : it));
+  saveWarehouseItems(updated);
+  return updated;
+}
+
+export function deleteWarehouseItem(id: string): WarehouseItem[] {
+  const items = getStoredWarehouseItems();
+  const updated = items.filter((it) => it.id !== id);
+  saveWarehouseItems(updated);
+  return updated;
+}
+
+export function calculateWarehouseInventory(items: WarehouseItem[]): WarehouseInventorySummary {
+  let totalStockKg = 0;
+  let totalCoils = 0;
+  let totalCoils15m = 0;
+  let totalCoils50m = 0;
+  let totalStraights = 0;
+  let totalSpools = 0;
+  let totalSpoolsPallet = 0;
+  let totalSpoolsNonPallet = 0;
+  let spoolPalletWeightKg = 0;
+  let spoolNonPalletWeightKg = 0;
+
+  const brandBreakdown: Record<string, { weightKg: number; count: number }> = {};
+  const packagingBreakdown: Record<CopperPackagingType, { weightKg: number; count: number }> = {
+    coil: { weightKg: 0, count: 0 },
+    straight: { weightKg: 0, count: 0 },
+    spool: { weightKg: 0, count: 0 },
+  };
+
+  // Initialize brands
+  for (const b of COPPER_BRANDS) {
+    brandBreakdown[b] = { weightKg: 0, count: 0 };
+  }
+
+  // Calculate net stock (inbound adds, outbound subtracts)
+  for (const consignment of items) {
+    const isIncoming = consignment.entryType === 'inbound';
+    const sign = isIncoming ? 1 : -1;
+
+    const cargoItems = consignment.items && consignment.items.length > 0
+      ? consignment.items
+      : [
+          {
+            packagingType: ((consignment as any).packagingType === 'roll' ? 'coil' : consignment.packagingType) || 'coil',
+            brand: consignment.brand || 'باهنر',
+            coilLength: consignment.coilLength,
+            spoolType: consignment.spoolType,
+            quantity: consignment.quantity || 1,
+            totalWeightKg: consignment.totalWeightKg || 0,
+          }
+        ];
+
+    for (const item of cargoItems) {
+      const weight = (Number(item.totalWeightKg) || 0) * sign;
+      const count = (Number(item.quantity) || 0) * sign;
+
+      totalStockKg += weight;
+
+      if (item.packagingType === 'coil') {
+        totalCoils += count;
+        if (item.coilLength === '50m') {
+          totalCoils50m += count;
+        } else {
+          totalCoils15m += count;
+        }
+      } else if (item.packagingType === 'straight') {
+        totalStraights += count;
+      } else if (item.packagingType === 'spool') {
+        totalSpools += count;
+        if (item.spoolType === 'non_pallet') {
+          totalSpoolsNonPallet += count;
+          spoolNonPalletWeightKg += weight;
+        } else {
+          // Default to pallet if not explicitly non_pallet
+          totalSpoolsPallet += count;
+          spoolPalletWeightKg += weight;
+        }
+      }
+
+      // Packaging breakdown
+      const pkgKey = ((item.packagingType as any) === 'roll' ? 'coil' : item.packagingType) as CopperPackagingType;
+      if (packagingBreakdown[pkgKey]) {
+        packagingBreakdown[pkgKey].weightKg += weight;
+        packagingBreakdown[pkgKey].count += count;
+      }
+
+      // Brand breakdown
+      const brandKey = item.brand || 'سایر';
+      if (!brandBreakdown[brandKey]) {
+        brandBreakdown[brandKey] = { weightKg: 0, count: 0 };
+      }
+      brandBreakdown[brandKey].weightKg += weight;
+      brandBreakdown[brandKey].count += count;
+    }
+  }
+
+  // Clamp negatives to 0 for display
+  return {
+    totalStockKg: Math.max(0, Number(totalStockKg.toFixed(3))),
+    totalCoils: Math.max(0, totalCoils),
+    totalCoils15m: Math.max(0, totalCoils15m),
+    totalCoils50m: Math.max(0, totalCoils50m),
+    totalStraights: Math.max(0, totalStraights),
+    totalSpools: Math.max(0, totalSpools),
+    totalSpoolsPallet: Math.max(0, totalSpoolsPallet),
+    totalSpoolsNonPallet: Math.max(0, totalSpoolsNonPallet),
+    spoolPalletWeightKg: Math.max(0, Number(spoolPalletWeightKg.toFixed(3))),
+    spoolNonPalletWeightKg: Math.max(0, Number(spoolNonPalletWeightKg.toFixed(3))),
+    brandBreakdown,
+    packagingBreakdown,
   };
 }

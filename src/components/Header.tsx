@@ -40,7 +40,8 @@ interface HeaderProps {
   onOpenMarketPrice: () => void;
   onOpenCopperChart: () => void;
   onOpenAiAnalysis?: () => void;
-  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis';
+  onOpenWarehouse?: () => void;
+  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis' | 'warehouse';
   onOpenFactoryReset?: () => void;
   onOpenApprovalsModal?: () => void;
   pendingApprovalsCount?: number;
@@ -57,7 +58,7 @@ interface HeaderProps {
   marketSellPrice?: number;
   isCloudConnected?: boolean;
   isSyncing?: boolean;
-  userRole?: 'admin' | 'staff' | 'client';
+  userRole?: 'admin' | 'staff' | 'client' | 'warehouse';
   currentUsername?: string;
   onOpenEditCompanyStock?: () => void;
   isPersonSelected?: boolean;
@@ -73,6 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMarketPrice,
   onOpenCopperChart,
   onOpenAiAnalysis,
+  onOpenWarehouse,
   activeView = 'dashboard',
   onOpenFactoryReset,
   onOpenApprovalsModal,
@@ -141,10 +143,12 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* Role Badge */}
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
                     userRole === 'admin'
-                      ? 'bg-stone-100 text-stone-900 border-stone-200'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : userRole === 'warehouse'
+                      ? 'bg-blue-100 text-blue-900 border-blue-300'
                       : 'bg-stone-100 text-stone-700 border-stone-200'
                   }`}>
-                    {userRole === 'admin' ? 'مدیرعامل' : 'مشتری'}
+                    {userRole === 'admin' ? 'مدیرعامل' : userRole === 'warehouse' ? 'انباردار' : userRole === 'staff' ? 'حسابدار' : 'مشتری'}
                   </span>                </div>
                 <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-500 mt-0.5">
                   <div className="flex items-center gap-1 text-stone-600 font-medium">
@@ -322,6 +326,24 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Sparkles className="w-4 h-4 text-stone-500" />
                   <span>تحلیل هوشمند جمنای</span>
+                </button>
+              )}
+
+              {/* Physical Warehouse Portal Button */}
+              {onOpenWarehouse && (
+                <button
+                  id="btn-warehouse-portal-header"
+                  type="button"
+                  onClick={onOpenWarehouse}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
+                    activeView === 'warehouse'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                      : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-200'
+                  }`}
+                  title="ورود به سامانه انبارداری فیزیکی مس واته (رول، کلاف، شاخه، قرقره)"
+                >
+                  <Boxes className="w-4 h-4 text-blue-600" />
+                  <span>انبار مس (رول و شاخه)</span>
                 </button>
               )}
 

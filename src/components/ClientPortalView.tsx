@@ -62,7 +62,7 @@ interface ClientPortalViewProps {
   onLogout: () => void;
   onOpenCopperChart?: () => void;
   onOpenAiAnalysis?: () => void;
-  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis';
+  activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis' | 'warehouse';
   onSubmitRequest?: (data: {
     type: TransactionType;
     amount: number;

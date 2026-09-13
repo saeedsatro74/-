@@ -7,20 +7,27 @@ import {
   X, 
   CheckCircle2, 
   AlertCircle, 
-  ShieldCheck,
-  Briefcase,
-  User
+  ShieldCheck, 
+  Boxes,
+  Briefcase, 
+  User 
 } from 'lucide-react';
 import { Person } from '../types';
-import { getStoredAdminPassword, getStoredStaffPassword, getClientPassword } from '../utils/storage';
+import { 
+  getStoredAdminPassword, 
+  getStoredStaffPassword, 
+  getStoredWarehousePassword,
+  getClientPassword 
+} from '../utils/storage';
 
 interface ChangePasswordModalProps {
   person?: Person | null;
-  role?: 'admin' | 'staff' | 'client';
+  role?: 'admin' | 'staff' | 'client' | 'warehouse';
   onClose: () => void;
   onSavePassword?: (personId: string, newPass: string) => void;
   onSaveAdminPassword?: (newPass: string) => void;
   onSaveStaffPassword?: (newPass: string) => void;
+  onSaveWarehousePassword?: (newPass: string) => void;
 }
 
 export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
@@ -30,6 +37,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   onSavePassword,
   onSaveAdminPassword,
   onSaveStaffPassword,
+  onSaveWarehousePassword,
 }) => {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -39,15 +47,20 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [success, setSuccess] = useState(false);
 
   const isRoleAdmin = role === 'admin';
+  const isRoleWarehouse = role === 'warehouse';
   const isRoleClient = role === 'client' || !!person;
 
   // Determine modal header info
   const title = isRoleAdmin 
     ? 'تغییر رمز عبور مدیرعامل' 
+    : isRoleWarehouse
+    ? 'تغییر رمز عبور انباردار مس واته'
     : 'تغییر رمز عبور حساب مشتری';
 
   const subtitle = isRoleAdmin
     ? 'پنل مدیریت کل و کارتابل تأییدات'
+    : isRoleWarehouse
+    ? 'سامانه ورود و خروج اقلام انبار مرکزی'
     : (person?.name || 'پورتال اختصاصی طرف‌حساب');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,6 +76,12 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       const storedAdmin = getStoredAdminPassword();
       if (cleanCurrent !== storedAdmin) {
         setError('رمز عبور فعلی مدیرعامل نادرست است.');
+        return;
+      }
+    } else if (isRoleWarehouse) {
+      const storedWh = getStoredWarehousePassword();
+      if (cleanCurrent !== storedWh) {
+        setError('رمز عبور فعلی انباردار نادرست است.');
         return;
       }
     } else if (person) {
@@ -95,6 +114,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     // Save based on role
     if (isRoleAdmin && onSaveAdminPassword) {
       onSaveAdminPassword(cleanNew);
+    } else if (isRoleWarehouse && onSaveWarehousePassword) {
+      onSaveWarehousePassword(cleanNew);
     } else if (person && onSavePassword) {
       onSavePassword(person.id, cleanNew);
     }
@@ -113,10 +134,12 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-2.5">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white ${
-              isRoleAdmin ? 'bg-amber-600' : 'bg-stone-900'
+              isRoleAdmin ? 'bg-amber-600' : isRoleWarehouse ? 'bg-blue-600' : 'bg-stone-900'
             }`}>
               {isRoleAdmin ? (
                 <ShieldCheck className="w-5 h-5" />
+              ) : isRoleWarehouse ? (
+                <Boxes className="w-5 h-5" />
               ) : (
                 <KeyRound className="w-5 h-5" />
               )}
