@@ -108,6 +108,13 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
   const cameraTarget = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.25, -2));
   const cameraSpherical = useRef({ radius: 6.8, theta: 0.35, phi: Math.PI / 2.6 });
 
+  // Mobile Multi-touch & Pinch-to-Zoom Refs
+  const touchStartDist = useRef<number | null>(null);
+  const touchStartRadius = useRef<number>(6.8);
+  const touchStartMid = useRef<{ x: number; y: number } | null>(null);
+  const isPinchZooming = useRef<boolean>(false);
+  const [isWeightBadgeExpanded, setIsWeightBadgeExpanded] = useState<boolean>(false);
+
   // Modals & Info Cards
   const [showInfoCard, setShowInfoCard] = useState<boolean>(false);
   const [showHdLabelModal, setShowHdLabelModal] = useState<boolean>(false);
@@ -1401,7 +1408,82 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       updateCameraPosition();
     };
 
+    // Native Touch Event Handlers for Mobile Pinch-to-Zoom (Spread = Zoom In, Pinch = Zoom Out)
+    const handleNativeTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        isPinchZooming.current = true;
+        isDraggingCamera.current = false;
+        isPanning.current = false;
+        activeDraggedSpoolId.current = null;
+        isDraggingPallet.current = false;
+
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+        touchStartDist.current = dist;
+        touchStartRadius.current = cameraSpherical.current.radius;
+        touchStartMid.current = {
+          x: (t0.clientX + t1.clientX) / 2,
+          y: (t0.clientY + t1.clientY) / 2
+        };
+      } else if (e.touches.length === 1) {
+        isPinchZooming.current = false;
+        touchStartDist.current = null;
+        touchStartMid.current = null;
+      }
+    };
+
+    const handleNativeTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchStartDist.current !== null && touchStartDist.current > 5) {
+        e.preventDefault(); // Prevent browser native viewport zooming or bounce
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        const currentDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+
+        if (currentDist > 5) {
+          // Pinch to Zoom (Camera app style: spreading fingers zooms IN, pinching fingers zooms OUT)
+          const pinchRatio = touchStartDist.current / currentDist;
+          const newRadius = touchStartRadius.current * pinchRatio;
+          cameraSpherical.current.radius = Math.max(0.35, Math.min(35, newRadius));
+        }
+
+        // Two-Finger Smooth Pan
+        const currentMidX = (t0.clientX + t1.clientX) / 2;
+        const currentMidY = (t0.clientY + t1.clientY) / 2;
+        if (touchStartMid.current && cameraRef.current) {
+          const deltaMidX = currentMidX - touchStartMid.current.x;
+          const deltaMidY = currentMidY - touchStartMid.current.y;
+          touchStartMid.current = { x: currentMidX, y: currentMidY };
+
+          const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraRef.current.quaternion);
+          const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraRef.current.quaternion);
+          const panSpeed = 0.0035 * Math.max(0.7, cameraSpherical.current.radius);
+          cameraTarget.current.addScaledVector(camRight, -deltaMidX * panSpeed);
+          cameraTarget.current.addScaledVector(camUp, deltaMidY * panSpeed);
+          cameraTarget.current.y = Math.max(0.06, cameraTarget.current.y);
+        }
+
+        updateCameraPosition();
+      }
+    };
+
+    const handleNativeTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        isPinchZooming.current = false;
+        touchStartDist.current = null;
+        touchStartMid.current = null;
+      }
+      if (e.touches.length === 1) {
+        previousMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+
     canvasEl.addEventListener('wheel', handleNativeWheel, { passive: false });
+    canvasEl.addEventListener('touchstart', handleNativeTouchStart, { passive: false });
+    canvasEl.addEventListener('touchmove', handleNativeTouchMove, { passive: false });
+    canvasEl.addEventListener('touchend', handleNativeTouchEnd, { passive: false });
+    canvasEl.addEventListener('touchcancel', handleNativeTouchEnd, { passive: false });
 
     // Window Resize Handling
     const handleResize = () => {
@@ -1417,6 +1499,10 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
     return () => {
       canvasEl.removeEventListener('wheel', handleNativeWheel);
+      canvasEl.removeEventListener('touchstart', handleNativeTouchStart);
+      canvasEl.removeEventListener('touchmove', handleNativeTouchMove);
+      canvasEl.removeEventListener('touchend', handleNativeTouchEnd);
+      canvasEl.removeEventListener('touchcancel', handleNativeTouchEnd);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -1523,6 +1609,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
   // Pointer Down (Mouse & Touch)
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isPinchZooming.current) return;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -1576,6 +1663,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
   // Pointer Move
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isPinchZooming.current) return;
     // 1. Dragging separated Spool
     if (activeDraggedSpoolId.current !== null && cameraRef.current && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -1662,6 +1750,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
   // Pointer Up
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isPinchZooming.current) return;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -1794,116 +1883,210 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
           className="w-full h-full block touch-none outline-hidden"
         />
 
-        {/* TOP ACTION BAR */}
-        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-auto">
+        {/* TOP ACTION BAR - RESPONSIVE MOBILE & DESKTOP */}
+        <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-30 pointer-events-auto">
           
-          {/* Exit 3D Viewport Button */}
-          {handleExit && (
-            <button
-              type="button"
-              onClick={handleExit}
-              className="px-4 py-2 bg-stone-900/90 hover:bg-stone-800 text-stone-200 hover:text-white border border-stone-700/80 rounded-2xl text-xs font-black flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer active:scale-95"
-            >
-              <X className="w-4 h-4 text-stone-400" />
-              <span>خروج از فضای ۳ بعدی</span>
-            </button>
-          )}
+          {/* MOBILE TOP BAR (sm:hidden) */}
+          <div className="flex sm:hidden flex-col gap-2">
+            {/* Top row: Exit button + Main Camera Intake Scanner Button */}
+            <div className="flex items-center justify-between gap-2">
+              {handleExit && (
+                <button
+                  type="button"
+                  onClick={handleExit}
+                  className="px-3 py-2 bg-stone-900/95 hover:bg-stone-800 text-stone-300 border border-stone-700/80 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xl backdrop-blur-md cursor-pointer active:scale-95"
+                >
+                  <X className="w-4 h-4 text-stone-400" />
+                  <span>خروج</span>
+                </button>
+              )}
 
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
-            
-            {/* COPPER INTAKE & OCR SCANNER BUTTON */}
-            <button
-              type="button"
-              onClick={() => setShowIntakeModal(true)}
-              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/20"
-              title="ورود مس و اسکن هوشمند عکس لیبل با دوربین یا آپلود"
-            >
-              <Camera className="w-4 h-4 text-stone-950" />
-              <span>ورود مس و اسکن لیبل</span>
-            </button>
-
-            {/* Quick Macro Zoom to Label Button */}
-            <button
-              type="button"
-              onClick={handleZoomToLabel}
-              className="px-3 py-2 bg-blue-600/25 hover:bg-blue-600/40 text-blue-300 border border-blue-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-              title="زوم بسیار نزدیک ۳ بعدی روی برچسب پالت مس"
-            >
-              <ZoomIn className="w-4 h-4 text-blue-400" />
-              <span>زوم برچسب پالت</span>
-            </button>
-
-            {/* Horizontal Eye-Level Floor Spool View Button */}
-            <button
-              type="button"
-              onClick={handleFocusFloorSpool}
-              className="px-3 py-2 bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-              title="دید کاملاً افقی و رو در رو با کلاف مس روی زمین برای خواندن آسان متن برچسب"
-            >
-              <Eye className="w-4 h-4 text-amber-400" />
-              <span>دید افقی کلاف زمین</span>
-            </button>
-
-            {/* HD Label Inspector Modal Button */}
-            <button
-              type="button"
-              onClick={() => setShowHdLabelModal(true)}
-              className="px-3 py-2 bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-              title="مشاهده نسخه باکیفیت برچسب کلاف و برچسب کل پالت"
-            >
-              <FileText className="w-4 h-4 text-purple-300" />
-              <span>برچسب‌های HD</span>
-            </button>
-
-            {/* Unstack Spool */}
-            <button
-              type="button"
-              onClick={handleUnstackTopSpool}
-              disabled={countOnPallet === 0}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                countOnPallet > 0
-                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 active:scale-95'
-                  : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-transparent'
-              }`}
-              title="برداشتن یک قرقره از روی پالت و قرار دادن آن روی زمین سوله"
-            >
-              <MinusCircle className="w-4 h-4 text-amber-400" />
-              <span>برداشتن ۱ کلاف</span>
-            </button>
-
-            {/* Restack Spools */}
-            {countOffPallet > 0 && (
+              {/* PRIMARY PROMINENT COPPER INTAKE & CAMERA OCR BUTTON */}
               <button
                 type="button"
-                onClick={handleRestackAllSpools}
-                className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                title="بازگرداندن همه قرقره‌ها روی پالت و پلمپ مجدد با تفلون"
+                onClick={() => setShowIntakeModal(true)}
+                className="px-4 py-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/30 border border-amber-300"
+                title="ورود مس و اسکن هوشمند عکس برچسب با دوربین"
               >
-                <RotateCcw className="w-4 h-4 text-emerald-400" />
-                <span>بازگرداندن ({countOffPallet})</span>
+                <Camera className="w-4 h-4 text-stone-950" />
+                <span>ورود مس و اسکن لیبل</span>
+              </button>
+            </div>
+
+            {/* Sub-row: Horizontal scrollable tools */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 bg-stone-900/90 border border-stone-800 rounded-xl shadow-xl backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setShowInfoCard(prev => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
+                  showInfoCard ? 'bg-amber-500 text-stone-950 font-black' : 'bg-stone-800 text-stone-300'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>مشخصات پالت</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowHdLabelModal(true)}
+                className="px-2.5 py-1.5 bg-purple-600/25 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-purple-300" />
+                <span>برچسب HD</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleZoomToLabel}
+                className="px-2.5 py-1.5 bg-blue-600/25 text-blue-300 border border-blue-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
+              >
+                <ZoomIn className="w-3.5 h-3.5 text-blue-400" />
+                <span>زوم برچسب</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFocusFloorSpool}
+                className="px-2.5 py-1.5 bg-amber-500/25 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-amber-400" />
+                <span>دید افقی کلاف</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUnstackTopSpool}
+                disabled={countOnPallet === 0}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer ${
+                  countOnPallet > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-stone-800 text-stone-500'
+                }`}
+              >
+                <MinusCircle className="w-3.5 h-3.5" />
+                <span>برداشتن ۱ کلاف</span>
+              </button>
+
+              {countOffPallet > 0 && (
+                <button
+                  type="button"
+                  onClick={handleRestackAllSpools}
+                  className="px-2.5 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>بازگرداندن ({countOffPallet})</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* DESKTOP TOP BAR (hidden sm:flex) */}
+          <div className="hidden sm:flex items-center justify-between">
+            {/* Exit 3D Viewport Button */}
+            {handleExit && (
+              <button
+                type="button"
+                onClick={handleExit}
+                className="px-4 py-2 bg-stone-900/90 hover:bg-stone-800 text-stone-200 hover:text-white border border-stone-700/80 rounded-2xl text-xs font-black flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer active:scale-95"
+              >
+                <X className="w-4 h-4 text-stone-400" />
+                <span>خروج از فضای ۳ بعدی</span>
               </button>
             )}
 
-            {/* Info Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setShowInfoCard(prev => !prev)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                showInfoCard
-                  ? 'bg-amber-500 text-stone-950 font-black shadow-md'
-                  : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700/60'
-              }`}
-              title="مشاهده / بستن مشخصات پالت"
-            >
-              <Package className="w-4 h-4" />
-              <span>مشخصات</span>
-            </button>
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
+              {/* COPPER INTAKE & OCR SCANNER BUTTON */}
+              <button
+                type="button"
+                onClick={() => setShowIntakeModal(true)}
+                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/20 border border-amber-400"
+                title="ورود مس و اسکن هوشمند عکس لیبل با دوربین یا آپلود"
+              >
+                <Camera className="w-4 h-4 text-stone-950" />
+                <span>ورود مس و اسکن لیبل</span>
+              </button>
+
+              {/* Quick Macro Zoom to Label Button */}
+              <button
+                type="button"
+                onClick={handleZoomToLabel}
+                className="px-3 py-2 bg-blue-600/25 hover:bg-blue-600/40 text-blue-300 border border-blue-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
+                title="زوم بسیار نزدیک ۳ بعدی روی برچسب پالت مس"
+              >
+                <ZoomIn className="w-4 h-4 text-blue-400" />
+                <span>زوم برچسب پالت</span>
+              </button>
+
+              {/* Horizontal Eye-Level Floor Spool View Button */}
+              <button
+                type="button"
+                onClick={handleFocusFloorSpool}
+                className="px-3 py-2 bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
+                title="دید کاملاً افقی و رو در رو با کلاف مس روی زمین برای خواندن آسان متن برچسب"
+              >
+                <Eye className="w-4 h-4 text-amber-400" />
+                <span>دید افقی کلاف زمین</span>
+              </button>
+
+              {/* HD Label Inspector Modal Button */}
+              <button
+                type="button"
+                onClick={() => setShowHdLabelModal(true)}
+                className="px-3 py-2 bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
+                title="مشاهده نسخه باکیفیت برچسب کلاف و برچسب کل پالت"
+              >
+                <FileText className="w-4 h-4 text-purple-300" />
+                <span>برچسب‌های HD</span>
+              </button>
+
+              {/* Unstack Spool */}
+              <button
+                type="button"
+                onClick={handleUnstackTopSpool}
+                disabled={countOnPallet === 0}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  countOnPallet > 0
+                    ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 active:scale-95'
+                    : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-transparent'
+                }`}
+                title="برداشتن یک قرقره از روی پالت و قرار دادن آن روی زمین سوله"
+              >
+                <MinusCircle className="w-4 h-4 text-amber-400" />
+                <span>برداشتن ۱ کلاف</span>
+              </button>
+
+              {/* Restack Spools */}
+              {countOffPallet > 0 && (
+                <button
+                  type="button"
+                  onClick={handleRestackAllSpools}
+                  className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  title="بازگرداندن همه قرقره‌ها روی پالت و پلمپ مجدد با تفلون"
+                >
+                  <RotateCcw className="w-4 h-4 text-emerald-400" />
+                  <span>بازگرداندن ({countOffPallet})</span>
+                </button>
+              )}
+
+              {/* Info Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setShowInfoCard(prev => !prev)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  showInfoCard
+                    ? 'bg-amber-500 text-stone-950 font-black shadow-md'
+                    : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700/60'
+                }`}
+                title="مشاهده / بستن مشخصات پالت"
+              >
+                <Package className="w-4 h-4" />
+                <span>مشخصات</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* FLOATING CAMERA CONTROL HUD (ZOOM & PRESETS) */}
-        <div className="absolute top-20 left-4 z-20 pointer-events-auto flex flex-col gap-1.5 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
+        <div className="absolute top-28 sm:top-20 left-3 sm:left-4 z-20 pointer-events-auto flex flex-col gap-1.5 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
           <button
             type="button"
             onClick={handleZoomIn}
@@ -1947,9 +2130,23 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
           </button>
         </div>
 
-        {/* FLOATING REAL-TIME PALLET LIVE WEIGHT HUD BADGE */}
-        <div className="absolute top-20 right-4 z-20 pointer-events-auto max-w-sm">
-          <div className="bg-stone-900/90 border border-amber-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2 text-right">
+        {/* FLOATING REAL-TIME PALLET LIVE WEIGHT HUD BADGE (RESPONSIVE) */}
+        <div className="absolute top-28 sm:top-20 right-3 sm:right-4 z-20 pointer-events-auto max-w-[calc(100vw-5rem)] sm:max-w-sm">
+          {/* Mobile Collapsible Pill */}
+          <div className="sm:hidden">
+            <button
+              type="button"
+              onClick={() => setIsWeightBadgeExpanded(prev => !prev)}
+              className="bg-stone-900/95 border border-amber-500/40 rounded-xl px-2.5 py-1.5 shadow-xl backdrop-blur-md flex items-center gap-1.5 text-right text-xs cursor-pointer active:scale-95"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono font-black text-emerald-400">{currentPalletNetWeight.toFixed(1)} kg</span>
+              <span className="text-[10px] text-stone-400">({countOnPallet} کلاف)</span>
+            </button>
+          </div>
+
+          {/* Detailed Card (Always on desktop, expandable on mobile) */}
+          <div className={`${isWeightBadgeExpanded ? 'block mt-2' : 'hidden sm:block'} bg-stone-900/95 border border-amber-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2 text-right`}>
             <div className="flex items-center justify-between border-b border-stone-800 pb-1.5">
               <span className="text-[11px] font-mono text-stone-400">DYNAMIC PALLET WEIGHT</span>
               <span className="text-xs font-black text-amber-400 flex items-center gap-1">
@@ -1982,6 +2179,17 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
             )}
           </div>
         </div>
+
+        {/* DEDICATED MOBILE FLOATING ACTION BUTTON (ALWAYS ACCESSIBLE WITH RIGHT THUMB) */}
+        <button
+          type="button"
+          onClick={() => setShowIntakeModal(true)}
+          className="sm:hidden absolute bottom-5 right-4 z-40 px-4 py-3 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-black rounded-2xl shadow-2xl shadow-amber-500/50 flex items-center gap-2 active:scale-95 border-2 border-amber-300 pointer-events-auto cursor-pointer"
+          title="ورود مس و اسکن عکس لیبل با دوربین"
+        >
+          <Camera className="w-5 h-5 text-stone-950" />
+          <span className="text-xs font-black">ورود مس و اسکن لیبل</span>
+        </button>
 
         {/* BOTTOM HELPER HINT BAR */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none hidden sm:block">

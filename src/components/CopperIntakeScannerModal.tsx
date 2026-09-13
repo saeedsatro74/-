@@ -465,10 +465,17 @@ export const CopperIntakeScannerModal: React.FC<CopperIntakeScannerModalProps> =
                       </div>
                     )}
                   </div>
-                  <label className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold rounded-xl cursor-pointer transition-all">
-                    انتخاب عکس دیگر
-                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3.5 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 text-xs font-black rounded-xl cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-md">
+                      <Camera className="w-4 h-4" />
+                      <span>عکس دیگر با دوربین</span>
+                      <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                    </label>
+                    <label className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold rounded-xl cursor-pointer active:scale-95">
+                      انتخاب از گالری
+                      <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3">
@@ -476,13 +483,21 @@ export const CopperIntakeScannerModal: React.FC<CopperIntakeScannerModalProps> =
                     <Upload className="w-7 h-7" />
                   </div>
                   <div>
-                    <span className="text-sm font-bold text-stone-200">عکس برچسب روی قرقره مس را بکشید یا انتخاب کنید</span>
-                    <p className="text-xs text-stone-500 mt-1">پشتیبانی از فرمت‌های JPG, PNG, WEBP (حداکثر ۱۰ مگابایت)</p>
+                    <span className="text-sm font-bold text-stone-200">عکس برچسب روی قرقره مس را بگیرید یا انتخاب کنید</span>
+                    <p className="text-xs text-stone-500 mt-1">عکس با دوربین گوشی یا انتخاب فایل JPG, PNG, WEBP</p>
                   </div>
-                  <label className="mt-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 text-xs font-black rounded-xl cursor-pointer shadow-lg transition-all active:scale-95">
-                    انتخاب فایل عکس از سیستم
-                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                  </label>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-2">
+                    <label className="px-4 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 text-xs font-black rounded-xl cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5 border border-amber-300">
+                      <Camera className="w-4 h-4 text-stone-950" />
+                      <span>عکس‌برداری مستقیم با دوربین موبایل</span>
+                      <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                    </label>
+                    <label className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold rounded-xl cursor-pointer shadow-md transition-all active:scale-95 flex items-center gap-1.5 border border-stone-700">
+                      <Upload className="w-4 h-4 text-stone-400" />
+                      <span>انتخاب از گالری / فایل‌ها</span>
+                      <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -495,13 +510,20 @@ export const CopperIntakeScannerModal: React.FC<CopperIntakeScannerModalProps> =
                 <div className="text-center p-6 space-y-3">
                   <AlertCircle className="w-10 h-10 text-rose-400 mx-auto" />
                   <p className="text-xs text-rose-300">{cameraError}</p>
-                  <button
-                    type="button"
-                    onClick={() => startCamera()}
-                    className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-xs font-bold rounded-xl"
-                  >
-                    تلاش مجدد
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startCamera()}
+                      className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-xs font-bold rounded-xl"
+                    >
+                      تلاش مجدد وب‌کم
+                    </button>
+                    <label className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 text-xs font-black rounded-xl cursor-pointer flex items-center gap-1.5">
+                      <Camera className="w-4 h-4" />
+                      <span>عکس با دوربین گوشی</span>
+                      <input type="file" accept="image/*" capture="environment" onChange={handleFileUpload} className="hidden" />
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="w-full max-w-md flex flex-col items-center gap-4">
