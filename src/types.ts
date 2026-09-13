@@ -43,6 +43,8 @@ export interface WarehouseCargoItem {
   straightMode?: 'total_weight' | 'count_and_weight'; // for straight branches
   spoolType?: SpoolPackagingType; // 'pallet' (پالتی) | 'non_pallet' (غیر پالتی / تکی)
   spoolWeights?: number[]; // Individual spool weights in kg (e.g. [210.5, 230, 245.2])
+  spoolCondition?: 'sealed' | 'opened'; // وضعیت قرقره تکی: پلمپ / بسته یا باز شده (در حال مصرف)
+  sourcePalletInfo?: string; // مشخصات پالت مبدا (مثلاً «پالت ۵ تایی باهنر بارنامه BAR-1403-9101»)
   
   quantity: number; // تعداد (تعداد کلاف، تعداد شاخه، تعداد قرقره)
   unitWeightKg?: number; // وزن تقریبی یا دقیق هر واحد (کیلوگرم)

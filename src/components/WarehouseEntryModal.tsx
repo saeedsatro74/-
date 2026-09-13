@@ -165,7 +165,7 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
       setStraightTotalWeight(50);
       setStraightUnitWeight(10);
       setSpoolType('pallet');
-      setSpoolWeightsList(['220', '235']);
+      setSpoolWeightsList(['225.5', '230.2', '228.0', '234.8', '239.5']);
       setCurrentSpoolInput('');
       setItemNotes('');
       setError('');
@@ -177,10 +177,12 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
   // Spool handlers
   const handleSelectSpoolType = (type: SpoolPackagingType) => {
     setSpoolType(type);
-    if (type === 'pallet' && spoolWeightsList.length < 2) {
-      setSpoolWeightsList(['225', '230', '228', '235']);
-    } else if (type === 'non_pallet' && spoolWeightsList.length === 0) {
-      setSpoolWeightsList(['220']);
+    if (type === 'pallet') {
+      if (spoolWeightsList.length !== 5) {
+        setSpoolWeightsList(['225.5', '230.2', '228.0', '234.8', '239.5']);
+      }
+    } else if (type === 'non_pallet' && (spoolWeightsList.length === 0 || spoolWeightsList.length > 2)) {
+      setSpoolWeightsList(['225.0']);
     }
   };
 
@@ -923,7 +925,7 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
                 <div className="bg-stone-900/80 p-3 rounded-xl border border-stone-800 space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-bold text-amber-200">
-                      تعداد قرقره‌های روی این {spoolType === 'pallet' ? 'پالت' : 'قلم'}:
+                      {spoolType === 'pallet' ? 'تعداد قرقره‌های روی این پالت:' : 'تعداد قرقره‌های غیر پالتی / فله:'}
                     </label>
                     <div className="flex items-center gap-1">
                       <button
@@ -948,21 +950,26 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Preset Quick Buttons */}
+                  {/* Preset Quick Buttons (1, 2, 3, 4, 5) - Standard 5 spool pallet */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     <span className="text-[11px] text-stone-400">انتخاب سریع تعداد:</span>
-                    {[2, 3, 4, 6, 8, 10].map((num) => (
+                    {[1, 2, 3, 4, 5].map((num) => (
                       <button
                         key={num}
                         type="button"
                         onClick={() => handleSetSpoolsCount(num)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1 ${
                           spoolWeightsList.length === num
-                            ? 'bg-amber-500/30 text-amber-200 border-amber-400 shadow-xs'
+                            ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md font-black'
                             : 'bg-stone-800/80 text-stone-300 border-stone-700 hover:bg-stone-700'
                         }`}
                       >
-                        {num} قرقره
+                        <span>{num} قرقره</span>
+                        {num === 5 && spoolType === 'pallet' && (
+                          <span className="text-[10px] font-sans px-1.5 py-0.2 rounded bg-amber-950/20 text-stone-950 font-bold">
+                            (پالت ۵ تایی)
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -972,7 +979,7 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-stone-200">
-                      وزن هر قرقره را در کادرهای زیر وارد نمایید:
+                      {spoolType === 'pallet' ? 'وزن هر قرقره روی پالت را وارد نمایید:' : 'وزن هر قرقره فله را وارد نمایید:'}
                     </span>
                     <button
                       type="button"
@@ -1049,7 +1056,9 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center justify-between border-t border-amber-500/20 pt-1.5">
-                        <span className="font-bold font-sans">مجموع وزن کل این پالت / قلم:</span>
+                        <span className="font-bold font-sans">
+                          {spoolType === 'pallet' ? 'مجموع وزن کل این پالت:' : 'مجموع وزن کل قرقره‌های فله / غیر پالتی:'}
+                        </span>
                         <span className="font-black text-sm text-amber-200">
                           {formatNumber(sumWts, 2)} کیلوگرم
                         </span>

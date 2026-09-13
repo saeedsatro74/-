@@ -560,6 +560,14 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
             inventorySummary={inventorySummary}
             onOpenAdd={handleOpenAdd}
             onViewReceipt={handleViewReceipt}
+            onUpdateItem={(item) => {
+              if (onUpdateItem) onUpdateItem(item);
+              else updateWarehouseItem(item);
+            }}
+            onAddItem={(item) => {
+              if (onAddItem) onAddItem(item);
+              else addWarehouseItem(item);
+            }}
           />
         )}
 

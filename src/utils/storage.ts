@@ -1057,21 +1057,36 @@ export const INITIAL_SAMPLE_WAREHOUSE_ITEMS: WarehouseItem[] = [
     driverName: 'اصغر رستمی',
     vehiclePlate: '۱۵ ب ۷۲۹ ایران ۴۴',
     registeredBy: 'انباردار مرکزی',
-    notes: 'ورود ۱ پالت ۵ تایی قرقره قائم و شاخه‌های مس',
+    notes: 'ورود ۱ پالت ۵ تایی قرقره قائم، قرقره ۳/۸ تکی باهنر و شاخه‌های مس',
     createdAt: '2025-03-03T14:00:00.000Z',
     items: [
       {
         id: 'wh-sub-103-1',
         packagingType: 'spool',
         brand: 'قائم',
-        diameterInch: '1/4',
-        thicknessMm: 0.65,
+        diameterInch: '3/8',
+        thicknessMm: 0.70,
         spoolType: 'pallet',
         spoolWeights: [220.0, 222.5, 219.0, 224.5, 223.0],
         quantity: 5,
         totalWeightKg: 1109.0,
         unitWeightKg: 221.8,
         notes: 'پالت شماره ۵ قائم (۵ قرقره)',
+      },
+      {
+        id: 'wh-sub-103-loose',
+        packagingType: 'spool',
+        brand: 'باهنر',
+        diameterInch: '3/8',
+        thicknessMm: 0.75,
+        spoolType: 'non_pallet',
+        spoolCondition: 'sealed',
+        sourcePalletInfo: 'جدا شده از پالت #1 باهنر (بارنامه BAR-1403-9101)',
+        spoolWeights: [228.0],
+        quantity: 1,
+        totalWeightKg: 228.0,
+        unitWeightKg: 228.0,
+        notes: 'قرقره آزاد ۳/۸ پلمپ در انبار',
       },
       {
         id: 'wh-sub-103-2',
@@ -1085,8 +1100,8 @@ export const INITIAL_SAMPLE_WAREHOUSE_ITEMS: WarehouseItem[] = [
         notes: 'شاخه ۶ متری قائم',
       }
     ],
-    totalWeightKg: 1259.0,
-    totalItemsCount: 35,
+    totalWeightKg: 1487.0,
+    totalItemsCount: 36,
   }
 ];
 
