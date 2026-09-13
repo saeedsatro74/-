@@ -23,6 +23,7 @@ interface StatCardsProps {
   onOpenApprovals?: () => void;
   companyCopperStockKg?: number;
   onOpenEditCompanyStock?: () => void;
+  onOpenWarehouse?: () => void;
 }
 
 export const StatCards: React.FC<StatCardsProps> = ({ 
@@ -31,14 +32,14 @@ export const StatCards: React.FC<StatCardsProps> = ({
   onOpenMarketPrice, 
   onOpenApprovals,
   companyCopperStockKg = 0,
-  onOpenEditCompanyStock
+  onOpenEditCompanyStock,
+  onOpenWarehouse
 }) => {
   const isProfitPositive = stats.totalRealizedProfit >= 0;
   const pendingApprovalsCount = stats.pendingApprovalsCount || 0;
 
   return (
     <div className="space-y-3">
-      
       {/* Zero Company Copper Stock Alert Banner (CEO Only) */}
       {userRole === 'admin' && companyCopperStockKg === 0 && onOpenEditCompanyStock && (
         <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-stone-950 rounded-xl p-3.5 sm:p-4 shadow-sm border border-amber-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">

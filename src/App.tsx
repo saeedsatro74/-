@@ -1641,6 +1641,7 @@ export default function App() {
               onOpenApprovals={authSession?.role === 'admin' ? () => setIsApprovalsModalOpen(true) : undefined}
               companyCopperStockKg={companyCopperStockKg}
               onOpenEditCompanyStock={() => setIsCompanyCopperStockModalOpen(true)}
+              onOpenWarehouse={() => setActiveView('warehouse')}
             />
 
             {/* Primary People and Copper Wallets Table */}

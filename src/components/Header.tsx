@@ -329,7 +329,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
-              {/* Physical Warehouse Portal Button */}
+              {/* Warehouse Portal Button */}
               {onOpenWarehouse && (
                 <button
                   id="btn-warehouse-portal-header"
@@ -337,13 +337,13 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={onOpenWarehouse}
                   className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
                     activeView === 'warehouse'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                      : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-200'
+                      ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-md font-black'
+                      : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
                   }`}
-                  title="ورود به سامانه انبارداری فیزیکی مس واته (رول، کلاف، شاخه، قرقره)"
+                  title="ورود به سامانه انبارداری مس (موجودی پالت‌ها، شاخه‌ها، کلاف‌ها و کاردکس)"
                 >
-                  <Boxes className="w-4 h-4 text-blue-600" />
-                  <span>انبار مس (رول و شاخه)</span>
+                  <Boxes className="w-4 h-4 text-amber-600" />
+                  <span>انبارداری مس</span>
                 </button>
               )}
 

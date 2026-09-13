@@ -31,7 +31,9 @@ import {
   ArrowRight,
   Truck,
   Disc,
-  FileText
+  FileText,
+  Warehouse,
+  Move3d
 } from 'lucide-react';
 import { 
   WarehouseItem, 
@@ -53,6 +55,7 @@ import { WATTEH_LOGO } from '../assets/branding';
 import { WarehouseEntryModal } from './WarehouseEntryModal';
 import { WarehouseReceiptModal } from './WarehouseReceiptModal';
 import { WarehouseLiveStockCatalog } from './WarehouseLiveStockCatalog';
+import { WarehouseEmpty3DHangar } from './WarehouseEmpty3DHangar';
 
 interface WarehousePortalViewProps {
   items: WarehouseItem[];
@@ -83,8 +86,9 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
 }) => {
   const { date: liveDate, time: liveTime } = useLivePersianClock();
 
-  // Active warehouse navigation tab
+  // Active warehouse navigation tab (live_stock or transactions)
   const [activeWarehouseTab, setActiveWarehouseTab] = useState<'live_stock' | 'transactions'>('live_stock');
+  const [is3DHangarFullscreenOpen, setIs3DHangarFullscreenOpen] = useState(false);
 
   // Modals state
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
@@ -328,6 +332,20 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
                 </button>
               )}
 
+              {/* 3D Hangar Quick Button: Opens in Fullscreen */}
+              <button
+                type="button"
+                onClick={() => setIs3DHangarFullscreenOpen(true)}
+                className="px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md border bg-stone-900 hover:bg-stone-850 text-amber-300 border-amber-500/50 hover:border-amber-400 active:scale-95 group"
+                title="ورود به فضای سه‌بعدی سوله کارخانه‌ای واته (تمام‌صفحه) - 3D Hangar"
+              >
+                <Warehouse className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>🏢 ورود به سوله ۳ بعدی (تمام صفحه)</span>
+                <span className="bg-amber-400 text-stone-950 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-black shadow-xs">
+                  3D
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleOpenAdd('inbound')}
@@ -514,8 +532,10 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
           </div>
         </div>
 
-        {/* Navigation Tabs between Live Stock vs Consignments Ledger */}
-        <div className="flex items-center gap-2 p-1.5 bg-stone-900/90 rounded-2xl border border-stone-800 w-fit">
+        {/* Navigation Tabs: Live Stock vs Consignments Ledger */}
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-stone-900/90 rounded-2xl border border-stone-800 w-fit">
+          
+          {/* TAB 1: LIVE PHYSICAL STOCK & PALLETS CATALOG */}
           <button
             type="button"
             onClick={() => setActiveWarehouseTab('live_stock')}
@@ -526,7 +546,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
             }`}
           >
             <Boxes className="w-4 h-4" />
-            <span>📦 ویترین موجودی فیزیکی و پالت‌های انبار</span>
+            <span>📦 موجودی زنده پالت‌ها و اقلام مس</span>
             <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
               activeWarehouseTab === 'live_stock' ? 'bg-stone-950/20 text-stone-950 font-black' : 'bg-stone-800 text-amber-300'
             }`}>
@@ -534,6 +554,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
             </span>
           </button>
 
+          {/* TAB 2: CONSIGNMENTS & CARDEX LEDGER */}
           <button
             type="button"
             onClick={() => setActiveWarehouseTab('transactions')}
@@ -544,7 +565,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>📋 دفترچه بارنامه‌ها و اسناد تراکنش (کاردکس)</span>
+            <span>📋 دفترچه بارنامه‌ها و کاردکس تراکنش‌ها</span>
             <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
               activeWarehouseTab === 'transactions' ? 'bg-stone-950/20 text-stone-950 font-black' : 'bg-stone-800 text-stone-300'
             }`}>
@@ -571,7 +592,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
           />
         )}
 
-        {/* TAB 2: CONSIGNMENTS LEDGER / TRANSACTIONS TABLE */}
+        {/* TAB 3: CONSIGNMENTS LEDGER / TRANSACTIONS TABLE */}
         {activeWarehouseTab === 'transactions' && (
         <div className="bg-stone-900/80 rounded-3xl border border-stone-800 shadow-xl overflow-hidden">
           
@@ -908,6 +929,14 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Fullscreen 3D Hangar Viewport */}
+      {is3DHangarFullscreenOpen && (
+        <WarehouseEmpty3DHangar
+          onClose={() => setIs3DHangarFullscreenOpen(false)}
+          onBackTo2D={() => setIs3DHangarFullscreenOpen(false)}
+        />
       )}
 
     </div>
