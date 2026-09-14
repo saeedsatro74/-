@@ -1629,7 +1629,7 @@ export default function App() {
             onBack={() => setActiveView('dashboard')}
             onLogout={handleLogout}
             onChangePassword={() => setIsChangePassModalOpen(true)}
-            userRole={authSession?.role || 'admin'}
+            userRole={(authSession?.role as 'admin' | 'warehouse') || 'admin'}
           />
         ) : (
           <>

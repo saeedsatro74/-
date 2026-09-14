@@ -43,6 +43,7 @@ import {
   generateReceiptNumber 
 } from '../utils/persianDate';
 import { formatNumber, formatWeight } from '../utils/formatters';
+import { CopperCargoVisionScanner, ExtractedCargoVisionData } from './CopperCargoVisionScanner';
 
 interface WarehouseEntryModalProps {
   isOpen: boolean;
@@ -218,6 +219,89 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
 
   const handleClearSpoolWeights = () => {
     setSpoolWeightsList(spoolWeightsList.map(() => ''));
+  };
+
+  // Handle AI Extracted Vision Data for all 3 formats (Spool, Straight, Coil)
+  const handleApplyVisionData = (data: ExtractedCargoVisionData) => {
+    setError('');
+
+    // 1. Update Packaging Type if detected
+    if (data.packagingType) {
+      setItemPackaging(data.packagingType);
+    }
+
+    // 2. Update Brand
+    if (data.brand) {
+      const matchBrand = COPPER_BRANDS.find((b) => b.includes(data.brand!) || data.brand!.includes(b));
+      if (matchBrand) {
+        setItemBrand(matchBrand);
+        setCustomBrand('');
+      } else {
+        setItemBrand('سایر');
+        setCustomBrand(data.brand);
+      }
+    }
+
+    // 3. Update Diameter
+    if (data.diameterInch) {
+      const matchDia = COPPER_DIAMETERS.find((d) => d === data.diameterInch || data.diameterInch!.includes(d));
+      if (matchDia) {
+        setDiameterInch(matchDia);
+        setCustomDiameter('');
+      } else {
+        setDiameterInch('سایر');
+        setCustomDiameter(data.diameterInch);
+      }
+    }
+
+    // 4. Update Thickness
+    if (typeof data.thicknessMm === 'number' && data.thicknessMm > 0) {
+      // match closest standard thickness or use directly
+      const closestThick = COPPER_THICKNESSES.reduce((prev, curr) => 
+        Math.abs(curr - data.thicknessMm!) < Math.abs(prev - data.thicknessMm!) ? curr : prev, 
+        COPPER_THICKNESSES[0]
+      );
+      setThicknessMm(closestThick);
+    }
+
+    // 5. Update Packaging-Specific Fields
+    const targetPkg = data.packagingType || itemPackaging;
+
+    if (targetPkg === 'coil') {
+      if (data.coilLength) setCoilLength(data.coilLength);
+      if (data.quantity) setCoilQuantity(data.quantity);
+      if (data.unitWeightKg && data.unitWeightKg > 0) {
+        setCoilUnitWeight(data.unitWeightKg);
+        setIsCoilManualTotal(false);
+      }
+      if (data.totalWeightKg && data.totalWeightKg > 0) {
+        setCoilManualTotalWeight(data.totalWeightKg);
+        if (!data.unitWeightKg) setIsCoilManualTotal(true);
+      }
+    } else if (targetPkg === 'straight') {
+      if (data.quantity) setStraightQuantity(data.quantity);
+      if (data.totalWeightKg && data.totalWeightKg > 0) {
+        setStraightTotalWeight(data.totalWeightKg);
+        setStraightMode('total_weight');
+      } else if (data.unitWeightKg && data.unitWeightKg > 0) {
+        setStraightUnitWeight(data.unitWeightKg);
+        setStraightMode('count_and_weight');
+      }
+    } else if (targetPkg === 'spool') {
+      if (data.spoolType) setSpoolType(data.spoolType);
+      if (data.spoolWeights && data.spoolWeights.length > 0) {
+        setSpoolWeightsList(data.spoolWeights);
+      } else if (data.quantity && data.unitWeightKg) {
+        setSpoolWeightsList(Array(data.quantity).fill(String(data.unitWeightKg)));
+      }
+    }
+
+    // 6. Update reference number or notes if found on invoice/label
+    if (data.orderNo || data.batchNo) {
+      if (!referenceDocNumber || referenceDocNumber.startsWith('WH-')) {
+        setReferenceDocNumber(data.orderNo || data.batchNo || '');
+      }
+    }
   };
 
   // Add sub-item to consignment list
@@ -564,6 +648,12 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
                 قرقره (وزن مجزا)، کلاف (۱۵ و ۵۰ متری) و شاخه
               </span>
             </div>
+
+            {/* AI Vision Scanner Component for Copper Cargo */}
+            <CopperCargoVisionScanner 
+              currentPackaging={itemPackaging}
+              onApplyExtractedData={handleApplyVisionData} 
+            />
 
             {/* Packaging Type Selector (No Roll!) */}
             <div>

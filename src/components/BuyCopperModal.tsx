@@ -91,6 +91,12 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
     return Math.round(weightKg * pricePerKg);
   }, [weightKg, pricePerKg]);
 
+  // Maximum copper purchasable with available cash balance
+  const maxKgPurchasableWithCash = useMemo(() => {
+    if (pricePerKg <= 0 || availableCash <= 0) return 0;
+    return Math.floor((availableCash / pricePerKg) * 100) / 100;
+  }, [availableCash, pricePerKg]);
+
   const hasInsufficientCash = calculatedTotal > 0 && calculatedTotal > availableCash;
   const cashDeficit = calculatedTotal - availableCash;
 
@@ -282,25 +288,52 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
 
           {/* Person Wallet Status Badge */}
           {selectedPersonSummary && !hasUnclearedCheques && (
-            <div className="grid grid-cols-2 gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
-              <div className="flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-amber-700" />
-                <span className="text-stone-500">موجودی قابل استفاده:</span>
-                <span className="font-bold text-stone-900 font-mono">
-                  {formatNumber(availableCash)} ت
-                </span>
-                {pendingReserved > 0 && (
-                  <span className="text-[10px] text-amber-700 font-normal">
-                    ({formatNumber(pendingReserved)} ت رزرو)
+            <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 text-xs space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-amber-700" />
+                  <span className="text-stone-500">موجودی قابل استفاده:</span>
+                  <span className="font-bold text-stone-900 font-mono">
+                    {formatNumber(availableCash)} ت
                   </span>
-                )}
+                  {pendingReserved > 0 && (
+                    <span className="text-[10px] text-amber-700 font-normal">
+                      ({formatNumber(pendingReserved)} ت رزرو)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 justify-end">
+                  <span className="text-stone-500">موجودی مس فعلی:</span>
+                  <span className="font-bold text-amber-900 font-mono">
+                    {formatWeight(selectedPersonSummary.copperStockKg)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 justify-end">
-                <span className="text-stone-500">موجودی مس فعلی:</span>
-                <span className="font-bold text-amber-900 font-mono">
-                  {formatWeight(selectedPersonSummary.copperStockKg)}
-                </span>
-              </div>
+
+              {/* Purchase capacity based on cash */}
+              {availableCash > 0 && pricePerKg > 0 && (
+                <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-stone-600 flex items-center gap-1">
+                    <Calculator className="w-3.5 h-3.5 text-amber-700" />
+                    <span>حداکثر مس قابل خرید با موجودی ریالی:</span>
+                    <strong className="text-amber-900 font-mono text-xs font-black">
+                      {formatWeight(maxKgPurchasableWithCash)}
+                    </strong>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeightKg(maxKgPurchasableWithCash);
+                      setError('');
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-extrabold text-amber-950 bg-amber-200 hover:bg-amber-300 border border-amber-300 rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                    title="تنظیم مقدار مس به حداکثر موجودی ریالی قابل استفاده"
+                  >
+                    <span>⚡ خرید با کل موجودی</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -328,9 +361,26 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
 
             {/* Weight in Kg */}
             <div>
-              <label htmlFor="buy-weight" className="block text-xs font-bold text-stone-700 mb-1.5">
-                مقدار مس (کیلوگرم) <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="buy-weight" className="block text-xs font-bold text-stone-700">
+                  مقدار مس (کیلوگرم) <span className="text-rose-500">*</span>
+                </label>
+                {maxKgPurchasableWithCash > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeightKg(maxKgPurchasableWithCash);
+                      setError('');
+                    }}
+                    className="text-[10px] text-amber-900 font-bold bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-md border border-amber-300/80 flex items-center gap-1 transition-colors cursor-pointer"
+                    title="محاسبه و درج حداکثر وزن مس قابل خرید با کل موجودی ریالی"
+                  >
+                    <Wallet className="w-3 h-3 text-amber-700" />
+                    <span>خرید بر اساس موجودی ({formatNumber(maxKgPurchasableWithCash, 1)} ک‌گ)</span>
+                  </button>
+                )}
+              </div>
+
               <NumericInput
                 id="buy-weight"
                 value={weightKg}
@@ -343,6 +393,45 @@ export const BuyCopperModal: React.FC<BuyCopperModalProps> = ({
                 allowDecimals={true}
                 required
               />
+
+              {/* Quick Percentage Chips */}
+              {maxKgPurchasableWithCash > 0 && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-stone-500">
+                  <span className="font-semibold text-stone-400">سهم از موجودی:</span>
+                  <button
+                    type="button"
+                    onClick={() => setWeightKg(maxKgPurchasableWithCash)}
+                    className={`px-1.5 py-0.5 rounded font-mono font-bold border transition-colors cursor-pointer ${
+                      Math.abs(weightKg - maxKgPurchasableWithCash) < 0.01
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-stone-100 hover:bg-amber-50 text-stone-700 border-stone-200'
+                    }`}
+                  >
+                    100% (کل)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeightKg(Math.floor((maxKgPurchasableWithCash * 0.75) * 100) / 100)}
+                    className="px-1.5 py-0.5 rounded font-mono bg-stone-100 hover:bg-amber-50 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
+                  >
+                    75%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeightKg(Math.floor((maxKgPurchasableWithCash * 0.50) * 100) / 100)}
+                    className="px-1.5 py-0.5 rounded font-mono bg-stone-100 hover:bg-amber-50 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
+                  >
+                    50%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWeightKg(Math.floor((maxKgPurchasableWithCash * 0.25) * 100) / 100)}
+                    className="px-1.5 py-0.5 rounded font-mono bg-stone-100 hover:bg-amber-50 text-stone-700 border border-stone-200 transition-colors cursor-pointer"
+                  >
+                    25%
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>

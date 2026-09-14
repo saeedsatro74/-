@@ -60,31 +60,43 @@ Make sure that:
 
 Return strictly a valid JSON object matching the requested schema.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            dollarFree: { type: Type.NUMBER, description: "USD/Toman real free market exchange rate in Iran (e.g. 210000)" },
-            lmeUSD: { type: Type.NUMBER, description: "London Metal Exchange (LME) Copper Price in USD per metric ton (e.g. 9350)" }
-          },
-          required: [
-            "dollarFree", "lmeUSD"
-          ]
-        }
-      }
-    });
+    const modelsToTry = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    let scraped: any = null;
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("Empty response from Gemini API");
+    for (const model of modelsToTry) {
+      try {
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                dollarFree: { type: Type.NUMBER, description: "USD/Toman real free market exchange rate in Iran (e.g. 210000)" },
+                lmeUSD: { type: Type.NUMBER, description: "London Metal Exchange (LME) Copper Price in USD per metric ton (e.g. 9350)" }
+              },
+              required: [
+                "dollarFree", "lmeUSD"
+              ]
+            }
+          }
+        });
+
+        const text = response.text;
+        if (text) {
+          scraped = JSON.parse(text);
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Price fetch with ${model} failed:`, err?.message || err);
+      }
     }
 
-    const scraped = JSON.parse(text);
+    if (!scraped) {
+      throw new Error("Could not fetch live prices from Gemini");
+    }
     const dollarFree = Math.round(scraped.dollarFree || 210000);
     const lmeUSD = Math.round(scraped.lmeUSD || 9350);
 
@@ -171,7 +183,7 @@ CRITICAL INSTUCTIONS:
         });
       }
 
-      const modelsToTry = ["gemini-3.7-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro"];
+      const modelsToTry = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"];
       let responseText = "";
       let groundingSources: { title: string, url: string }[] = [];
 
@@ -281,32 +293,44 @@ CRITICAL INSTUCTIONS:
       const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
 
       const prompt = `You are an expert industrial copper quality control and warehouse logistics OCR system.
-Analyze this photo of an industrial copper coil label or pallet master packing list label (e.g., ASTERIA COPPER, Shahid Bahonar Kerman, Kaveh Copper, Babak, etc.).
+Analyze this photo of an industrial copper label, packaging tag, factory bill, or warehouse pallet receipt.
 
-CRITICAL INSTRUCTIONS:
-1. Search the ENTIRE image carefully from top to bottom.
-2. Company / Brand Name: Identify the exact manufacturer (e.g., "ASTERIA COPPER", "صنایع مس شهید باهنر کرمان", "مس کاوه", "بابک مس", etc.).
+This copper cargo can be in ANY of the following 3 formats:
+1. SPOOL / قرقره مس (LWC / Level Wound Coil on wooden or metal spools or pallets with individual roll weights)
+2. STRAIGHT PIPE / شاخه مس (Straight copper tubes/pipes, 6-meter or 3-meter or custom cut, bundled or single)
+3. COIL / کلاف مس (Pancake coils, 15-meter or 50-meter rolls, or continuous coils)
+
+CRITICAL EXTRACTION INSTRUCTIONS:
+1. Identify Packaging Format (productCategory):
+   - "spool" if it is a spool, LWC coil, pallet of rolls, etc.
+   - "straight" if it is straight copper pipes/tubes (شاخه / Straight).
+   - "coil" if it is pancake coil, 15m coil, 50m coil (کلاف / Pancake).
+
+2. Company / Brand Name:
+   - Identify exact manufacturer or brand (e.g. "باهنر" / "Shahid Bahonar", "استریا" / "ASTERIA COPPER", "کاوه" / "Kaveh", "بابک" / "Babak", "قائم" / "Ghaem", "مهر اصل" / "Mehr Asl", "صانع" / "Sane", etc.).
+
 3. Dimensions (Outer Diameter & Wall Thickness):
-   - Metric size in mm (e.g. "15.87*0.45", "9.52*0.75", "12.70*0.80", "19.05*0.60").
-   - Inch size (e.g. "5/8*0.018", "3/8*0.030", "1/2*0.032", "3/4*0.024").
-4. Product Type & Alloy:
-   - Product shape (e.g. "LWC Coil", "Pancake", "Straight").
-   - Alloy standard (e.g. "SEAMLESS, C12200, ASTM B75", "Cu-DHP / C12200").
-   - Temper (e.g. "O60", "Soft / آنیل", "Half Hard").
-5. CRITICAL - THE ROLLS & WEIGHTS TABLE (PACKING LIST / جدول مشخصات و اوزان رول‌ها):
-   - Look carefully at the lower section or bottom half of the image for the table of individual roll weights!
-   - Extract individual roll weights: Net Weight (N.W) and Gross Weight (G.W) for each coil/spool.
-   - Net Weight per roll (N.W in KG, e.g. 105.8).
-   - Gross Weight per roll (G.W in KG, e.g. 119.0).
-   - Total Pallet Net Weight (TOTAL N.W in KG, e.g. 531.0 - do NOT confuse with alloy standard C12200 or batch numbers!).
-   - Total Pallet Gross Weight (TOTAL G.W in KG, e.g. 613.9).
-   - Number of coils/rolls (e.g. 5 or 6).
-   - Pallet tare weight (TARE WT, e.g. 35.0 kg).
-6. Production and Tracking details:
-   - Batch / Lot number (BATCH NO / LOT NO)
-   - Pallet number (PALLET NO)
-   - Order number (ORDER NO / P.O. NO)
-   - Manufacturing / Inspection Date (MFG DATE / DATE)
+   - Fractional inch size: "1/4", "5/16", "3/8", "1/2", "5/8", "3/4", "7/8", "1", "1-1/8", "1-3/8", "1-5/8", "2-1/8", etc.
+   - Metric diameter in mm: e.g. 6.35, 9.52, 12.70, 15.87, 19.05, 22.22, 28.58, etc.
+   - Wall thickness in mm (ضخامت گوشت): e.g. 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 1.00, 1.10, 1.20, etc.
+
+4. Length / Specific packaging type:
+   - For coil: 15m or 50m or length in meters.
+   - For straight: 6m or 3m or length in meters.
+   - For spool: whether it's a pallet or individual spools.
+
+5. Quantity & Weights (اوزان و تعداد):
+   - If there is a table of individual roll weights (جدول اوزان رول‌ها/قرقره‌ها), extract each roll net weight (N.W) and gross weight (G.W).
+   - Total Net Weight in KG (وزن خالص کل).
+   - Total Gross Weight in KG (وزن ناخالص کل).
+   - Average or unit weight per piece/roll in KG.
+   - Total count of items/coils/pipes (تعداد).
+
+6. Logistics & Document tracking:
+   - Batch / Lot No (شماره بچ یا لات)
+   - Order / Invoice / Reference No (شماره سفارش یا بارنامه)
+   - Pallet No (شماره پالت)
+   - Date of production/receipt (تاریخ)
 
 Return strictly a valid JSON object matching the requested schema.`;
 
@@ -322,11 +346,10 @@ Return strictly a valid JSON object matching the requested schema.`;
       };
 
       const modelsToTry = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
         "gemini-3.8-flash",
-        "gemini-flash-latest"
+        "gemini-flash-latest",
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-pro-preview"
       ];
       let extractedData: any = null;
 
@@ -341,24 +364,26 @@ Return strictly a valid JSON object matching the requested schema.`;
               responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                  companyName: { type: Type.STRING, description: "Brand or manufacturer name e.g. ASTERIA COPPER" },
-                  productShape: { type: Type.STRING, description: "Shape e.g. LWC Coil, Pancake, Straight" },
-                  alloyStandard: { type: Type.STRING, description: "Standard e.g. SEAMLESS C12200 ASTM B75" },
-                  sizeMetric: { type: Type.STRING, description: "Metric dimension e.g. 15.87*0.45" },
-                  sizeInch: { type: Type.STRING, description: "Inch dimension e.g. 5/8*0.018" },
-                  lengthMeters: { type: Type.NUMBER, description: "Length in meters per coil" },
-                  netWeightPerRoll: { type: Type.NUMBER, description: "Net weight of single roll in KG" },
-                  grossWeightPerRoll: { type: Type.NUMBER, description: "Gross weight of single roll in KG" },
-                  numberOfCoils: { type: Type.INTEGER, description: "Number of coils on pallet (count of rows in table)" },
-                  totalPalletNetWeight: { type: Type.NUMBER, description: "Total Net Weight of full pallet in KG" },
-                  totalPalletGrossWeight: { type: Type.NUMBER, description: "Total Gross Weight of full pallet in KG" },
+                  productCategory: { type: Type.STRING, description: "Detected packaging: 'spool' or 'straight' or 'coil'" },
+                  companyName: { type: Type.STRING, description: "Brand or manufacturer name e.g. باهنر or ASTERIA COPPER" },
+                  productShape: { type: Type.STRING, description: "Shape description e.g. LWC Coil, Pancake, Straight Pipe" },
+                  alloyStandard: { type: Type.STRING, description: "Standard e.g. Cu-DHP, SEAMLESS C12200 ASTM B75" },
+                  sizeMetric: { type: Type.STRING, description: "Metric dimension e.g. 15.87*0.75" },
+                  sizeInch: { type: Type.STRING, description: "Inch diameter e.g. 5/8, 3/8, 1/2" },
+                  wallThicknessMm: { type: Type.NUMBER, description: "Wall thickness in mm e.g. 0.75, 0.80" },
+                  lengthMeters: { type: Type.NUMBER, description: "Length in meters per coil or pipe" },
+                  coilLengthCategory: { type: Type.STRING, description: "Coil length category: '15m' or '50m' or 'custom'" },
+                  netWeightPerRoll: { type: Type.NUMBER, description: "Net weight of single roll/unit in KG" },
+                  grossWeightPerRoll: { type: Type.NUMBER, description: "Gross weight of single roll/unit in KG" },
+                  numberOfCoils: { type: Type.INTEGER, description: "Number of units/coils/pipes" },
+                  totalPalletNetWeight: { type: Type.NUMBER, description: "Total Net Weight in KG" },
+                  totalPalletGrossWeight: { type: Type.NUMBER, description: "Total Gross Weight in KG" },
                   palletBaseTareWeight: { type: Type.NUMBER, description: "Tare weight of wooden pallet base in KG" },
-                  temper: { type: Type.STRING, description: "Temper e.g. O60" },
-                  defectNo: { type: Type.INTEGER, description: "Defect count" },
-                  mfgDate: { type: Type.STRING, description: "Manufacturing date" },
-                  batchNo: { type: Type.STRING, description: "Batch number" },
+                  temper: { type: Type.STRING, description: "Temper e.g. Soft, O60, Hard" },
+                  mfgDate: { type: Type.STRING, description: "Manufacturing or receipt date" },
+                  batchNo: { type: Type.STRING, description: "Batch / Lot number" },
                   palletNo: { type: Type.STRING, description: "Pallet number" },
-                  orderNo: { type: Type.STRING, description: "Order number" },
+                  orderNo: { type: Type.STRING, description: "Order / Invoice / Reference number" },
                   individualCoils: {
                     type: Type.ARRAY,
                     description: "List of individual coil weights parsed from table",
@@ -373,7 +398,7 @@ Return strictly a valid JSON object matching the requested schema.`;
                   }
                 },
                 required: [
-                  "companyName", "sizeMetric", "netWeightPerRoll", "totalPalletNetWeight", "numberOfCoils"
+                  "companyName", "sizeMetric", "productCategory"
                 ]
               }
             }
