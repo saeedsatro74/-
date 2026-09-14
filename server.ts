@@ -281,26 +281,32 @@ CRITICAL INSTUCTIONS:
       const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
 
       const prompt = `You are an expert industrial copper quality control and warehouse logistics OCR system.
-Analyze this photo of an industrial copper coil label or pallet master packing list label (e.g., Asteria, Shahid Bahonar Kerman, Kaveh Copper, Babak, etc.).
+Analyze this photo of an industrial copper coil label or pallet master packing list label (e.g., ASTERIA COPPER, Shahid Bahonar Kerman, Kaveh Copper, Babak, etc.).
 
-Extract all specification values accurately from the label:
-1. Company or Brand Name (e.g. "ASTERIA", "صنایع مس باهنر", "KAVEH", etc.)
-2. Product Shape / Type (e.g. "Coil / LWC", "Pancake", "Straight", "Capillary", etc.)
-3. Alloy Standard (e.g. "SEAMLESS, C12200, ASTM B75", "Cu-DHP / C12200")
-4. Size in metric (e.g. "15.87*0.45", "9.52*0.75", "12.70*0.80")
-5. Size in inch (e.g. "5/8*0.018", "3/8*0.030", "1/2*0.032")
-6. Length in meters (e.g. 545, 600)
-7. Net Weight per roll/coil in KG (e.g. 105.8)
-8. Gross Weight per roll/coil in KG (e.g. 119.0)
-9. Number of coils/rolls on pallet (e.g. 5)
-10. Total Pallet Net Weight in KG (e.g. 531.0 - if not specified on single roll label, calculate: netWeightPerRoll * numberOfCoils)
-11. Total Pallet Gross Weight in KG (e.g. 613.9 - if not specified, calculate: grossWeightPerRoll * numberOfCoils + 35 for pallet)
-12. Temper (e.g. "O60", "Soft / آنیل", "Half Hard")
-13. Defect No (e.g. 1 or 0)
-14. Manufacturing Date (e.g. "2026.02.23" or Persian date)
-15. Batch Number / No.
-16. Pallet Number / No.
-17. Order Number / No.
+CRITICAL INSTRUCTIONS:
+1. Search the ENTIRE image carefully from top to bottom.
+2. Company / Brand Name: Identify the exact manufacturer (e.g., "ASTERIA COPPER", "صنایع مس شهید باهنر کرمان", "مس کاوه", "بابک مس", etc.).
+3. Dimensions (Outer Diameter & Wall Thickness):
+   - Metric size in mm (e.g. "15.87*0.45", "9.52*0.75", "12.70*0.80", "19.05*0.60").
+   - Inch size (e.g. "5/8*0.018", "3/8*0.030", "1/2*0.032", "3/4*0.024").
+4. Product Type & Alloy:
+   - Product shape (e.g. "LWC Coil", "Pancake", "Straight").
+   - Alloy standard (e.g. "SEAMLESS, C12200, ASTM B75", "Cu-DHP / C12200").
+   - Temper (e.g. "O60", "Soft / آنیل", "Half Hard").
+5. CRITICAL - THE ROLLS & WEIGHTS TABLE (PACKING LIST / جدول مشخصات و اوزان رول‌ها):
+   - Look carefully at the lower section or bottom half of the image for the table of individual roll weights!
+   - Extract individual roll weights: Net Weight (N.W) and Gross Weight (G.W) for each coil/spool.
+   - Net Weight per roll (N.W in KG, e.g. 105.8).
+   - Gross Weight per roll (G.W in KG, e.g. 119.0).
+   - Total Pallet Net Weight (TOTAL N.W in KG, e.g. 531.0 - do NOT confuse with alloy standard C12200 or batch numbers!).
+   - Total Pallet Gross Weight (TOTAL G.W in KG, e.g. 613.9).
+   - Number of coils/rolls (e.g. 5 or 6).
+   - Pallet tare weight (TARE WT, e.g. 35.0 kg).
+6. Production and Tracking details:
+   - Batch / Lot number (BATCH NO / LOT NO)
+   - Pallet number (PALLET NO)
+   - Order number (ORDER NO / P.O. NO)
+   - Manufacturing / Inspection Date (MFG DATE / DATE)
 
 Return strictly a valid JSON object matching the requested schema.`;
 
@@ -315,7 +321,13 @@ Return strictly a valid JSON object matching the requested schema.`;
         text: prompt,
       };
 
-      const modelsToTry = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
+      const modelsToTry = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-3.8-flash",
+        "gemini-flash-latest"
+      ];
       let extractedData: any = null;
 
       for (const model of modelsToTry) {
@@ -329,23 +341,36 @@ Return strictly a valid JSON object matching the requested schema.`;
               responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                  companyName: { type: Type.STRING, description: "Brand or manufacturer name" },
-                  productShape: { type: Type.STRING, description: "Shape e.g. Coil/LWC, Pancake, Straight" },
+                  companyName: { type: Type.STRING, description: "Brand or manufacturer name e.g. ASTERIA COPPER" },
+                  productShape: { type: Type.STRING, description: "Shape e.g. LWC Coil, Pancake, Straight" },
                   alloyStandard: { type: Type.STRING, description: "Standard e.g. SEAMLESS C12200 ASTM B75" },
                   sizeMetric: { type: Type.STRING, description: "Metric dimension e.g. 15.87*0.45" },
                   sizeInch: { type: Type.STRING, description: "Inch dimension e.g. 5/8*0.018" },
                   lengthMeters: { type: Type.NUMBER, description: "Length in meters per coil" },
                   netWeightPerRoll: { type: Type.NUMBER, description: "Net weight of single roll in KG" },
                   grossWeightPerRoll: { type: Type.NUMBER, description: "Gross weight of single roll in KG" },
-                  numberOfCoils: { type: Type.INTEGER, description: "Number of coils on pallet" },
+                  numberOfCoils: { type: Type.INTEGER, description: "Number of coils on pallet (count of rows in table)" },
                   totalPalletNetWeight: { type: Type.NUMBER, description: "Total Net Weight of full pallet in KG" },
                   totalPalletGrossWeight: { type: Type.NUMBER, description: "Total Gross Weight of full pallet in KG" },
+                  palletBaseTareWeight: { type: Type.NUMBER, description: "Tare weight of wooden pallet base in KG" },
                   temper: { type: Type.STRING, description: "Temper e.g. O60" },
                   defectNo: { type: Type.INTEGER, description: "Defect count" },
                   mfgDate: { type: Type.STRING, description: "Manufacturing date" },
                   batchNo: { type: Type.STRING, description: "Batch number" },
                   palletNo: { type: Type.STRING, description: "Pallet number" },
                   orderNo: { type: Type.STRING, description: "Order number" },
+                  individualCoils: {
+                    type: Type.ARRAY,
+                    description: "List of individual coil weights parsed from table",
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        rollNumber: { type: Type.INTEGER },
+                        net: { type: Type.NUMBER },
+                        gross: { type: Type.NUMBER },
+                      }
+                    }
+                  }
                 },
                 required: [
                   "companyName", "sizeMetric", "netWeightPerRoll", "totalPalletNetWeight", "numberOfCoils"
@@ -365,26 +390,41 @@ Return strictly a valid JSON object matching the requested schema.`;
       }
 
       if (!extractedData) {
-        // Fallback intelligent estimation if AI Vision fails
-        extractedData = {
-          companyName: "ASTERIA COPPER",
-          productShape: "LWC Coil",
-          alloyStandard: "SEAMLESS, C12200, ASTM B75",
-          sizeMetric: "15.87*0.45",
-          sizeInch: "5/8*0.018",
-          lengthMeters: 545,
-          netWeightPerRoll: 105.8,
-          grossWeightPerRoll: 119.0,
-          numberOfCoils: 5,
-          totalPalletNetWeight: 531.0,
-          totalPalletGrossWeight: 613.9,
-          temper: "O60",
-          defectNo: 1,
-          mfgDate: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
-          batchNo: `260222PG${Math.floor(10000 + Math.random() * 90000)}`,
-          palletNo: `260224PG${Math.floor(100 + Math.random() * 900)}`,
-          orderNo: `2026021400${Math.floor(1 + Math.random() * 9)}`,
-        };
+        // Return clear notice so client can use client-side Tesseract OCR on the actual image
+        return res.json({
+          success: false,
+          aiExhausted: true,
+          error: 'سهمیه سرویس هوش مصنوعی ابری پر است؛ متن‌خوان داخلی مرورگر (Tesseract) متن تصویر شما را استخراج می‌کند.',
+          uploadedImage: `data:${mimeType};base64,${cleanBase64}`
+        });
+      }
+
+      // Process individual coils table if present
+      if (Array.isArray(extractedData.individualCoils) && extractedData.individualCoils.length > 0) {
+        const coilWeightsMap: Record<number, { net: number; gross: number; batchNo: string }> = {};
+        let sumNet = 0;
+        let sumGross = 0;
+        extractedData.individualCoils.forEach((c: any, idx: number) => {
+          const net = Number(c.net) || (extractedData.netWeightPerRoll || 105.8);
+          const gross = Number(c.gross) || (net + 13.2);
+          sumNet += net;
+          sumGross += gross;
+          coilWeightsMap[idx] = {
+            net: Number(net.toFixed(1)),
+            gross: Number(gross.toFixed(1)),
+            batchNo: `${extractedData.batchNo || 'LOT'}-${idx + 1}`
+          };
+        });
+        extractedData.coilWeights = coilWeightsMap;
+        if (!extractedData.totalPalletNetWeight && sumNet > 0) {
+          extractedData.totalPalletNetWeight = Number(sumNet.toFixed(1));
+        }
+        if (!extractedData.totalPalletGrossWeight && sumGross > 0) {
+          extractedData.totalPalletGrossWeight = Number((sumGross + 35).toFixed(1));
+        }
+        if (!extractedData.numberOfCoils) {
+          extractedData.numberOfCoils = extractedData.individualCoils.length;
+        }
       }
 
       // Ensure pallet weights are logically consistent

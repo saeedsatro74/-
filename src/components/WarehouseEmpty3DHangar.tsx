@@ -16,14 +16,231 @@ import {
   Sliders,
   CheckCircle2,
   AlertTriangle,
-  Eye
+  Eye,
+  Boxes,
+  ArrowRight,
+  Warehouse,
+  Building2,
+  Factory,
+  Lock,
+  Unlock,
+  Navigation
 } from 'lucide-react';
 import { CopperPalletData } from '../types';
 import { CopperIntakeScannerModal, PRESET_FACTORIES } from './CopperIntakeScannerModal';
 
+export interface CopperBrandZone {
+  id: 'bahonar' | 'asteria' | 'ghaem' | 'babak' | 'mehrasl';
+  nameFa: string;
+  nameEn: string;
+  tagline: string;
+  zoneCode: string;
+  color: string;
+  secondaryColor: string;
+  accentBg: string;
+  boardX: number;
+  boardY: number;
+  boardZ: number;
+  floorBayX: number;
+  floorBayZ: number;
+  standard: string;
+  alloy: string;
+  defaultData: CopperPalletData;
+}
+
+export const BRAND_ZONES: CopperBrandZone[] = [
+  {
+    id: 'bahonar',
+    nameFa: 'صنایع مس شهید باهنر',
+    nameEn: 'BAHONAR COPPER INDUSTRIES',
+    tagline: 'بزرگترین تولیدکننده مقاطع و لوله‌های مسی ایران',
+    zoneCode: 'BAY-01',
+    color: '#f59e0b',
+    secondaryColor: '#d97706',
+    accentBg: 'rgba(245, 158, 11, 0.18)',
+    boardX: -9.2,
+    boardY: 3.6,
+    boardZ: -21.75,
+    floorBayX: -9.2,
+    floorBayZ: -15.5,
+    standard: 'ASTM B75 / Cu-DHP',
+    alloy: 'C12200 فسفردار صنعتی',
+    defaultData: {
+      companyName: 'صنایع مس شهید باهنر',
+      productShape: 'کلاف LWC صنعتی',
+      alloyStandard: 'Cu-DHP / C12200 (ASTM B75)',
+      sizeMetric: '9.52*0.75',
+      sizeInch: '3/8*0.030',
+      lengthMeters: 620,
+      netWeightPerRoll: 112.5,
+      grossWeightPerRoll: 126.2,
+      numberOfCoils: 5,
+      totalPalletNetWeight: 562.5,
+      totalPalletGrossWeight: 650.0,
+      palletBaseTareWeight: 35.0,
+      temper: 'آنیل Soft (O60)',
+      defectNo: 0,
+      mfgDate: '1404.11.18',
+      batchNo: 'BAH-1404-0982',
+      palletNo: 'PLT-BAH-4412',
+      orderNo: 'ORD-98402'
+    }
+  },
+  {
+    id: 'asteria',
+    nameFa: 'مس آستریا',
+    nameEn: 'ASTERIA COPPER CO.',
+    tagline: 'لوله‌های بدون درز برودتی و تهویه مطبوع',
+    zoneCode: 'BAY-02',
+    color: '#06b6d4',
+    secondaryColor: '#0891b2',
+    accentBg: 'rgba(6, 182, 212, 0.18)',
+    boardX: -4.6,
+    boardY: 3.6,
+    boardZ: -21.75,
+    floorBayX: -4.6,
+    floorBayZ: -15.5,
+    standard: 'SEAMLESS ASTM B75',
+    alloy: 'C12200 Refrigeration',
+    defaultData: {
+      companyName: 'ASTERIA COPPER',
+      productShape: 'LWC Coil',
+      alloyStandard: 'SEAMLESS, C12200, ASTM B75',
+      sizeMetric: '15.87*0.45',
+      sizeInch: '5/8*0.018',
+      lengthMeters: 545,
+      netWeightPerRoll: 105.8,
+      grossWeightPerRoll: 119.0,
+      numberOfCoils: 5,
+      totalPalletNetWeight: 531.0,
+      totalPalletGrossWeight: 613.9,
+      palletBaseTareWeight: 35.0,
+      temper: 'O60',
+      defectNo: 1,
+      mfgDate: '2026.02.23',
+      batchNo: '260222PG21009',
+      palletNo: '260224PG101',
+      orderNo: '20260214006'
+    }
+  },
+  {
+    id: 'ghaem',
+    nameFa: 'صنایع مس قائم',
+    nameEn: 'GHAEM COPPER GROUP',
+    tagline: 'تولید تخصصی کلاف و لوله‌های سرمایشی ACR',
+    zoneCode: 'BAY-03',
+    color: '#10b981',
+    secondaryColor: '#059669',
+    accentBg: 'rgba(16, 185, 129, 0.18)',
+    boardX: 0,
+    boardY: 4.8,
+    boardZ: -21.75,
+    floorBayX: 0,
+    floorBayZ: -15.5,
+    standard: 'ASTM B280 / ACR Grade',
+    alloy: 'Cu-DHP / C12200',
+    defaultData: {
+      companyName: 'صنایع مس قائم',
+      productShape: 'کلاف LWC استاندارد',
+      alloyStandard: 'C12200 REFRIGERATION GRADE ASTM B280',
+      sizeMetric: '12.70*0.80',
+      sizeInch: '1/2*0.032',
+      lengthMeters: 480,
+      netWeightPerRoll: 104.2,
+      grossWeightPerRoll: 117.5,
+      numberOfCoils: 5,
+      totalPalletNetWeight: 521.0,
+      totalPalletGrossWeight: 607.5,
+      palletBaseTareWeight: 35.0,
+      temper: 'O60 Soft',
+      defectNo: 0,
+      mfgDate: '1404.12.10',
+      batchNo: 'GHM-1404-771',
+      palletNo: 'PLT-GHM-882',
+      orderNo: 'ORD-GHM-55'
+    }
+  },
+  {
+    id: 'babak',
+    nameFa: 'مجتمع صنایع مس بابک',
+    nameEn: 'BABAK COPPER COMPLEX',
+    tagline: 'کلاف‌های سنگین وزن صنعتی و عمرانی ۵۰۰ متری',
+    zoneCode: 'BAY-04',
+    color: '#f43f5e',
+    secondaryColor: '#e11d48',
+    accentBg: 'rgba(244, 63, 94, 0.18)',
+    boardX: 4.6,
+    boardY: 3.6,
+    boardZ: -21.75,
+    floorBayX: 4.6,
+    floorBayZ: -15.5,
+    standard: 'ASTM B280 / Heavy Duty',
+    alloy: 'C12200 Seamless',
+    defaultData: {
+      companyName: 'مجتمع صنایع مس بابک',
+      productShape: 'کلاف LWC سنگین صنعتی',
+      alloyStandard: 'ASTM B280 / C12200 Heavy Coil',
+      sizeMetric: '19.05*0.60',
+      sizeInch: '3/4*0.024',
+      lengthMeters: 510,
+      netWeightPerRoll: 124.0,
+      grossWeightPerRoll: 138.5,
+      numberOfCoils: 5,
+      totalPalletNetWeight: 620.0,
+      totalPalletGrossWeight: 712.5,
+      palletBaseTareWeight: 35.0,
+      temper: 'O60',
+      defectNo: 1,
+      mfgDate: '2026.01.20',
+      batchNo: 'BAB-2601-884',
+      palletNo: 'PLT-BAB-990',
+      orderNo: 'ORD-BAB-1404'
+    }
+  },
+  {
+    id: 'mehrasl',
+    nameFa: 'صنایع برودتی و مس مهر اصل',
+    nameEn: 'MEHR ASL COPPER & HVAC',
+    tagline: 'تجهیزات تهویه مطبوع، لوله‌های صنعتی و کلاف مس',
+    zoneCode: 'BAY-05',
+    color: '#8b5cf6',
+    secondaryColor: '#7c3aed',
+    accentBg: 'rgba(139, 92, 246, 0.18)',
+    boardX: 9.2,
+    boardY: 3.6,
+    boardZ: -21.75,
+    floorBayX: 9.2,
+    floorBayZ: -15.5,
+    standard: 'ASTM B280 / ACR Ref',
+    alloy: 'Cu-DHP C12200 Industrial Grade',
+    defaultData: {
+      companyName: 'صنایع برودتی و مس مهر اصل',
+      productShape: 'کلاف مسی سرمایشی برودتی LWC',
+      alloyStandard: 'Cu-DHP C12200 Industrial Grade',
+      sizeMetric: '15.87*0.75',
+      sizeInch: '5/8*0.030',
+      lengthMeters: 530,
+      netWeightPerRoll: 118.0,
+      grossWeightPerRoll: 131.5,
+      numberOfCoils: 5,
+      totalPalletNetWeight: 590.0,
+      totalPalletGrossWeight: 677.5,
+      palletBaseTareWeight: 35.0,
+      temper: 'O60 Soft Annealed',
+      defectNo: 0,
+      mfgDate: '1404.11.29',
+      batchNo: 'MAS-1404-339',
+      palletNo: 'PLT-MAS-1204',
+      orderNo: 'ORD-MAS-991'
+    }
+  }
+];
+
 interface WarehouseEmpty3DHangarProps {
   onBackTo2D?: () => void;
   onClose?: () => void;
+  onOpenWarehouse2DPanel?: () => void;
+  warehouseItemsCount?: number;
 }
 
 interface SpoolState {
@@ -35,6 +252,7 @@ interface SpoolState {
   netWeight?: number;
   grossWeight?: number;
   batchNo?: string;
+  photoUrl?: string;
 }
 
 const DEFAULT_PALLET_DATA: CopperPalletData = {
@@ -58,7 +276,12 @@ const DEFAULT_PALLET_DATA: CopperPalletData = {
   orderNo: '20260214006'
 };
 
-export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ onBackTo2D, onClose }) => {
+export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
+  onBackTo2D, 
+  onClose,
+  onOpenWarehouse2DPanel,
+  warehouseItemsCount
+}) => {
   const handleExit = onClose || onBackTo2D;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,6 +289,13 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+
+  // Active Brand Zone State
+  const [activeBrandId, setActiveBrandId] = useState<'bahonar' | 'asteria' | 'ghaem' | 'babak' | 'mehrasl'>('asteria');
+
+  // Brand Objects in 3D scene (for raycasting and highlights)
+  const brandBoardMeshes = useRef<{ [key: string]: THREE.Mesh }>({});
+  const brandBayMeshes = useRef<{ [key: string]: THREE.Mesh }>({});
 
   // Pallet Specifications State
   const [palletData, setPalletData] = useState<CopperPalletData>(DEFAULT_PALLET_DATA);
@@ -92,11 +322,18 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
   const spool3DGroups = useRef<{ [id: number]: THREE.Group }>({});
   const spoolTeflonWraps = useRef<{ [id: number]: THREE.Group }>({});
   const spoolCoilLabelMeshes = useRef<{ [id: number]: THREE.Mesh }>({});
-  const spoolPalletLabelMeshes = useRef<{ [id: number]: THREE.Mesh }>({});
+  const palletMasterLabelMesh = useRef<THREE.Mesh | null>(null);
   const topCardboardCapRef = useRef<THREE.Mesh | null>(null);
+
+  // Pallet Lock State (When locked, clicking zones or dragging will not move the pallet)
+  const [isPalletLocked, setIsPalletLocked] = useState<boolean>(true);
+  const isPalletLockedRef = useRef<boolean>(true);
+  isPalletLockedRef.current = isPalletLocked;
+  const [notificationToast, setNotificationToast] = useState<string | null>(null);
 
   // Dragging & Camera Controls
   const activeDraggedSpoolId = useRef<number | null>(null);
+  const [selectedSpoolId, setSelectedSpoolId] = useState<number | null>(null);
   const isDraggingPallet = useRef(false);
   const isDraggingCamera = useRef(false);
   const isPanning = useRef(false);
@@ -179,54 +416,61 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     return () => window.removeEventListener('keydown', handleKeyDownGlobal);
   }, [handleExit, showHdLabelModal, showIntakeModal]);
 
-  // Sync 3D Spool Positions
-  const update3DSpoolTransforms = useCallback(() => {
-    const currentSpools = spoolsRef.current;
-    let stackIndex = 0;
-
-    currentSpools.forEach((s) => {
-      const group = spool3DGroups.current[s.id];
-      const teflonWrap = spoolTeflonWraps.current[s.id];
-      if (!group) return;
-
-      if (s.onPallet) {
-        const targetY = palletTopSurfaceY + (stackIndex + 0.5) * totalSpoolHeight;
-        group.position.set(palletPos.current.x, targetY, palletPos.current.z);
-        stackIndex++;
-      } else {
-        const floorY = totalSpoolHeight / 2 + 0.005;
-        group.position.set(s.posX, floorY, s.posZ);
-      }
-
-      if (teflonWrap) {
-        teflonWrap.visible = s.isSealed;
-      }
-    });
-
-    if (topCardboardCapRef.current) {
-      if (stackIndex > 0) {
-        topCardboardCapRef.current.visible = true;
-        const topOfStackY = palletTopSurfaceY + stackIndex * totalSpoolHeight;
-        topCardboardCapRef.current.position.set(palletPos.current.x, topOfStackY + 0.0075, palletPos.current.z);
-      } else {
-        topCardboardCapRef.current.visible = false;
-      }
-    }
-  }, [totalSpoolHeight]);
-
-  useEffect(() => {
-    update3DSpoolTransforms();
-  }, [spools, update3DSpoolTransforms]);
-
   // =========================================================================
   // LABEL 1: HIGH RESOLUTION INDIVIDUAL COIL SPECIFICATION LABEL TEXTURE
   // =========================================================================
-  const createCoilLabelTexture = useCallback((coilIndex: number, pData: CopperPalletData) => {
+  const createCoilLabelTexture = useCallback((coilIndex: number, spool: SpoolState | undefined, pData: CopperPalletData) => {
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1400;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
+
+    // If THIS INDIVIDUAL SPOOL has an uploaded photo, render it on this spool ONLY!
+    const specificPhoto = spool?.photoUrl;
+    if (specificPhoto) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.anisotropy = 16;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const imgAspect = img.width / img.height;
+        const canvasAspect = canvas.width / canvas.height;
+        let drawW = canvas.width;
+        let drawH = canvas.height;
+        let drawX = 0;
+        let drawY = 0;
+
+        if (imgAspect > canvasAspect) {
+          drawW = canvas.width;
+          drawH = canvas.width / imgAspect;
+          drawY = (canvas.height - drawH) / 2;
+        } else {
+          drawH = canvas.height;
+          drawW = canvas.height * imgAspect;
+          drawX = (canvas.width - drawW) / 2;
+        }
+
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Neat industrial label border
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 14;
+        ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+
+        tex.needsUpdate = true;
+      };
+      img.src = specificPhoto;
+      return tex;
+    }
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -336,8 +580,8 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     ctx.fillText(`${pData.lengthMeters || 545}`, tableX + col1W + col2W + col3W / 2, tableY + headerH + rowH * 2.5);
 
     // 3. WEIGHT
-    const coilNet = pData.coilWeights?.[coilIndex - 1]?.net || pData.netWeightPerRoll || 105.8;
-    const coilGross = pData.coilWeights?.[coilIndex - 1]?.gross || (coilNet + 13.2);
+    const coilNet = spool?.netWeight || pData.coilWeights?.[coilIndex - 1]?.net || pData.netWeightPerRoll || 105.8;
+    const coilGross = spool?.grossWeight || pData.coilWeights?.[coilIndex - 1]?.gross || (coilNet + 13.2);
 
     ctx.font = '900 46px Arial, Helvetica, sans-serif';
     ctx.fillText('Wt.', tableX + col1W / 2, tableY + headerH + rowH * 4);
@@ -370,7 +614,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     ctx.font = '900 44px Arial, Helvetica, sans-serif';
     ctx.fillText('Batch NO.', tableX + (col1W + col2W) / 2, tableY + headerH + rowH * 8.5);
     ctx.font = '900 52px Arial, Helvetica, sans-serif';
-    const coilBatch = pData.coilWeights?.[coilIndex - 1]?.batchNo || `${pData.batchNo || '260222PG2100'}${coilIndex}`;
+    const coilBatch = spool?.batchNo || pData.coilWeights?.[coilIndex - 1]?.batchNo || `${pData.batchNo || '260222PG2100'}${coilIndex}`;
     ctx.fillText(coilBatch, tableX + col1W + col2W + col3W / 2, tableY + headerH + rowH * 8.5);
 
     // QC Stamp
@@ -493,23 +737,537 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     return tex;
   }, []);
 
+  // Create High-Resolution 3D Billboard Canvas Texture for each Brand Signboard
+  const createBrandBillboardTexture = useCallback((brand: CopperBrandZone) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 600;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
+
+    // 1. Dark Carbon Industrial Background
+    const bgGrad = ctx.createLinearGradient(0, 0, 1024, 600);
+    bgGrad.addColorStop(0, '#0a0f1d');
+    bgGrad.addColorStop(0.5, '#111827');
+    bgGrad.addColorStop(1, '#0b1120');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1024, 600);
+
+    // Subtle diamond mesh pattern
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < 1024; x += 30) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 600);
+      ctx.stroke();
+    }
+    for (let y = 0; y < 600; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(1024, y);
+      ctx.stroke();
+    }
+
+    // 2. Glowing Outer Brand Border
+    ctx.strokeStyle = brand.color;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(10, 10, 1004, 580);
+
+    // Inner thin border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, 22, 980, 556);
+
+    // Hazard Stripes on left and right margins
+    for (let y = 30; y < 570; y += 36) {
+      ctx.fillStyle = brand.color;
+      ctx.fillRect(26, y, 16, 18);
+      ctx.fillRect(982, y, 16, 18);
+    }
+
+    // 3. Top Header Bar: Zone Code & Factory Tag
+    ctx.fillStyle = brand.color;
+    ctx.fillRect(50, 32, 924, 60);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 28px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`⚡ بارانداز تخصصی لوله و کلاف مس • ${brand.zoneCode}`, 950, 62);
+
+    ctx.font = '900 22px Arial, Helvetica, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`ZONE ${brand.zoneCode}`, 70, 62);
+
+    // 4. Large Bold Persian Brand Title
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 52px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = brand.color;
+    ctx.shadowBlur = 15;
+    ctx.fillText(brand.nameFa, 512, 175);
+    ctx.shadowBlur = 0;
+
+    // 5. English Brand Name
+    ctx.fillStyle = brand.color;
+    ctx.font = '800 28px Arial, Helvetica, sans-serif';
+    ctx.fillText(brand.nameEn, 512, 235);
+
+    // Tagline
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '500 22px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.fillText(brand.tagline, 512, 280);
+
+    // 6. Technical Specifications Cards Grid
+    const cardY = 325;
+    const cardH = 135;
+    const cardW = 280;
+
+    // Card 1: Alloy & Standard
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(70, cardY, cardW, cardH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = brand.color;
+    ctx.font = '700 17px "Vazirmatn", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('استاندارد و گرید آلیاژ', 70 + cardW / 2, cardY + 32);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 19px Arial, sans-serif';
+    ctx.fillText(brand.standard, 70 + cardW / 2, cardY + 68);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 16px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText(brand.alloy, 70 + cardW / 2, cardY + 104);
+
+    // Card 2: Application / Temper
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(372, cardY, cardW, cardH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = brand.color;
+    ctx.font = '700 17px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText('کاربری و فرم محصول', 372 + cardW / 2, cardY + 32);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 20px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText('کلاف LWC صنعتی', 372 + cardW / 2, cardY + 68);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 16px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText('سرمایشی، برودتی و تهویه', 372 + cardW / 2, cardY + 104);
+
+    // Card 3: Logistics & Staging Capacity
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(674, cardY, cardW, cardH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = brand.color;
+    ctx.font = '700 17px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText('ظرفیت بارانداز زون', 674 + cardW / 2, cardY + 32);
+
+    ctx.fillStyle = '#10b981';
+    ctx.font = '900 22px Arial, sans-serif';
+    ctx.fillText('5,000 KG MAX', 674 + cardW / 2, cardY + 68);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 16px "Vazirmatn", Tahoma, sans-serif';
+    ctx.fillText('پالت‌های استاندارد یورو', 674 + cardW / 2, cardY + 104);
+
+    // 7. Interactive Footer CTA
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.strokeStyle = brand.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(70, 485, 884, 75, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(110, 522, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 23px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`محل استقرار و چیدمان پالت‌های مس ${brand.nameFa}`, 920, 522);
+
+    ctx.fillStyle = brand.color;
+    ctx.font = '700 18px "Vazirmatn", Tahoma, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('جهت انتقال و چیدمان پالت کلیک کنید 👈', 140, 522);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 16;
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // Create High-Resolution 3D Floor Bay Canvas Texture for each Brand
+  const createBrandFloorBayTexture = useCallback((brand: CopperBrandZone) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
+
+    // Dark sleek industrial pad for high contrast against concrete floor
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    // Glowing vibrant brand border
+    ctx.strokeStyle = brand.color;
+    ctx.lineWidth = 16;
+    ctx.strokeRect(12, 12, 1000, 1000);
+
+    // Inner subtle background glow
+    ctx.fillStyle = brand.accentBg || 'rgba(255, 255, 255, 0.05)';
+    ctx.fillRect(30, 30, 964, 964);
+
+    // Pallet Target Footprint (dashed box)
+    ctx.strokeStyle = brand.color;
+    ctx.lineWidth = 8;
+    ctx.setLineDash([24, 16]);
+    ctx.strokeRect(180, 180, 664, 664);
+    ctx.setLineDash([]);
+
+    // Corner alignment brackets
+    const cSize = 90;
+    const cThick = 18;
+    ctx.fillStyle = brand.color;
+    ctx.fillRect(160, 160, cSize, cThick);
+    ctx.fillRect(160, 160, cThick, cSize);
+    ctx.fillRect(864 - cSize, 160, cSize, cThick);
+    ctx.fillRect(864 - cThick, 160, cThick, cSize);
+    ctx.fillRect(160, 864 - cThick, cSize, cThick);
+    ctx.fillRect(160, 864 - cSize, cThick, cSize);
+    ctx.fillRect(864 - cSize, 864 - cThick, cSize, cThick);
+    ctx.fillRect(864 - cThick, 864 - cSize, cThick, cSize);
+
+    // Floor Text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 48px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`بارانداز پالت مس ${brand.nameFa}`, 512, 360);
+
+    ctx.fillStyle = brand.color;
+    ctx.font = '800 40px Arial, Helvetica, sans-serif';
+    ctx.fillText(`${brand.nameEn} • ${brand.zoneCode}`, 512, 450);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '700 28px Arial, sans-serif';
+    ctx.fillText(`STANDARD: ${brand.standard}`, 512, 530);
+    ctx.fillText(`ALLOY: ${brand.alloy}`, 512, 580);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 16;
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // Create Grand Master Wall Banner for the entire warehouse
+  const createMasterWallBannerTexture = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
+
+    // Clean modern deep navy header background
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 2048, 256);
+
+    // Sleek border
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(10, 10, 2028, 236);
+
+    // Persian Title
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 46px "Vazirmatn", "IRANSans", Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('انبار تخصصی و بارانداز مرکزی لوله‌های مسی • تفکیک و چیدمان برندهای باهنر، آستریا، قائم، بابک، مهر اصل', 1024, 88);
+
+    // English Brands List
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '800 28px Arial, Helvetica, sans-serif';
+    ctx.fillText('BAHONAR  •  ASTERIA  •  GHAEM  •  BABAK  •  MEHR ASL  —  COPPER COIL PALLET DEPOT', 1024, 165);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 16;
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // Helper to build a complete 3D Spool group with meshes, winding, seals, labels, and hitboxes
+  const buildSingleSpoolGroup = useCallback((i: number, pData: CopperPalletData) => {
+    const singleSpoolGroup = new THREE.Group();
+    singleSpoolGroup.name = `SPOOL_GROUP_${i}`;
+    (singleSpoolGroup as any).spoolId = i;
+
+    const cardboardMat = new THREE.MeshStandardMaterial({
+      color: '#785434',
+      roughness: 0.92,
+      metalness: 0.04,
+    });
+    const innerCoreMat = new THREE.MeshStandardMaterial({
+      color: '#334155',
+      roughness: 0.85,
+    });
+    const rawCopperMat = new THREE.MeshStandardMaterial({
+      color: '#d97706',
+      roughness: 0.28,
+      metalness: 0.88,
+    });
+    const copperGrooveMat = new THREE.MeshStandardMaterial({
+      color: '#b45309',
+      roughness: 0.35,
+      metalness: 0.88,
+    });
+    const teflonMat = new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      roughness: 0.25,
+      metalness: 0.05,
+    });
+    const teflonFilmMat = new THREE.MeshPhysicalMaterial({
+      color: '#ffffff',
+      roughness: 0.1,
+      transmission: 0.75,
+      opacity: 0.75,
+      transparent: true,
+      ior: 1.45,
+    });
+
+    // Bottom flange disc
+    const bottomDiscGeo = new THREE.CylinderGeometry(spoolFlangeRadius, spoolFlangeRadius, spoolFlangeThick, 36);
+    const bottomDisc = new THREE.Mesh(bottomDiscGeo, cardboardMat);
+    bottomDisc.position.set(0, -spoolHeight / 2 - spoolFlangeThick / 2, 0);
+    bottomDisc.castShadow = true;
+    bottomDisc.receiveShadow = true;
+    singleSpoolGroup.add(bottomDisc);
+
+    // Inner Core Tube
+    const innerCoreGeo = new THREE.CylinderGeometry(0.22, 0.22, spoolHeight, 28);
+    const innerCore = new THREE.Mesh(innerCoreGeo, innerCoreMat);
+    singleSpoolGroup.add(innerCore);
+
+    // Raw Copper Wound Cylinder
+    const rawCopperGeo = new THREE.CylinderGeometry(spoolRadius, spoolRadius, spoolHeight, 36, 12);
+    const rawCopperMesh = new THREE.Mesh(rawCopperGeo, rawCopperMat);
+    rawCopperMesh.castShadow = true;
+    rawCopperMesh.receiveShadow = true;
+    singleSpoolGroup.add(rawCopperMesh);
+
+    // Copper Tube Windings
+    for (let r = -5; r <= 5; r++) {
+      const ringGeo = new THREE.TorusGeometry(spoolRadius + 0.002, 0.013, 10, 36);
+      const ring = new THREE.Mesh(ringGeo, copperGrooveMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(0, r * (spoolHeight / 12), 0);
+      singleSpoolGroup.add(ring);
+    }
+
+    // Top flange disc
+    const topDiscGeo = new THREE.CylinderGeometry(spoolFlangeRadius, spoolFlangeRadius, spoolFlangeThick, 36);
+    const topDisc = new THREE.Mesh(topDiscGeo, cardboardMat);
+    topDisc.position.set(0, spoolHeight / 2 + spoolFlangeThick / 2, 0);
+    topDisc.castShadow = true;
+    topDisc.receiveShadow = true;
+    singleSpoolGroup.add(topDisc);
+
+    // TEFLON SEAL WRAPPER GROUP
+    const teflonWrapGroup = new THREE.Group();
+    teflonWrapGroup.name = `TEFLON_WRAP_${i}`;
+
+    const teflonBandGeo = new THREE.CylinderGeometry(
+      spoolRadius + 0.006,
+      spoolRadius + 0.006,
+      spoolHeight - 0.008,
+      36,
+      1,
+      false
+    );
+    const teflonBandMesh = new THREE.Mesh(teflonBandGeo, teflonMat);
+    teflonBandMesh.castShadow = true;
+    teflonWrapGroup.add(teflonBandMesh);
+
+    const teflonEdgeMat = new THREE.MeshStandardMaterial({
+      color: '#e2e8f0',
+      roughness: 0.4,
+    });
+    [-spoolHeight / 2 + 0.015, spoolHeight / 2 - 0.015].forEach(yPos => {
+      const edgeRingGeo = new THREE.TorusGeometry(spoolFlangeRadius - 0.01, 0.015, 8, 36);
+      const edgeRing = new THREE.Mesh(edgeRingGeo, teflonEdgeMat);
+      edgeRing.rotation.x = Math.PI / 2;
+      edgeRing.position.set(0, yPos, 0);
+      teflonWrapGroup.add(edgeRing);
+    });
+
+    const outerFoilGeo = new THREE.CylinderGeometry(spoolFlangeRadius + 0.008, spoolFlangeRadius + 0.008, totalSpoolHeight, 36);
+    const outerFoilMesh = new THREE.Mesh(outerFoilGeo, teflonFilmMat);
+    teflonWrapGroup.add(outerFoilMesh);
+
+    singleSpoolGroup.add(teflonWrapGroup);
+    spoolTeflonWraps.current[i] = teflonWrapGroup;
+
+    // SINGLE REALISTIC COIL SPECIFICATION LABEL (ONE SINGLE LABEL PER SPOOL)
+    const currentSpool = spoolsRef.current.find(s => s.id === i);
+    const coilLabelTexture = createCoilLabelTexture(i + 1, currentSpool, pData);
+    const label1Mat = new THREE.MeshBasicMaterial({
+      map: coilLabelTexture,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    });
+
+    // Realistic curved label on outer rim facing DIRECTLY FORWARD (+Z towards user camera)
+    const labelArcWidth = 1.15;
+    const label1Geo = new THREE.CylinderGeometry(
+      spoolFlangeRadius + 0.007,
+      spoolFlangeRadius + 0.007,
+      0.21,
+      36,
+      1,
+      true,
+      -labelArcWidth / 2,
+      labelArcWidth
+    );
+    const coilLabelMesh = new THREE.Mesh(label1Geo, label1Mat);
+    coilLabelMesh.name = `SPOOL_LABEL_${i}`;
+    coilLabelMesh.renderOrder = 30;
+    singleSpoolGroup.add(coilLabelMesh);
+    spoolCoilLabelMeshes.current[i] = coilLabelMesh;
+
+    // Interactive Hitbox
+    const spoolHitBoxGeo = new THREE.CylinderGeometry(spoolFlangeRadius + 0.08, spoolFlangeRadius + 0.08, totalSpoolHeight + 0.05, 16);
+    const spoolHitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
+    const spoolHitBox = new THREE.Mesh(spoolHitBoxGeo, spoolHitBoxMat);
+    spoolHitBox.name = `SPOOL_HITBOX_${i}`;
+    (spoolHitBox as any).spoolId = i;
+    singleSpoolGroup.add(spoolHitBox);
+
+    spool3DGroups.current[i] = singleSpoolGroup;
+    return singleSpoolGroup;
+  }, [createCoilLabelTexture, spoolFlangeRadius, spoolFlangeThick, spoolHeight, spoolRadius, totalSpoolHeight]);
+
+  // Sync and dynamically instantiate / position all 3D Spools
+  const update3DSpoolTransforms = useCallback(() => {
+    const currentSpools = spoolsRef.current;
+    let stackIndex = 0;
+
+    // 1. Remove 3D groups of spools that no longer exist
+    const currentIds = new Set(currentSpools.map(s => s.id));
+    Object.keys(spool3DGroups.current).forEach(idStr => {
+      const idNum = Number(idStr);
+      if (!currentIds.has(idNum)) {
+        const group = spool3DGroups.current[idNum];
+        if (group && sceneRef.current) {
+          sceneRef.current.remove(group);
+        }
+        delete spool3DGroups.current[idNum];
+        delete spoolTeflonWraps.current[idNum];
+        delete spoolCoilLabelMeshes.current[idNum];
+      }
+    });
+
+    // 2. Position or create each spool
+    currentSpools.forEach((s) => {
+      let group = spool3DGroups.current[s.id];
+      if (!group && sceneRef.current) {
+        group = buildSingleSpoolGroup(s.id, palletDataRef.current);
+        sceneRef.current.add(group);
+      }
+      if (!group) return;
+
+      const teflonWrap = spoolTeflonWraps.current[s.id];
+      if (s.onPallet) {
+        const targetY = palletTopSurfaceY + (stackIndex + 0.5) * totalSpoolHeight;
+        group.position.set(palletPos.current.x, targetY, palletPos.current.z);
+        group.rotation.set(0, 0, 0);
+        stackIndex++;
+      } else {
+        const floorY = totalSpoolHeight / 2 + 0.005;
+        group.position.set(s.posX, floorY, s.posZ);
+        group.rotation.set(0, 0, 0);
+      }
+
+      if (teflonWrap) {
+        teflonWrap.visible = s.isSealed;
+      }
+    });
+
+    if (topCardboardCapRef.current) {
+      if (stackIndex > 0) {
+        topCardboardCapRef.current.visible = true;
+        const topOfStackY = palletTopSurfaceY + stackIndex * totalSpoolHeight;
+        topCardboardCapRef.current.position.set(palletPos.current.x, topOfStackY + 0.0075, palletPos.current.z);
+      } else {
+        topCardboardCapRef.current.visible = false;
+      }
+    }
+  }, [buildSingleSpoolGroup, palletTopSurfaceY, totalSpoolHeight]);
+
+  useEffect(() => {
+    update3DSpoolTransforms();
+  }, [spools, update3DSpoolTransforms]);
+
+  // Refresh a single spool's label texture
+  const refreshSpoolLabelTexture = useCallback((spoolId: number) => {
+    const currentData = palletDataRef.current;
+    const spool = spoolsRef.current.find(s => s.id === spoolId);
+    const coilMesh = spoolCoilLabelMeshes.current[spoolId];
+    if (coilMesh && coilMesh.material) {
+      const newCoilTex = createCoilLabelTexture(spoolId + 1, spool, currentData);
+      (coilMesh.material as THREE.MeshBasicMaterial).map = newCoilTex;
+      (coilMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    }
+  }, [createCoilLabelTexture]);
+
+  // Refresh all label textures individually per spool
   const refreshAllLabelTextures = useCallback(() => {
     const currentData = palletDataRef.current;
-    const palletMasterTex = createPalletMasterLabelTexture(currentData);
+    const currentSpools = spoolsRef.current;
 
-    for (let i = 0; i < 5; i++) {
+    // Each spool receives its own individual label texture
+    Object.keys(spoolCoilLabelMeshes.current).forEach((key) => {
+      const i = Number(key);
       const coilMesh = spoolCoilLabelMeshes.current[i];
-      if (coilMesh && (coilMesh.material as THREE.MeshBasicMaterial)) {
-        const newCoilTex = createCoilLabelTexture(i + 1, currentData);
+      if (coilMesh && coilMesh.material) {
+        const spool = currentSpools.find(s => s.id === i);
+        const newCoilTex = createCoilLabelTexture(i + 1, spool, currentData);
         (coilMesh.material as THREE.MeshBasicMaterial).map = newCoilTex;
         (coilMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
       }
+    });
 
-      const pltMesh = spoolPalletLabelMeshes.current[i];
-      if (pltMesh && (pltMesh.material as THREE.MeshBasicMaterial)) {
-        (pltMesh.material as THREE.MeshBasicMaterial).map = palletMasterTex;
-        (pltMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
-      }
+    // Master pallet label on wooden pallet
+    if (palletMasterLabelMesh.current && palletMasterLabelMesh.current.material) {
+      const pltTex = createPalletMasterLabelTexture(currentData);
+      (palletMasterLabelMesh.current.material as THREE.MeshBasicMaterial).map = pltTex;
+      (palletMasterLabelMesh.current.material as THREE.MeshBasicMaterial).needsUpdate = true;
     }
   }, [createCoilLabelTexture, createPalletMasterLabelTexture]);
 
@@ -517,11 +1275,18 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     setPalletData(newData);
     palletDataRef.current = newData;
 
-    const rollCount = Math.min(5, newData.numberOfCoils || 5);
+    const rollCount = Math.max(1, Math.min(5, newData.numberOfCoils || 5));
     const newSpoolList: SpoolState[] = [];
 
+    // Calculate individual roll weight based on totalPalletNetWeight
+    const calculatedNet = newData.totalPalletNetWeight && rollCount > 0 
+      ? Number((newData.totalPalletNetWeight / rollCount).toFixed(1))
+      : (newData.netWeightPerRoll || 105.8);
+    const calculatedGross = Number((calculatedNet + 13.2).toFixed(1));
+
+    // Stacks on the pallet
     for (let i = 0; i < rollCount; i++) {
-      const net = newData.coilWeights?.[i]?.net || newData.netWeightPerRoll;
+      const net = newData.coilWeights?.[i]?.net || calculatedNet;
       const gr = newData.coilWeights?.[i]?.gross || (net + 13.2);
       newSpoolList.push({
         id: i,
@@ -535,13 +1300,83 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       });
     }
 
+    // Explicit user request: "توی سالن هم یه قرقره اضافه بشه"
+    // Add a separated spool on the salon floor with the exact new label photo visible!
+    const floorSpoolId = rollCount;
+    const floorSpoolX = palletPos.current.x - 1.6;
+    const floorSpoolZ = palletPos.current.z + 1.15;
+
+    newSpoolList.push({
+      id: floorSpoolId,
+      onPallet: false,
+      isSealed: false, // Unsealed so copper and label with user photo are immediately visible!
+      posX: floorSpoolX,
+      posZ: floorSpoolZ,
+      netWeight: calculatedNet,
+      grossWeight: calculatedGross,
+      batchNo: `${newData.batchNo || '260222PG'}-${floorSpoolId + 1}`,
+      photoUrl: newData.uploadedImageUrl, // ONLY this spool gets this photo!
+    });
+
     setSpools(newSpoolList);
     spoolsRef.current = newSpoolList;
+    setSelectedSpoolId(floorSpoolId);
+
+    // Toast notification for user confirmation
+    const toastTxt = `کلاف جدید مس شرکت ${newData.companyName} با سایز ${newData.sizeMetric} (${newData.sizeInch || ''}) و وزن کل ${newData.totalPalletNetWeight} kg با تصویر برچسب اختصاصی در سالن ثبت شد.`;
+    setNotificationToast(toastTxt);
+    setTimeout(() => setNotificationToast(null), 8000);
 
     setTimeout(() => {
-      refreshAllLabelTextures();
       update3DSpoolTransforms();
-    }, 50);
+      refreshAllLabelTextures();
+
+      // Orient camera directly at the new floor spool at eye level facing its label
+      cameraTarget.current.set(floorSpoolX, totalSpoolHeight / 2, floorSpoolZ);
+      cameraSpherical.current = {
+        radius: 1.45,
+        theta: 1.15,
+        phi: Math.PI / 2.02,
+      };
+      updateCameraPosition();
+      setShowInfoCard(true);
+    }, 80);
+  };
+
+  // Upload or replace photo specifically for an individual spool
+  const handleUploadForSpool = (spoolId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setSpools(prev => {
+        const next = prev.map(s => s.id === spoolId ? { ...s, photoUrl: dataUrl } : s);
+        spoolsRef.current = next;
+        return next;
+      });
+      setTimeout(() => {
+        refreshSpoolLabelTexture(spoolId);
+      }, 60);
+      setNotificationToast(`تصویر برچسب قرقره شماره ${spoolId + 1} با موفقیت ثبت شد و منحصراً روی همین قرقره اعمال گردید.`);
+      setTimeout(() => setNotificationToast(null), 6000);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Remove photo from specific spool and return to crisp factory vector label
+  const handleRemoveSpoolPhoto = (spoolId: number) => {
+    setSpools(prev => {
+      const next = prev.map(s => s.id === spoolId ? { ...s, photoUrl: undefined } : s);
+      spoolsRef.current = next;
+      return next;
+    });
+    setTimeout(() => {
+      refreshSpoolLabelTexture(spoolId);
+    }, 60);
+    setNotificationToast(`عکس اختصاصی قرقره شماره ${spoolId + 1} برداشته شد و برچسب استاندارد فعال گردید.`);
+    setTimeout(() => setNotificationToast(null), 5000);
   };
 
   // =========================================================================
@@ -555,8 +1390,8 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
     // 1. Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0d1117');
-    scene.fog = new THREE.FogExp2('#0d1117', 0.018);
+    scene.background = new THREE.Color('#334155');
+    scene.fog = new THREE.FogExp2('#334155', 0.012);
     sceneRef.current = scene;
 
     // 2. Camera
@@ -574,118 +1409,69 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.toneMappingExposure = 1.05;
     rendererRef.current = renderer;
 
-    // 4. Lighting System
-    const ambientLight = new THREE.AmbientLight('#ffffff', 0.95);
+    // 4. Natural Realistic Lighting System
+    const ambientLight = new THREE.AmbientLight('#ffffff', 0.85);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight('#f1f5f9', '#1e293b', 0.85);
+    const hemiLight = new THREE.HemisphereLight('#e2e8f0', '#1e293b', 0.75);
     scene.add(hemiLight);
 
-    const mainSun = new THREE.DirectionalLight('#fffbeb', 2.4);
-    mainSun.position.set(10, 18, 8);
+    // Main directional sunlight through high windows/skylights
+    const mainSun = new THREE.DirectionalLight('#fffbeb', 1.85);
+    mainSun.position.set(14, 20, 10);
     mainSun.castShadow = true;
     mainSun.shadow.mapSize.width = 2048;
     mainSun.shadow.mapSize.height = 2048;
     mainSun.shadow.camera.near = 0.5;
-    mainSun.shadow.camera.far = 45;
-    mainSun.shadow.camera.left = -16;
-    mainSun.shadow.camera.right = 16;
-    mainSun.shadow.camera.top = 16;
-    mainSun.shadow.camera.bottom = -16;
+    mainSun.shadow.camera.far = 50;
+    mainSun.shadow.camera.left = -18;
+    mainSun.shadow.camera.right = 18;
+    mainSun.shadow.camera.top = 18;
+    mainSun.shadow.camera.bottom = -18;
     mainSun.shadow.bias = -0.0003;
     scene.add(mainSun);
 
-    const fillLight = new THREE.DirectionalLight('#93c5fd', 1.0);
-    fillLight.position.set(-10, 14, -8);
+    const fillLight = new THREE.DirectionalLight('#94a3b8', 0.8);
+    fillLight.position.set(-14, 15, -8);
     scene.add(fillLight);
 
     // Front soft focus spot on copper pallet
-    const frontSoftSpot = new THREE.SpotLight('#ffffff', 2.0, 20, Math.PI / 3.5, 0.4);
-    frontSoftSpot.position.set(0, 6.5, 4.5);
+    const frontSoftSpot = new THREE.SpotLight('#ffffff', 1.8, 25, Math.PI / 3.2, 0.35);
+    frontSoftSpot.position.set(0, 7.5, 5);
     frontSoftSpot.target.position.set(0, 1.2, -2);
     scene.add(frontSoftSpot);
     scene.add(frontSoftSpot.target);
 
     // -------------------------------------------------------------
-    // 5. INDUSTRIAL HANGAR ARCHITECTURAL STRUCTURE (سازه سوله صنعتی)
+    // 5. REALISTIC NATURAL INDUSTRIAL HANGAR ARCHITECTURE
     // -------------------------------------------------------------
-    const hangarWidth = 28; // X: -14 to +14
-    const hangarLength = 44; // Z: -24 to +20
-    const eavesHeight = 6.8; // ارتفاع پای دیواره‌های کناری سوله
-    const apexHeight = 9.8; // ارتفاع نوک سقف سوله
+    const hangarWidth = 28;
+    const hangarLength = 44;
+    const eavesHeight = 6.8;
+    const apexHeight = 9.8;
 
-    // A. Epoxy Concrete Floor (کف اپوکسی بتنی سوله)
+    // A. Realistic Industrial Polished Concrete Epoxy Floor
     const floorGeo = new THREE.PlaneGeometry(hangarWidth + 4, hangarLength + 4, 32, 32);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: '#1a202c',
-      roughness: 0.65,
-      metalness: 0.25,
+      color: '#27303f',
+      roughness: 0.38,
+      metalness: 0.28,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Floor Logistics Markings Canvas Texture (خط‌کشی‌های صنعتی کف سوله)
-    const floorMarkingCanvas = document.createElement('canvas');
-    floorMarkingCanvas.width = 2048;
-    floorMarkingCanvas.height = 2048;
-    const fCtx = floorMarkingCanvas.getContext('2d');
-    if (fCtx) {
-      fCtx.clearRect(0, 0, 2048, 2048);
-
-      // Yellow Pedestrian / Forklift Boundary Lines
-      fCtx.strokeStyle = '#eab308';
-      fCtx.lineWidth = 10;
-      
-      // Main boundary rectangle
-      fCtx.strokeRect(100, 100, 1848, 1848);
-
-      // Pallet Storage Bay Zone (Center)
-      fCtx.strokeStyle = '#f59e0b';
-      fCtx.lineWidth = 14;
-      fCtx.strokeRect(700, 800, 648, 648);
-
-      // Walkway Green Stripes
-      fCtx.fillStyle = 'rgba(16, 185, 129, 0.25)';
-      fCtx.fillRect(150, 150, 300, 1748);
-      fCtx.fillRect(1598, 150, 300, 1748);
-
-      // Text Decals on floor
-      fCtx.fillStyle = 'rgba(234, 179, 8, 0.85)';
-      fCtx.font = '900 48px Arial, sans-serif';
-      fCtx.textAlign = 'center';
-      fCtx.fillText('ZONE A • COPPER COILS STORAGE', 1024, 750);
-      fCtx.fillText('BAY-01 / بارانداز پالت مس', 1024, 1500);
-
-      fCtx.font = 'bold 36px Arial, sans-serif';
-      fCtx.fillText('MAX LOAD 5000 KG', 1024, 1560);
-    }
-    const floorMarkingTex = new THREE.CanvasTexture(floorMarkingCanvas);
-    floorMarkingTex.generateMipmaps = true;
-    const floorDecalGeo = new THREE.PlaneGeometry(hangarWidth, hangarLength);
-    const floorDecalMat = new THREE.MeshBasicMaterial({
-      map: floorMarkingTex,
-      transparent: true,
-      opacity: 0.88,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-    });
-    const floorDecal = new THREE.Mesh(floorDecalGeo, floorDecalMat);
-    floorDecal.rotation.x = -Math.PI / 2;
-    floorDecal.position.y = 0.003;
-    scene.add(floorDecal);
-
-    // Floor Guide Ring around Pallet
-    const zoneGeo = new THREE.RingGeometry(0.85, 0.96, 48);
+    // Subtle Clean Pallet Shadow / Ring Base
+    const zoneGeo = new THREE.RingGeometry(0.85, 0.95, 48);
     const zoneMat = new THREE.MeshBasicMaterial({
-      color: '#f59e0b',
+      color: '#38bdf8',
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.7,
     });
     const zoneMesh = new THREE.Mesh(zoneGeo, zoneMat);
     zoneMesh.rotation.x = -Math.PI / 2;
@@ -693,138 +1479,104 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     scene.add(zoneMesh);
     palletZoneRef.current = zoneMesh;
 
-    // Materials for Steel & Hangar Elements
+    // Realistic Materials for Structure
     const steelColumnMat = new THREE.MeshStandardMaterial({
-      color: '#2d3748',
-      roughness: 0.6,
+      color: '#1e293b',
+      roughness: 0.45,
       metalness: 0.75,
     });
 
     const steelTrussMat = new THREE.MeshStandardMaterial({
-      color: '#3b4252',
-      roughness: 0.65,
+      color: '#334155',
+      roughness: 0.5,
       metalness: 0.7,
     });
 
-    const craneYellowMat = new THREE.MeshStandardMaterial({
-      color: '#eab308',
-      roughness: 0.45,
-      metalness: 0.6,
-    });
-
-    const yellowBollardMat = new THREE.MeshStandardMaterial({
-      color: '#facc15',
-      roughness: 0.4,
-      metalness: 0.3,
-    });
-
     const wallPanelMat = new THREE.MeshStandardMaterial({
-      color: '#1e2530',
-      roughness: 0.85,
-      metalness: 0.2,
+      color: '#64748b',
+      roughness: 0.65,
+      metalness: 0.15,
       side: THREE.DoubleSide,
     });
 
     const roofMat = new THREE.MeshStandardMaterial({
-      color: '#161c24',
-      roughness: 0.8,
-      metalness: 0.3,
+      color: '#475569',
+      roughness: 0.7,
+      metalness: 0.2,
       side: THREE.DoubleSide,
     });
 
     const skylightMat = new THREE.MeshPhysicalMaterial({
-      color: '#e0f2fe',
-      roughness: 0.2,
+      color: '#e2e8f0',
+      roughness: 0.15,
       transmission: 0.85,
       transparent: true,
       opacity: 0.8,
       ior: 1.5,
     });
 
-    // B. Steel Columns & Base Bollards (ستون‌های فولادی I-Beam سوله)
+    // B. Industrial Steel I-Beam Columns (ستون‌های فولادی تیره و مشخص)
     const columnZPositions = [-20, -10, 0, 10, 20];
-
     columnZPositions.forEach(zPos => {
       [-hangarWidth / 2, hangarWidth / 2].forEach(xPos => {
         const columnGroup = new THREE.Group();
         columnGroup.position.set(xPos, 0, zPos);
 
-        // I-Beam Web
-        const webGeo = new THREE.BoxGeometry(0.12, eavesHeight, 0.45);
+        const webGeo = new THREE.BoxGeometry(0.14, eavesHeight, 0.48);
         const web = new THREE.Mesh(webGeo, steelColumnMat);
         web.position.y = eavesHeight / 2;
         web.castShadow = true;
         web.receiveShadow = true;
         columnGroup.add(web);
 
-        // I-Beam Flanges (Left & Right plates)
-        [-0.07, 0.07].forEach(fx => {
-          const flangeGeo = new THREE.BoxGeometry(0.024, eavesHeight, 0.48);
+        [-0.08, 0.08].forEach(fx => {
+          const flangeGeo = new THREE.BoxGeometry(0.028, eavesHeight, 0.52);
           const flange = new THREE.Mesh(flangeGeo, steelColumnMat);
           flange.position.set(fx, eavesHeight / 2, 0);
           flange.castShadow = true;
           columnGroup.add(flange);
         });
 
-        // Yellow Protective Collision Base Bollard (پایه‌محافظ زرد رنگ ایمنی ستون)
-        const bollardGeo = new THREE.BoxGeometry(0.38, 0.85, 0.65);
-        const bollard = new THREE.Mesh(bollardGeo, yellowBollardMat);
-        bollard.position.y = 0.425;
-        bollard.castShadow = true;
-        columnGroup.add(bollard);
-
-        // Crane Runway Bracket Corbel on each column (نشیمنگاه ریل جرثقیل)
-        const bracketGeo = new THREE.BoxGeometry(0.35, 0.25, 0.45);
-        const bracket = new THREE.Mesh(bracketGeo, steelColumnMat);
-        const bracketX = xPos > 0 ? -0.22 : 0.22;
-        bracket.position.set(bracketX, 5.75, 0);
-        columnGroup.add(bracket);
-
         scene.add(columnGroup);
       });
     });
 
-    // C. Roof Steel Trusses & Girders (خرپاهای فلزی شیب‌دار سقف سوله)
+    // C. Roof Steel Trusses & Girders (خرپاهای فلزی کاملاً مشخص و سه‌بعدی سقف)
     columnZPositions.forEach(zPos => {
       const trussGroup = new THREE.Group();
       trussGroup.position.set(0, 0, zPos);
 
-      // Bottom Horizontal Tie Beam (تیر افقی زیرین خرپا)
-      const bottomBeamGeo = new THREE.BoxGeometry(hangarWidth, 0.2, 0.2);
+      const bottomBeamGeo = new THREE.BoxGeometry(hangarWidth, 0.24, 0.22);
       const bottomBeam = new THREE.Mesh(bottomBeamGeo, steelTrussMat);
       bottomBeam.position.y = eavesHeight;
       bottomBeam.castShadow = true;
       trussGroup.add(bottomBeam);
 
-      // Left Pitched Rafter (تیر شیب‌دار چپ سقف)
       const rafterHalfWidth = hangarWidth / 2;
       const rafterHeightDiff = apexHeight - eavesHeight;
       const rafterLength = Math.hypot(rafterHalfWidth, rafterHeightDiff);
       const rafterAngle = Math.atan2(rafterHeightDiff, rafterHalfWidth);
 
-      const leftRafterGeo = new THREE.BoxGeometry(rafterLength, 0.22, 0.2);
+      const leftRafterGeo = new THREE.BoxGeometry(rafterLength, 0.26, 0.22);
       const leftRafter = new THREE.Mesh(leftRafterGeo, steelTrussMat);
       leftRafter.position.set(-rafterHalfWidth / 2, (eavesHeight + apexHeight) / 2, 0);
       leftRafter.rotation.z = rafterAngle;
       leftRafter.castShadow = true;
       trussGroup.add(leftRafter);
 
-      // Right Pitched Rafter (تیر شیب‌دار راست سقف)
       const rightRafter = new THREE.Mesh(leftRafterGeo, steelTrussMat);
       rightRafter.position.set(rafterHalfWidth / 2, (eavesHeight + apexHeight) / 2, 0);
       rightRafter.rotation.z = -rafterAngle;
       rightRafter.castShadow = true;
       trussGroup.add(rightRafter);
 
-      // Vertical Kingpost & Web Struts (مهاربندهای شبکه‌ای درون خرپا)
       const numStruts = 6;
       for (let s = 1; s <= numStruts; s++) {
         const sx = -rafterHalfWidth + (s * hangarWidth) / (numStruts + 1);
         const distFromCenter = Math.abs(sx);
         const topY = apexHeight - (distFromCenter / rafterHalfWidth) * rafterHeightDiff;
         const strutH = topY - eavesHeight;
-
-        const strutGeo = new THREE.CylinderGeometry(0.045, 0.045, strutH, 12);
+        const strutGeo = new THREE.CylinderGeometry(0.05, 0.05, strutH, 12);
         const strut = new THREE.Mesh(strutGeo, steelTrussMat);
         strut.position.set(sx, eavesHeight + strutH / 2, 0);
         strut.castShadow = true;
@@ -834,22 +1586,21 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       scene.add(trussGroup);
     });
 
-    // Longitudinal Roof Purlins (قوطی‌ها و لاپه‌های طولی سقف)
+    // Longitudinal Roof Purlins
     [-11, -7, -3, 0, 3, 7, 11].forEach(px => {
       const distFromCenter = Math.abs(px);
       const py = apexHeight - (distFromCenter / (hangarWidth / 2)) * (apexHeight - eavesHeight);
-      const purlinGeo = new THREE.BoxGeometry(0.12, 0.12, hangarLength);
+      const purlinGeo = new THREE.BoxGeometry(0.14, 0.14, hangarLength);
       const purlin = new THREE.Mesh(purlinGeo, steelTrussMat);
       purlin.position.set(px, py + 0.08, 0);
       scene.add(purlin);
     });
 
-    // D. Roof Panels & Skylights (پوشش سقف و نورگیرهای شفاف سقف سوله)
+    // D. Roof Panels & Skylights
     const roofHalfWidth = hangarWidth / 2;
     const roofSlopeLen = Math.hypot(roofHalfWidth, apexHeight - eavesHeight);
     const roofAngle = Math.atan2(apexHeight - eavesHeight, roofHalfWidth);
 
-    // Left Roof Slope
     const leftRoofGeo = new THREE.PlaneGeometry(roofSlopeLen, hangarLength);
     const leftRoof = new THREE.Mesh(leftRoofGeo, roofMat);
     leftRoof.position.set(-roofHalfWidth / 2, (eavesHeight + apexHeight) / 2 + 0.16, 0);
@@ -857,7 +1608,6 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     leftRoof.rotation.y = -roofAngle;
     scene.add(leftRoof);
 
-    // Right Roof Slope
     const rightRoofGeo = new THREE.PlaneGeometry(roofSlopeLen, hangarLength);
     const rightRoof = new THREE.Mesh(rightRoofGeo, roofMat);
     rightRoof.position.set(roofHalfWidth / 2, (eavesHeight + apexHeight) / 2 + 0.16, 0);
@@ -865,15 +1615,13 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     rightRoof.rotation.y = roofAngle;
     scene.add(rightRoof);
 
-    // Center Translucent Skylight Ridge (نورگیر سقفی در امتداد سوله)
     const skylightGeo = new THREE.PlaneGeometry(2.4, hangarLength - 2);
     const skylight = new THREE.Mesh(skylightGeo, skylightMat);
     skylight.position.set(0, apexHeight + 0.22, 0);
     skylight.rotation.x = Math.PI / 2;
     scene.add(skylight);
 
-    // E. Walls & Roll-up Sectional Shutter Door (دیوارها و درب بزرگ صنعتی سوله)
-    // Left Wall
+    // E. Walls & Industrial Shutter Door
     const leftWallGeo = new THREE.PlaneGeometry(hangarLength, eavesHeight);
     const leftWall = new THREE.Mesh(leftWallGeo, wallPanelMat);
     leftWall.position.set(-hangarWidth / 2, eavesHeight / 2, 0);
@@ -881,14 +1629,12 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
-    // Right Wall
     const rightWall = new THREE.Mesh(leftWallGeo, wallPanelMat);
     rightWall.position.set(hangarWidth / 2, eavesHeight / 2, 0);
     rightWall.rotation.y = -Math.PI / 2;
     rightWall.receiveShadow = true;
     scene.add(rightWall);
 
-    // Back Wall with large Roll-up door
     const backWallGroup = new THREE.Group();
     backWallGroup.position.set(0, 0, -hangarLength / 2);
 
@@ -898,13 +1644,12 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     backWall.receiveShadow = true;
     backWallGroup.add(backWall);
 
-    // Industrial Roll-up Shutter Door (درب کرکره‌ای بزرگ ورود و خروج تریلی)
     const doorW = 7.5;
     const doorH = 5.2;
     const doorGeo = new THREE.BoxGeometry(doorW, doorH, 0.12);
     const doorMat = new THREE.MeshStandardMaterial({
-      color: '#334155',
-      roughness: 0.55,
+      color: '#1e293b',
+      roughness: 0.5,
       metalness: 0.65,
     });
     const door = new THREE.Mesh(doorGeo, doorMat);
@@ -912,188 +1657,107 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     door.castShadow = true;
     backWallGroup.add(door);
 
-    // Door Horizontal Slats Lines
     for (let sl = 0.4; sl < doorH; sl += 0.35) {
       const slatGeo = new THREE.BoxGeometry(doorW - 0.1, 0.02, 0.14);
-      const slatMat = new THREE.MeshStandardMaterial({ color: '#1e293b' });
+      const slatMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.8 });
       const slat = new THREE.Mesh(slatGeo, slatMat);
       slat.position.set(0, sl, 0.09);
       backWallGroup.add(slat);
     }
-
-    // Door Yellow/Black Hazard Frame (قاب ایمنی زرد و مشکی دور درب)
-    const doorFrameGeo = new THREE.BoxGeometry(doorW + 0.6, doorH + 0.3, 0.08);
-    const doorFrameMat = new THREE.MeshStandardMaterial({ color: '#eab308' });
-    const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
-    doorFrame.position.set(0, (doorH + 0.3) / 2, 0.04);
-    backWallGroup.add(doorFrame);
-
     scene.add(backWallGroup);
 
-    // F. Heavy Overhead Bridge Crane (پل جرثقیل سقفی زرد رنگ ۱۰ تن)
-    const craneGroup = new THREE.Group();
-    craneGroup.position.set(0, 5.9, -6);
-
-    // Crane Long Runway Rails along hangar sides (ریل‌های طولی زیر جرثقیل)
-    [-hangarWidth / 2 + 0.35, hangarWidth / 2 - 0.35].forEach(rx => {
-      const railGeo = new THREE.BoxGeometry(0.18, 0.28, hangarLength);
-      const rail = new THREE.Mesh(railGeo, steelColumnMat);
-      rail.position.set(rx, 5.9, 0);
-      scene.add(rail);
+    // =============================================================
+    // BRAND BILLBOARDS & STAGING BAYS ON FRONT WALL & FLOOR
+    // =============================================================
+    
+    // 1. Grand Master Wall Header
+    const masterBannerTex = createMasterWallBannerTexture();
+    const masterBannerGeo = new THREE.PlaneGeometry(24, 1.25);
+    const masterBannerMat = new THREE.MeshBasicMaterial({
+      map: masterBannerTex,
+      side: THREE.FrontSide
     });
+    const masterBannerMesh = new THREE.Mesh(masterBannerGeo, masterBannerMat);
+    masterBannerMesh.position.set(0, 6.25, -hangarLength / 2 + 0.12);
+    scene.add(masterBannerMesh);
 
-    // Dual Yellow Bridge Box Girders (دو پل موازی زرد رنگ جرثقیل)
-    [-0.5, 0.5].forEach(gz => {
-      const girderGeo = new THREE.BoxGeometry(hangarWidth - 0.8, 0.65, 0.28);
-      const girder = new THREE.Mesh(girderGeo, craneYellowMat);
-      girder.position.set(0, 0, gz);
-      girder.castShadow = true;
-      craneGroup.add(girder);
-    });
+    const masterFrameGeo = new THREE.BoxGeometry(24.2, 1.35, 0.06);
+    const masterFrameMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.7, metalness: 0.8 });
+    const masterFrame = new THREE.Mesh(masterFrameGeo, masterFrameMat);
+    masterFrame.position.set(0, 6.25, -hangarLength / 2 + 0.08);
+    scene.add(masterFrame);
 
-    // Crane End Carriages (کلگی‌های متحرک انتهای پل)
-    [-hangarWidth / 2 + 0.6, hangarWidth / 2 - 0.6].forEach(ex => {
-      const endTruckGeo = new THREE.BoxGeometry(0.4, 0.45, 1.8);
-      const endTruck = new THREE.Mesh(endTruckGeo, steelColumnMat);
-      endTruck.position.set(ex, 0, 0);
-      craneGroup.add(endTruck);
-    });
+    // 2. The 5 Major Brand Billboards on the Front Wall (باهنر، آستریا، قائم، بابک، مهراصل)
+    BRAND_ZONES.forEach((brand) => {
+      const boardGroup = new THREE.Group();
+      boardGroup.position.set(brand.boardX, brand.boardY, brand.boardZ);
 
-    // Hoist Trolley on the Crane (کالسکه متحرک بالابر روی جرثقیل)
-    const trolleyGeo = new THREE.BoxGeometry(1.4, 0.5, 1.3);
-    const trolleyMat = new THREE.MeshStandardMaterial({
-      color: '#0f172a',
-      roughness: 0.5,
-      metalness: 0.8,
-    });
-    const trolley = new THREE.Mesh(trolleyGeo, trolleyMat);
-    trolley.position.set(0, 0.45, 0);
-    craneGroup.add(trolley);
+      const boardWidth = brand.id === 'ghaem' ? 4.4 : 4.0;
+      const boardHeight = brand.id === 'ghaem' ? 2.3 : 2.4;
+      const boardDepth = 0.08;
 
-    // Hoist Motor & Cable Drum
-    const drumGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.85, 20);
-    const drum = new THREE.Mesh(drumGeo, craneYellowMat);
-    drum.rotation.z = Math.PI / 2;
-    drum.position.set(0, 0.85, 0);
-    craneGroup.add(drum);
-
-    // Steel Wire Rope hanging down
-    const cableGeo = new THREE.CylinderGeometry(0.015, 0.015, 2.6, 12);
-    const cableMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.9 });
-    const cable1 = new THREE.Mesh(cableGeo, cableMat);
-    cable1.position.set(-0.15, -1.3, 0);
-    craneGroup.add(cable1);
-    const cable2 = new THREE.Mesh(cableGeo, cableMat);
-    cable2.position.set(0.15, -1.3, 0);
-    craneGroup.add(cable2);
-
-    // Industrial Forged Crane Hook (قلاب سنگین جرثقیل صنعتی)
-    const hookBlockGeo = new THREE.BoxGeometry(0.5, 0.35, 0.3);
-    const hookBlock = new THREE.Mesh(hookBlockGeo, craneYellowMat);
-    hookBlock.position.set(0, -2.6, 0);
-    craneGroup.add(hookBlock);
-
-    const hookTorusGeo = new THREE.TorusGeometry(0.16, 0.045, 12, 24, Math.PI * 1.5);
-    const hookMetalMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.95, roughness: 0.3 });
-    const hook = new THREE.Mesh(hookTorusGeo, hookMetalMat);
-    hook.rotation.z = Math.PI / 2;
-    hook.position.set(0, -2.85, 0);
-    craneGroup.add(hook);
-
-    scene.add(craneGroup);
-
-    // G. High-Bay UFO Industrial LED Pendant Luminaires (چراغ‌های صنعتی آویز سقف سوله)
-    const lampPositions = [
-      { x: -7, z: -15 }, { x: 7, z: -15 },
-      { x: -7, z: -5 },  { x: 7, z: -5 },
-      { x: -7, z: 5 },   { x: 7, z: 5 },
-      { x: -7, z: 15 },  { x: 7, z: 15 }
-    ];
-
-    lampPositions.forEach(lp => {
-      const lampGroup = new THREE.Group();
-      lampGroup.position.set(lp.x, 6.7, lp.z);
-
-      // Hanging Cable
-      const cordGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.9, 8);
-      const cord = new THREE.Mesh(cordGeo, new THREE.MeshBasicMaterial({ color: '#000000' }));
-      cord.position.y = 0.45;
-      lampGroup.add(cord);
-
-      // UFO Fixture Body
-      const lampBodyGeo = new THREE.CylinderGeometry(0.42, 0.52, 0.15, 24);
-      const lampBody = new THREE.Mesh(lampBodyGeo, new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.4 }));
-      lampGroup.add(lampBody);
-
-      // Glowing LED Lens Disc
-      const lensGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.02, 24);
-      const lensMat = new THREE.MeshStandardMaterial({
-        color: '#ffffff',
-        emissive: '#e0f2fe',
-        emissiveIntensity: 0.8,
-        roughness: 0.2,
+      // Outer Heavy Dark Frame
+      const frameGeo = new THREE.BoxGeometry(boardWidth + 0.16, boardHeight + 0.16, boardDepth);
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: '#0f172a',
+        roughness: 0.4,
+        metalness: 0.8,
       });
-      const lens = new THREE.Mesh(lensGeo, lensMat);
-      lens.position.y = -0.08;
-      lampGroup.add(lens);
+      const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+      frameMesh.castShadow = true;
+      boardGroup.add(frameMesh);
 
-      // Downward spot illumination
-      const downSpot = new THREE.SpotLight('#ffffff', 0.9, 14, Math.PI / 4, 0.5);
-      downSpot.position.set(0, -0.1, 0);
-      downSpot.target.position.set(0, -6, 0);
-      lampGroup.add(downSpot);
-      lampGroup.add(downSpot.target);
-
-      scene.add(lampGroup);
-    });
-
-    // H. Background Storage Pallet Racks (قفسه‌های راک انبار در انتهای سوله)
-    const rackGroup = new THREE.Group();
-    rackGroup.position.set(-8, 0, -21);
-
-    const rackOrangeMat = new THREE.MeshStandardMaterial({ color: '#ea580c', roughness: 0.5 });
-    const rackBlueMat = new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.5 });
-
-    // Upright Frames (ستون‌های آبی راک)
-    [-3.5, 0, 3.5].forEach(rx => {
-      [-0.5, 0.5].forEach(rz => {
-        const uprightGeo = new THREE.BoxGeometry(0.08, 4.5, 0.08);
-        const upright = new THREE.Mesh(uprightGeo, rackBlueMat);
-        upright.position.set(rx, 2.25, rz);
-        rackGroup.add(upright);
+      // Brand Accent Bezel
+      const accentGeo = new THREE.BoxGeometry(boardWidth + 0.06, boardHeight + 0.06, boardDepth + 0.01);
+      const accentMat = new THREE.MeshStandardMaterial({
+        color: brand.color,
+        roughness: 0.35,
+        metalness: 0.7,
       });
-    });
+      const accentMesh = new THREE.Mesh(accentGeo, accentMat);
+      boardGroup.add(accentMesh);
 
-    // Horizontal Orange Beams (بازوهای نارنجی راک)
-    [1.4, 2.8, 4.2].forEach(by => {
-      [-0.45, 0.45].forEach(bz => {
-        const beamGeo = new THREE.BoxGeometry(7.2, 0.1, 0.06);
-        const beam = new THREE.Mesh(beamGeo, rackOrangeMat);
-        beam.position.set(0, by, bz);
-        rackGroup.add(beam);
+      // Signboard Canvas Texture Plane
+      const signTex = createBrandBillboardTexture(brand);
+      const signGeo = new THREE.PlaneGeometry(boardWidth, boardHeight);
+      const signMat = new THREE.MeshBasicMaterial({
+        map: signTex,
+        side: THREE.FrontSide,
       });
-    });
+      const signMesh = new THREE.Mesh(signGeo, signMat);
+      signMesh.position.z = boardDepth / 2 + 0.015;
+      signMesh.name = `BRAND_BOARD_${brand.id}`;
+      (signMesh as any).brandId = brand.id;
+      boardGroup.add(signMesh);
+      brandBoardMeshes.current[brand.id] = signMesh;
 
-    // Spare wooden pallets on racks
-    const spareWoodMat = new THREE.MeshStandardMaterial({ color: '#a16207', roughness: 0.9 });
-    [-1.8, 1.8].forEach(px => {
-      [1.46, 2.86].forEach(py => {
-        const pMeshGeo = new THREE.BoxGeometry(1.2, 0.12, 1.0);
-        const pMesh = new THREE.Mesh(pMeshGeo, spareWoodMat);
-        pMesh.position.set(px, py + 0.06, 0);
-        rackGroup.add(pMesh);
+      scene.add(boardGroup);
 
-        // Carton boxes on pallets
-        const boxGeo = new THREE.BoxGeometry(0.8, 0.6, 0.7);
-        const boxMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.95 });
-        const box = new THREE.Mesh(boxGeo, boxMat);
-        box.position.set(px, py + 0.45, 0);
-        rackGroup.add(box);
+      // 3. Dedicated High-Contrast Floor Staging Bay for this brand
+      const bayGroup = new THREE.Group();
+      bayGroup.position.set(brand.floorBayX, 0, brand.floorBayZ);
+
+      const baySize = 3.2;
+      const bayTex = createBrandFloorBayTexture(brand);
+      const bayGeo = new THREE.PlaneGeometry(baySize, baySize);
+      const bayMat = new THREE.MeshBasicMaterial({
+        map: bayTex,
+        transparent: true,
+        opacity: 0.98,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
       });
+      const bayMesh = new THREE.Mesh(bayGeo, bayMat);
+      bayMesh.rotation.x = -Math.PI / 2;
+      bayMesh.position.y = 0.005;
+      bayMesh.name = `BRAND_BAY_${brand.id}`;
+      (bayMesh as any).brandId = brand.id;
+      bayGroup.add(bayMesh);
+      brandBayMeshes.current[brand.id] = bayMesh;
+
+      scene.add(bayGroup);
     });
-
-    scene.add(rackGroup);
-
+    
     // -------------------------------------------------------------
     // 6. REALISTIC EURO WOODEN PALLET (پالت چوبی کلاف‌های مس)
     // -------------------------------------------------------------
@@ -1152,6 +1816,19 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     palletHitBox.name = 'PALLET_HITBOX';
     palletGroup.add(palletHitBox);
 
+    // Master Pallet Packing List sticker on the front runner of the wooden pallet
+    const palletMasterTex = createPalletMasterLabelTexture(palletDataRef.current);
+    const pltLabelMat = new THREE.MeshBasicMaterial({
+      map: palletMasterTex,
+      side: THREE.DoubleSide,
+    });
+    const pltLabelGeo = new THREE.PlaneGeometry(0.28, 0.14);
+    const pltLabelMesh = new THREE.Mesh(pltLabelGeo, pltLabelMat);
+    pltLabelMesh.position.set(0, 0.08, palletLength / 2 + 0.003);
+    pltLabelMesh.name = 'PALLET_MASTER_LABEL_MESH';
+    palletGroup.add(pltLabelMesh);
+    palletMasterLabelMesh.current = pltLabelMesh;
+
     scene.add(palletGroup);
     palletGroupRef.current = palletGroup;
 
@@ -1198,143 +1875,10 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
     const initialPalletMasterTex = createPalletMasterLabelTexture(palletDataRef.current);
 
-    for (let i = 0; i < 5; i++) {
-      const singleSpoolGroup = new THREE.Group();
-      singleSpoolGroup.name = `SPOOL_GROUP_${i}`;
-      (singleSpoolGroup as any).spoolId = i;
-
-      // Bottom flange disc
-      const bottomDiscGeo = new THREE.CylinderGeometry(spoolFlangeRadius, spoolFlangeRadius, spoolFlangeThick, 36);
-      const bottomDisc = new THREE.Mesh(bottomDiscGeo, cardboardMat);
-      bottomDisc.position.set(0, -spoolHeight / 2 - spoolFlangeThick / 2, 0);
-      bottomDisc.castShadow = true;
-      bottomDisc.receiveShadow = true;
-      singleSpoolGroup.add(bottomDisc);
-
-      // Inner Core Tube
-      const innerCoreGeo = new THREE.CylinderGeometry(0.22, 0.22, spoolHeight, 28);
-      const innerCore = new THREE.Mesh(innerCoreGeo, innerCoreMat);
-      singleSpoolGroup.add(innerCore);
-
-      // Raw Copper Wound Cylinder
-      const rawCopperGeo = new THREE.CylinderGeometry(spoolRadius, spoolRadius, spoolHeight, 36, 12);
-      const rawCopperMesh = new THREE.Mesh(rawCopperGeo, rawCopperMat);
-      rawCopperMesh.castShadow = true;
-      rawCopperMesh.receiveShadow = true;
-      singleSpoolGroup.add(rawCopperMesh);
-
-      // Copper Tube Windings
-      for (let r = -5; r <= 5; r++) {
-        const ringGeo = new THREE.TorusGeometry(spoolRadius + 0.002, 0.013, 10, 36);
-        const ring = new THREE.Mesh(ringGeo, copperGrooveMat);
-        ring.rotation.x = Math.PI / 2;
-        ring.position.set(0, r * (spoolHeight / 12), 0);
-        singleSpoolGroup.add(ring);
-      }
-
-      // Top flange disc
-      const topDiscGeo = new THREE.CylinderGeometry(spoolFlangeRadius, spoolFlangeRadius, spoolFlangeThick, 36);
-      const topDisc = new THREE.Mesh(topDiscGeo, cardboardMat);
-      topDisc.position.set(0, spoolHeight / 2 + spoolFlangeThick / 2, 0);
-      topDisc.castShadow = true;
-      topDisc.receiveShadow = true;
-      singleSpoolGroup.add(topDisc);
-
-      // TEFLON SEAL WRAPPER GROUP
-      const teflonWrapGroup = new THREE.Group();
-      teflonWrapGroup.name = `TEFLON_WRAP_${i}`;
-
-      const teflonBandGeo = new THREE.CylinderGeometry(
-        spoolRadius + 0.006,
-        spoolRadius + 0.006,
-        spoolHeight - 0.008,
-        36,
-        1,
-        false
-      );
-      const teflonBandMesh = new THREE.Mesh(teflonBandGeo, teflonMat);
-      teflonBandMesh.castShadow = true;
-      teflonWrapGroup.add(teflonBandMesh);
-
-      const teflonEdgeMat = new THREE.MeshStandardMaterial({
-        color: '#e2e8f0',
-        roughness: 0.4,
-      });
-      [-spoolHeight / 2 + 0.015, spoolHeight / 2 - 0.015].forEach(yPos => {
-        const edgeRingGeo = new THREE.TorusGeometry(spoolFlangeRadius - 0.01, 0.015, 8, 36);
-        const edgeRing = new THREE.Mesh(edgeRingGeo, teflonEdgeMat);
-        edgeRing.rotation.x = Math.PI / 2;
-        edgeRing.position.set(0, yPos, 0);
-        teflonWrapGroup.add(edgeRing);
-      });
-
-      const outerFoilGeo = new THREE.CylinderGeometry(spoolFlangeRadius + 0.008, spoolFlangeRadius + 0.008, totalSpoolHeight, 36);
-      const outerFoilMesh = new THREE.Mesh(outerFoilGeo, teflonFilmMat);
-      teflonWrapGroup.add(outerFoilMesh);
-
-      singleSpoolGroup.add(teflonWrapGroup);
-      spoolTeflonWraps.current[i] = teflonWrapGroup;
-
-      // LABEL 1: INDIVIDUAL COIL SPECIFICATION LABEL (FRONT FACE)
-      const coilLabelTexture = createCoilLabelTexture(i + 1, palletDataRef.current);
-      const label1Mat = new THREE.MeshBasicMaterial({
-        map: coilLabelTexture,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -3,
-        polygonOffsetUnits: -3,
-      });
-      const label1Geo = new THREE.CylinderGeometry(
-        spoolRadius + 0.024,
-        spoolRadius + 0.024,
-        0.23,
-        36,
-        1,
-        true,
-        0.715,
-        0.95
-      );
-      const coilLabelMesh = new THREE.Mesh(label1Geo, label1Mat);
-      coilLabelMesh.name = `SPOOL_LABEL_1_${i}`;
-      coilLabelMesh.renderOrder = 20;
-      singleSpoolGroup.add(coilLabelMesh);
-      spoolCoilLabelMeshes.current[i] = coilLabelMesh;
-
-      // LABEL 2: MASTER PALLET TOTAL WEIGHT LABEL (SIDE 90 DEG)
-      const label2Mat = new THREE.MeshBasicMaterial({
-        map: initialPalletMasterTex,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -3,
-        polygonOffsetUnits: -3,
-      });
-      const label2Geo = new THREE.CylinderGeometry(
-        spoolRadius + 0.024,
-        spoolRadius + 0.024,
-        0.23,
-        36,
-        1,
-        true,
-        2.28,
-        0.95
-      );
-      const palletLabelMesh = new THREE.Mesh(label2Geo, label2Mat);
-      palletLabelMesh.name = `SPOOL_LABEL_2_${i}`;
-      palletLabelMesh.renderOrder = 20;
-      singleSpoolGroup.add(palletLabelMesh);
-      spoolPalletLabelMeshes.current[i] = palletLabelMesh;
-
-      // Interactive Hitbox
-      const spoolHitBoxGeo = new THREE.CylinderGeometry(spoolFlangeRadius + 0.08, spoolFlangeRadius + 0.08, totalSpoolHeight + 0.05, 16);
-      const spoolHitBoxMat = new THREE.MeshBasicMaterial({ visible: false });
-      const spoolHitBox = new THREE.Mesh(spoolHitBoxGeo, spoolHitBoxMat);
-      spoolHitBox.name = `SPOOL_HITBOX_${i}`;
-      (spoolHitBox as any).spoolId = i;
-      singleSpoolGroup.add(spoolHitBox);
-
+    spoolsRef.current.forEach((s) => {
+      const singleSpoolGroup = buildSingleSpoolGroup(s.id, palletDataRef.current);
       scene.add(singleSpoolGroup);
-      spool3DGroups.current[i] = singleSpoolGroup;
-    }
+    });
 
     // Top protective cardboard cap
     const topCapGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.015, 36);
@@ -1354,11 +1898,11 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     const animate = (time: number) => {
       animationFrameRef.current = requestAnimationFrame(animate);
 
-      const delta = (time - lastTime) / 1000;
+      const delta = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
 
-      // WASD / Arrow Keys Smooth Navigation
       if (cameraRef.current && !isDraggingPallet.current && activeDraggedSpoolId.current === null) {
+        // Orbit WASD / Arrow Keys Smooth Navigation
         const speed = 7.5 * delta;
         const forward = new THREE.Vector3();
         cameraRef.current.getWorldDirection(forward);
@@ -1394,23 +1938,43 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      // Normalize wheel delta across physical mice, trackpads, and gestures
       let delta = e.deltaY;
-      if (e.deltaMode === 1) delta *= 30; // lines
-      else if (e.deltaMode === 2) delta *= 300; // pages
+      if (e.deltaMode === 1) delta *= 30;
+      else if (e.deltaMode === 2) delta *= 300;
 
-      // Fast, responsive exponential zoom factor
-      const zoomFactor = delta > 0 ? 1.15 : 0.87;
-      const newRadius = cameraSpherical.current.radius * zoomFactor;
+      // Smooth & responsive forward / backward zooming across the entire hangar
+      const clampedDelta = Math.max(-180, Math.min(180, delta));
 
-      // Allow zooming from 0.35m (extreme close macro view) up to 35m (wide warehouse view)
-      cameraSpherical.current.radius = Math.max(0.35, Math.min(35, newRadius));
-      updateCameraPosition();
+      if (cameraRef.current) {
+        const forward = new THREE.Vector3();
+        cameraRef.current.getWorldDirection(forward);
+
+        if (clampedDelta < 0) {
+          // Scrolling forward: Zoom in / move forward towards whatever user is looking at
+          const forwardDist = Math.abs(clampedDelta) * 0.022;
+          cameraTarget.current.addScaledVector(forward, forwardDist);
+          // Also tighten radius smoothly
+          cameraSpherical.current.radius = Math.max(0.8, cameraSpherical.current.radius * 0.94);
+        } else {
+          // Scrolling backward: Zoom out / move backward
+          const backDist = Math.abs(clampedDelta) * 0.022;
+          cameraTarget.current.addScaledVector(forward, -backDist);
+          // Expand radius smoothly
+          cameraSpherical.current.radius = Math.min(14, cameraSpherical.current.radius * 1.06);
+        }
+
+        // Clamp target inside warehouse boundaries
+        cameraTarget.current.x = Math.max(-28, Math.min(28, cameraTarget.current.x));
+        cameraTarget.current.y = Math.max(0.3, Math.min(12, cameraTarget.current.y));
+        cameraTarget.current.z = Math.max(-24, Math.min(24, cameraTarget.current.z));
+
+        updateCameraPosition();
+      }
     };
 
     // Native Touch Event Handlers for Mobile Pinch-to-Zoom (Spread = Zoom In, Pinch = Zoom Out)
     const handleNativeTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
+      if (e.touches.length >= 2) {
         e.preventDefault();
         isPinchZooming.current = true;
         isDraggingCamera.current = false;
@@ -1420,48 +1984,37 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
 
         const t0 = e.touches[0];
         const t1 = e.touches[1];
-        const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
-        touchStartDist.current = dist;
-        touchStartRadius.current = cameraSpherical.current.radius;
-        touchStartMid.current = {
-          x: (t0.clientX + t1.clientX) / 2,
-          y: (t0.clientY + t1.clientY) / 2
-        };
+        touchStartDist.current = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
       } else if (e.touches.length === 1) {
         isPinchZooming.current = false;
         touchStartDist.current = null;
-        touchStartMid.current = null;
+        previousMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
 
     const handleNativeTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && touchStartDist.current !== null && touchStartDist.current > 5) {
-        e.preventDefault(); // Prevent browser native viewport zooming or bounce
+      if (e.touches.length >= 2 && touchStartDist.current !== null && cameraRef.current) {
+        e.preventDefault();
         const t0 = e.touches[0];
         const t1 = e.touches[1];
         const currentDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+        const distDiff = currentDist - touchStartDist.current;
+        touchStartDist.current = currentDist;
 
-        if (currentDist > 5) {
-          // Pinch to Zoom (Camera app style: spreading fingers zooms IN, pinching fingers zooms OUT)
-          const pinchRatio = touchStartDist.current / currentDist;
-          const newRadius = touchStartRadius.current * pinchRatio;
-          cameraSpherical.current.radius = Math.max(0.35, Math.min(35, newRadius));
-        }
+        const forward = new THREE.Vector3();
+        cameraRef.current.getWorldDirection(forward);
 
-        // Two-Finger Smooth Pan
-        const currentMidX = (t0.clientX + t1.clientX) / 2;
-        const currentMidY = (t0.clientY + t1.clientY) / 2;
-        if (touchStartMid.current && cameraRef.current) {
-          const deltaMidX = currentMidX - touchStartMid.current.x;
-          const deltaMidY = currentMidY - touchStartMid.current.y;
-          touchStartMid.current = { x: currentMidX, y: currentMidY };
+        // Spread fingers = move forward into view, pinch = move backward
+        const step = distDiff * 0.035;
+        cameraTarget.current.addScaledVector(forward, step);
+        cameraTarget.current.x = Math.max(-28, Math.min(28, cameraTarget.current.x));
+        cameraTarget.current.y = Math.max(0.3, Math.min(12, cameraTarget.current.y));
+        cameraTarget.current.z = Math.max(-24, Math.min(24, cameraTarget.current.z));
 
-          const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraRef.current.quaternion);
-          const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraRef.current.quaternion);
-          const panSpeed = 0.0035 * Math.max(0.7, cameraSpherical.current.radius);
-          cameraTarget.current.addScaledVector(camRight, -deltaMidX * panSpeed);
-          cameraTarget.current.addScaledVector(camUp, deltaMidY * panSpeed);
-          cameraTarget.current.y = Math.max(0.06, cameraTarget.current.y);
+        if (distDiff > 0) {
+          cameraSpherical.current.radius = Math.max(0.8, cameraSpherical.current.radius * 0.96);
+        } else {
+          cameraSpherical.current.radius = Math.min(14, cameraSpherical.current.radius * 1.04);
         }
 
         updateCameraPosition();
@@ -1472,10 +2025,6 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       if (e.touches.length < 2) {
         isPinchZooming.current = false;
         touchStartDist.current = null;
-        touchStartMid.current = null;
-      }
-      if (e.touches.length === 1) {
-        previousMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       }
     };
 
@@ -1552,6 +2101,14 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       if (pBox) hitObjects.push(pBox);
     }
 
+    Object.values(brandBoardMeshes.current).forEach(mesh => {
+      if (mesh) hitObjects.push(mesh);
+    });
+
+    Object.values(brandBayMeshes.current).forEach(mesh => {
+      if (mesh) hitObjects.push(mesh);
+    });
+
     const intersects = raycaster.intersectObjects(hitObjects, false);
 
     if (intersects.length > 0) {
@@ -1568,6 +2125,10 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       if (hitName === 'PALLET_HITBOX') {
         return { type: 'pallet' as const, point: firstHit.point, hitOnFloor };
       }
+      if (hitName.startsWith('BRAND_BOARD_') || hitName.startsWith('BRAND_BAY_')) {
+        const brandId = (firstHit.object as any).brandId as 'bahonar' | 'asteria' | 'ghaem' | 'babak' | 'mehrasl';
+        return { type: 'brand' as const, brandId, point: firstHit.point, hitOnFloor };
+      }
     }
 
     return null;
@@ -1579,6 +2140,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     if (!hit || hit.type !== 'spool' || hit.spoolId === undefined) return;
 
     const targetSpoolId = hit.spoolId;
+    setSelectedSpoolId(targetSpoolId);
     const currentSpool = spoolsRef.current.find(s => s.id === targetSpoolId);
     if (!currentSpool) return;
 
@@ -1607,13 +2169,97 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     }
   };
 
+  // Select and Stack Pallet in a Brand Zone
+  const handleSelectBrandZone = useCallback((brandId: 'bahonar' | 'asteria' | 'ghaem' | 'babak' | 'mehrasl') => {
+    const targetBrand = BRAND_ZONES.find(b => b.id === brandId);
+    if (!targetBrand) return;
+
+    setActiveBrandId(brandId);
+
+    // 1. Move Pallet Position to target Brand Floor Bay
+    const targetX = targetBrand.floorBayX;
+    const targetZ = targetBrand.floorBayZ;
+
+    palletPos.current.x = targetX;
+    palletPos.current.z = targetZ;
+
+    if (palletGroupRef.current) {
+      palletGroupRef.current.position.set(targetX, 0, targetZ);
+    }
+    if (palletZoneRef.current) {
+      palletZoneRef.current.position.set(targetX, 0.006, targetZ);
+    }
+
+    // 2. Reposition all spools
+    setSpools(prev => {
+      const updated = prev.map((s, idx) => {
+        if (s.onPallet) {
+          return {
+            ...s,
+            posX: targetX,
+            posZ: targetZ,
+            batchNo: `${targetBrand.defaultData.batchNo || 'BATCH'}-${idx + 1}`
+          };
+        } else {
+          const angle = (idx * (Math.PI / 3)) + 0.4;
+          const dist = 1.95;
+          return {
+            ...s,
+            posX: targetX + Math.cos(angle) * dist,
+            posZ: targetZ + Math.sin(angle) * dist,
+            batchNo: `${targetBrand.defaultData.batchNo || 'BATCH'}-${idx + 1}`
+          };
+        }
+      });
+      spoolsRef.current = updated;
+      return updated;
+    });
+
+    // 3. Apply Brand Specifications & Factory Data
+    setPalletData(targetBrand.defaultData);
+    palletDataRef.current = targetBrand.defaultData;
+
+    // 4. Update 3D transforms & label textures
+    setTimeout(() => {
+      update3DSpoolTransforms();
+      refreshAllLabelTextures();
+
+      // 5. Glide camera to focus on this brand bay and billboard
+      cameraTarget.current.set(targetX, 1.6, targetZ);
+      cameraSpherical.current = {
+        radius: 6.2,
+        theta: 0.18,
+        phi: Math.PI / 2.55,
+      };
+      updateCameraPosition();
+    }, 60);
+
+    setNotificationToast(`پالت مس با موفقیت در زون تابلوی "${targetBrand.nameFa}" (${targetBrand.zoneCode}) چیده شد.`);
+    setTimeout(() => setNotificationToast(null), 6000);
+  }, [update3DSpoolTransforms, refreshAllLabelTextures, updateCameraPosition]);
+
+  // Wide Overview of all Wall Billboards
+  const handleOverviewWallView = useCallback(() => {
+    cameraTarget.current.set(0, 3.8, -16.5);
+    cameraSpherical.current = {
+      radius: 14.8,
+      theta: 0.02,
+      phi: Math.PI / 2.38,
+    };
+    updateCameraPosition();
+    setNotificationToast('نمای کلی سالن و تابلوهای دیواری برندهای مس (باهنر، آستریا، قائم، بابک، مهر اصل)');
+    setTimeout(() => setNotificationToast(null), 5000);
+  }, [updateCameraPosition]);
+
   // Pointer Down (Mouse & Touch)
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (isPinchZooming.current) return;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
+    if (e.pointerType !== 'touch') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
     }
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
     clickStartPos.current = { x: e.clientX, y: e.clientY };
@@ -1627,10 +2273,24 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     // Left Click
     if (e.button === 0) {
       const hit = checkIntersections(e.clientX, e.clientY);
-      clickedHitType.current = hit ? hit.type : null;
+      clickedHitType.current = hit ? (hit.type === 'brand' ? 'pallet' : hit.type) : null;
+
+      if (hit?.type === 'brand' && hit.brandId) {
+        if (!isPalletLockedRef.current) {
+          handleSelectBrandZone(hit.brandId);
+        } else {
+          const brand = BRAND_ZONES.find(b => b.id === hit.brandId);
+          if (brand) {
+            setNotificationToast(`تابلوی برند: ${brand.nameFa} (${brand.zoneCode}) - موقعیت پالت قفل است.`);
+            setTimeout(() => setNotificationToast(null), 3500);
+          }
+        }
+        return;
+      }
 
       if (hit?.type === 'spool' && hit.spoolId !== undefined) {
         const spoolId = hit.spoolId;
+        setSelectedSpoolId(spoolId);
         const currentSpool = spoolsRef.current.find(s => s.id === spoolId);
 
         if (currentSpool && !currentSpool.onPallet) {
@@ -1648,12 +2308,17 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
       }
 
       if (hit?.type === 'pallet') {
-        isDraggingPallet.current = true;
-        dragOffset.current.set(
-          palletPos.current.x - hit.hitOnFloor.x,
-          0,
-          palletPos.current.z - hit.hitOnFloor.z
-        );
+        setSelectedSpoolId(null);
+        if (!isPalletLockedRef.current) {
+          isDraggingPallet.current = true;
+          dragOffset.current.set(
+            palletPos.current.x - hit.hitOnFloor.x,
+            0,
+            palletPos.current.z - hit.hitOnFloor.z
+          );
+          return;
+        }
+        isDraggingCamera.current = true;
         return;
       }
 
@@ -1812,8 +2477,8 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
   const handleZoomToLabel = () => {
     cameraTarget.current.set(palletPos.current.x, palletTopSurfaceY + 2.5 * totalSpoolHeight, palletPos.current.z);
     cameraSpherical.current = {
-      radius: 1.65,
-      theta: 0.72,
+      radius: 1.55,
+      theta: 1.15,
       phi: Math.PI / 2.05,
     };
     updateCameraPosition();
@@ -1832,8 +2497,8 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     cameraTarget.current.set(target.posX, targetY, target.posZ);
     cameraSpherical.current = {
       radius: 1.35,
-      theta: 0.72,
-      phi: Math.PI / 2.005, // Completely horizontal eye-level directly facing the coil label!
+      theta: 1.15, // Completely horizontal eye-level directly facing the coil label!
+      phi: Math.PI / 2.005,
     };
     updateCameraPosition();
   };
@@ -1872,7 +2537,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
     <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col overflow-hidden font-sans select-none" dir="rtl">
       
       {/* 3D CANVAS VIEWPORT CONTAINER */}
-      <div ref={containerRef} className="relative flex-1 w-full h-full overflow-hidden bg-black cursor-grab active:cursor-grabbing">
+      <div ref={containerRef} className="relative flex-1 w-full h-full overflow-hidden bg-slate-100 cursor-grab active:cursor-grabbing">
         <canvas
           ref={canvasRef}
           onDoubleClick={handleDoubleClick}
@@ -1887,382 +2552,320 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
         <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-30 pointer-events-auto">
           
           {/* MOBILE TOP BAR (sm:hidden) */}
-          <div className="flex sm:hidden flex-col gap-2">
-            {/* Top row: Exit button + Main Camera Intake Scanner Button */}
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex sm:hidden items-center justify-between gap-1.5 bg-stone-900/95 border border-stone-800/90 p-1.5 rounded-2xl shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-1">
               {handleExit && (
                 <button
                   type="button"
                   onClick={handleExit}
-                  className="px-3 py-2 bg-stone-900/95 hover:bg-stone-800 text-stone-300 border border-stone-700/80 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xl backdrop-blur-md cursor-pointer active:scale-95"
+                  className="px-2.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                  title="خروج"
                 >
                   <X className="w-4 h-4 text-stone-400" />
                   <span>خروج</span>
                 </button>
               )}
 
-              {/* PRIMARY PROMINENT COPPER INTAKE & CAMERA OCR BUTTON */}
+              {onOpenWarehouse2DPanel && (
+                <button
+                  type="button"
+                  onClick={onOpenWarehouse2DPanel}
+                  className="px-2.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white font-black rounded-xl text-xs flex items-center gap-1 shadow-xl transition-all cursor-pointer active:scale-95 border border-blue-400/60 shrink-0"
+                  title="صفحات مدیریت و کاردکس انبار"
+                >
+                  <Boxes className="w-3.5 h-3.5 text-blue-100" />
+                  <span>مدیریت انبار</span>
+                  {warehouseItemsCount !== undefined && warehouseItemsCount > 0 && (
+                    <span className="bg-blue-950 text-blue-200 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                      {warehouseItemsCount}
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Copper Intake Button */}
               <button
                 type="button"
                 onClick={() => setShowIntakeModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-black rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/30 border border-amber-300"
-                title="ورود مس و اسکن هوشمند عکس برچسب با دوربین"
+                className="px-2.5 py-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-black rounded-xl text-xs flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/25 border border-amber-300 shrink-0"
+                title="ورود مس و اسکن عکس لیبل"
               >
-                <Camera className="w-4 h-4 text-stone-950" />
-                <span>ورود مس و اسکن لیبل</span>
+                <Camera className="w-3.5 h-3.5 text-stone-950 shrink-0" />
+                <span>ورود مس</span>
               </button>
-            </div>
 
-            {/* Sub-row: Horizontal scrollable tools */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 bg-stone-900/90 border border-stone-800 rounded-xl shadow-xl backdrop-blur-md">
+              {/* Pallet Lock Toggle */}
               <button
                 type="button"
-                onClick={() => setShowInfoCard(prev => !prev)}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
-                  showInfoCard ? 'bg-amber-500 text-stone-950 font-black' : 'bg-stone-800 text-stone-300'
+                onClick={() => {
+                  setIsPalletLocked(prev => {
+                    const next = !prev;
+                    isPalletLockedRef.current = next;
+                    setNotificationToast(next ? "🔒 پالت در زون قفل شد." : "🔓 قفل پالت باز شد (امکان جابه‌جایی فعال است).");
+                    setTimeout(() => setNotificationToast(null), 3500);
+                    return next;
+                  });
+                }}
+                className={`p-2 rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+                  isPalletLocked
+                    ? "bg-stone-800 text-amber-300 border-amber-500/40"
+                    : "bg-amber-500 text-stone-950 border-amber-300 shadow-md"
                 }`}
+                title={isPalletLocked ? "پالت قفل است و جابه‌جا نمی‌شود" : "پالت متحرک است"}
               >
-                <Package className="w-3.5 h-3.5" />
-                <span>مشخصات پالت</span>
+                {isPalletLocked ? <Lock className="w-4 h-4 text-amber-400" /> : <Unlock className="w-4 h-4 text-stone-950" />}
               </button>
-
-              <button
-                type="button"
-                onClick={() => setShowHdLabelModal(true)}
-                className="px-2.5 py-1.5 bg-purple-600/25 text-purple-200 border border-purple-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
-              >
-                <FileText className="w-3.5 h-3.5 text-purple-300" />
-                <span>برچسب HD</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleZoomToLabel}
-                className="px-2.5 py-1.5 bg-blue-600/25 text-blue-300 border border-blue-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
-              >
-                <ZoomIn className="w-3.5 h-3.5 text-blue-400" />
-                <span>زوم برچسب</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleFocusFloorSpool}
-                className="px-2.5 py-1.5 bg-amber-500/25 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5 text-amber-400" />
-                <span>دید افقی کلاف</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleUnstackTopSpool}
-                disabled={countOnPallet === 0}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer ${
-                  countOnPallet > 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-stone-800 text-stone-500'
-                }`}
-              >
-                <MinusCircle className="w-3.5 h-3.5" />
-                <span>برداشتن ۱ کلاف</span>
-              </button>
-
-              {countOffPallet > 0 && (
-                <button
-                  type="button"
-                  onClick={handleRestackAllSpools}
-                  className="px-2.5 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>بازگرداندن ({countOffPallet})</span>
-                </button>
-              )}
             </div>
           </div>
 
           {/* DESKTOP TOP BAR (hidden sm:flex) */}
           <div className="hidden sm:flex items-center justify-between">
-            {/* Exit 3D Viewport Button */}
-            {handleExit && (
-              <button
-                type="button"
-                onClick={handleExit}
-                className="px-4 py-2 bg-stone-900/90 hover:bg-stone-800 text-stone-200 hover:text-white border border-stone-700/80 rounded-2xl text-xs font-black flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer active:scale-95"
-              >
-                <X className="w-4 h-4 text-stone-400" />
-                <span>خروج از فضای ۳ بعدی</span>
-              </button>
-            )}
+            {/* Exit 3D Viewport & 2D Warehouse Pages Buttons */}
+            <div className="flex items-center gap-2">
+              {handleExit && (
+                <button
+                  type="button"
+                  onClick={handleExit}
+                  className="px-4 py-2 bg-stone-900/90 hover:bg-stone-800 text-stone-200 hover:text-white border border-stone-700/80 rounded-2xl text-xs font-black flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer active:scale-95"
+                  title="خروج و بازگشت به پنل مدیریت"
+                >
+                  <X className="w-4 h-4 text-stone-400" />
+                  <span>خروج</span>
+                </button>
+              )}
 
-            {/* Quick Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
+              {/* DEDICATED BUTTON TO OPEN 2D WAREHOUSE MANAGEMENT PAGES */}
+              {onOpenWarehouse2DPanel && (
+                <button
+                  type="button"
+                  onClick={onOpenWarehouse2DPanel}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs flex items-center gap-2 shadow-2xl backdrop-blur-md transition-all cursor-pointer active:scale-95 border border-blue-400/60 shadow-blue-950/50 group"
+                  title="مشاهده صفحات مدیریت انبارداری مس، موجودی زنده، کاردکس بارنامه‌ها و ورود/خروج مس"
+                >
+                  <Boxes className="w-4 h-4 text-blue-200 group-hover:scale-110 transition-transform" />
+                  <span>صفحات مدیریت و کاردکس انبار</span>
+                  {warehouseItemsCount !== undefined && warehouseItemsCount > 0 && (
+                    <span className="bg-blue-950/90 text-blue-200 font-mono text-[10px] px-2 py-0.5 rounded-full border border-blue-400/30">
+                      {warehouseItemsCount} سند
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Essential Controls: Copper Intake + Pallet Lock */}
+            <div className="flex items-center gap-2 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
               {/* COPPER INTAKE & OCR SCANNER BUTTON */}
               <button
                 type="button"
                 onClick={() => setShowIntakeModal(true)}
-                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/20 border border-amber-400"
+                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg shadow-amber-500/20 border border-amber-400"
                 title="ورود مس و اسکن هوشمند عکس لیبل با دوربین یا آپلود"
               >
                 <Camera className="w-4 h-4 text-stone-950" />
                 <span>ورود مس و اسکن لیبل</span>
               </button>
 
-              {/* Quick Macro Zoom to Label Button */}
+              {/* PALLET POSITION LOCK / UNLOCK TOGGLE BUTTON */}
               <button
                 type="button"
-                onClick={handleZoomToLabel}
-                className="px-3 py-2 bg-blue-600/25 hover:bg-blue-600/40 text-blue-300 border border-blue-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-                title="زوم بسیار نزدیک ۳ بعدی روی برچسب پالت مس"
-              >
-                <ZoomIn className="w-4 h-4 text-blue-400" />
-                <span>زوم برچسب پالت</span>
-              </button>
-
-              {/* Horizontal Eye-Level Floor Spool View Button */}
-              <button
-                type="button"
-                onClick={handleFocusFloorSpool}
-                className="px-3 py-2 bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-                title="دید کاملاً افقی و رو در رو با کلاف مس روی زمین برای خواندن آسان متن برچسب"
-              >
-                <Eye className="w-4 h-4 text-amber-400" />
-                <span>دید افقی کلاف زمین</span>
-              </button>
-
-              {/* HD Label Inspector Modal Button */}
-              <button
-                type="button"
-                onClick={() => setShowHdLabelModal(true)}
-                className="px-3 py-2 bg-purple-600/25 hover:bg-purple-600/40 text-purple-200 border border-purple-500/50 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-lg"
-                title="مشاهده نسخه باکیفیت برچسب کلاف و برچسب کل پالت"
-              >
-                <FileText className="w-4 h-4 text-purple-300" />
-                <span>برچسب‌های HD</span>
-              </button>
-
-              {/* Unstack Spool */}
-              <button
-                type="button"
-                onClick={handleUnstackTopSpool}
-                disabled={countOnPallet === 0}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  countOnPallet > 0
-                    ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 active:scale-95'
-                    : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-transparent'
+                onClick={() => {
+                  setIsPalletLocked(prev => {
+                    const next = !prev;
+                    isPalletLockedRef.current = next;
+                    setNotificationToast(next ? "🔒 موقعیت پالت در زون قفل شد." : "🔓 قفل موقعیت پالت باز شد (امکان جابه‌جایی فعال است).");
+                    setTimeout(() => setNotificationToast(null), 3500);
+                    return next;
+                  });
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border ${
+                  isPalletLocked
+                    ? "bg-stone-800/90 text-amber-300 border-amber-500/40 hover:bg-stone-750 shadow-inner"
+                    : "bg-amber-500 text-stone-950 border-amber-300 shadow-lg shadow-amber-500/30 font-black"
                 }`}
-                title="برداشتن یک قرقره از روی پالت و قرار دادن آن روی زمین سوله"
+                title={isPalletLocked ? "پالت قفل است و با کلیک روی زون‌ها جابه‌جا نمی‌شود" : "پالت متحرک است"}
               >
-                <MinusCircle className="w-4 h-4 text-amber-400" />
-                <span>برداشتن ۱ کلاف</span>
-              </button>
-
-              {/* Restack Spools */}
-              {countOffPallet > 0 && (
-                <button
-                  type="button"
-                  onClick={handleRestackAllSpools}
-                  className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                  title="بازگرداندن همه قرقره‌ها روی پالت و پلمپ مجدد با تفلون"
-                >
-                  <RotateCcw className="w-4 h-4 text-emerald-400" />
-                  <span>بازگرداندن ({countOffPallet})</span>
-                </button>
-              )}
-
-              {/* Info Toggle Button */}
-              <button
-                type="button"
-                onClick={() => setShowInfoCard(prev => !prev)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  showInfoCard
-                    ? 'bg-amber-500 text-stone-950 font-black shadow-md'
-                    : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700/60'
-                }`}
-                title="مشاهده / بستن مشخصات پالت"
-              >
-                <Package className="w-4 h-4" />
-                <span>مشخصات</span>
+                {isPalletLocked ? <Lock className="w-4 h-4 text-amber-400" /> : <Unlock className="w-4 h-4 text-stone-950" />}
+                <span>{isPalletLocked ? "پالت قفل است" : "پالت متحرک"}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* FLOATING CAMERA CONTROL HUD (ZOOM & PRESETS) */}
-        <div className="absolute top-28 sm:top-20 left-3 sm:left-4 z-20 pointer-events-auto flex flex-col gap-1.5 bg-stone-900/90 border border-stone-800 p-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            className="p-2 bg-stone-800/80 hover:bg-stone-700 text-stone-200 rounded-xl transition-all cursor-pointer active:scale-90"
-            title="بزرگ‌نمایی سریع (Zoom In)"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="p-2 bg-stone-800/80 hover:bg-stone-700 text-stone-200 rounded-xl transition-all cursor-pointer active:scale-90"
-            title="کوچک‌نمایی سریع (Zoom Out)"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <div className="h-px bg-stone-800 my-0.5" />
-          <button
-            type="button"
-            onClick={handleFocusFloorSpool}
-            className="p-2 bg-stone-800/80 hover:bg-amber-500/20 text-amber-400 rounded-xl transition-all cursor-pointer active:scale-90"
-            title="دید افقی و خواندن برچسب کلاف مس روی زمین"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleResetView}
-            className="p-2 bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-amber-400 rounded-xl transition-all cursor-pointer active:scale-90"
-            title="دید پیش‌فرض سوله"
-          >
-            <Compass className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleTopView}
-            className="p-2 bg-stone-800/80 hover:bg-stone-700 text-blue-400 rounded-xl transition-all cursor-pointer active:scale-90"
-            title="دید از بالا (پلان سوله)"
-          >
-            <Layers className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* FLOATING REAL-TIME PALLET LIVE WEIGHT HUD BADGE (RESPONSIVE) */}
-        <div className="absolute top-28 sm:top-20 right-3 sm:right-4 z-20 pointer-events-auto max-w-[calc(100vw-5rem)] sm:max-w-sm">
-          {/* Mobile Collapsible Pill */}
-          <div className="sm:hidden">
-            <button
-              type="button"
-              onClick={() => setIsWeightBadgeExpanded(prev => !prev)}
-              className="bg-stone-900/95 border border-amber-500/40 rounded-xl px-2.5 py-1.5 shadow-xl backdrop-blur-md flex items-center gap-1.5 text-right text-xs cursor-pointer active:scale-95"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono font-black text-emerald-400">{currentPalletNetWeight.toFixed(1)} kg</span>
-              <span className="text-[10px] text-stone-400">({countOnPallet} کلاف)</span>
-            </button>
+        {/* NOTIFICATION CONFIRMATION TOAST */}
+        {notificationToast && (
+          <div className="absolute top-20 left-4 right-4 sm:left-auto sm:right-auto sm:left-1/2 sm:-translate-x-1/2 z-40 bg-stone-900/95 border-2 border-amber-400 text-amber-200 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md text-xs font-bold text-center flex items-center justify-center gap-2 max-w-xl animate-in fade-in zoom-in-95">
+            <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{notificationToast}</span>
           </div>
+        )}
 
-          {/* Detailed Card (Always on desktop, expandable on mobile) */}
-          <div className={`${isWeightBadgeExpanded ? 'block mt-2' : 'hidden sm:block'} bg-stone-900/95 border border-amber-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md space-y-2 text-right`}>
-            <div className="flex items-center justify-between border-b border-stone-800 pb-1.5">
-              <span className="text-[11px] font-mono text-stone-400">DYNAMIC PALLET WEIGHT</span>
-              <span className="text-xs font-black text-amber-400 flex items-center gap-1">
-                <span>{palletData.companyName}</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-stone-400">وزن زنده خالص پالت:</span>
-              <span className="font-mono font-black text-emerald-400 text-sm">
-                {currentPalletNetWeight.toFixed(1)} <span className="text-[10px] text-stone-400 font-sans">کیلوگرم</span>
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-stone-400">وضعیت کلاف‌ها:</span>
-              <span className="font-bold text-amber-300">
-                {countOnPallet} از {spools.length} کلاف روی پالت
-              </span>
-            </div>
-
-            {countOffPallet > 0 && (
-              <div className="p-1.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-[11px] text-rose-300 flex items-center justify-between">
-                <span>کلاف‌های جدا شده از پالت:</span>
-                <span className="font-bold font-mono">
-                  {countOffPallet} کلاف ({(countOffPallet * palletData.netWeightPerRoll).toFixed(1)} kg)
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* DEDICATED MOBILE FLOATING ACTION BUTTON (ALWAYS ACCESSIBLE WITH RIGHT THUMB) */}
-        <button
-          type="button"
-          onClick={() => setShowIntakeModal(true)}
-          className="sm:hidden absolute bottom-5 right-4 z-40 px-4 py-3 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-stone-950 font-black rounded-2xl shadow-2xl shadow-amber-500/50 flex items-center gap-2 active:scale-95 border-2 border-amber-300 pointer-events-auto cursor-pointer"
-          title="ورود مس و اسکن عکس لیبل با دوربین"
-        >
-          <Camera className="w-5 h-5 text-stone-950" />
-          <span className="text-xs font-black">ورود مس و اسکن لیبل</span>
-        </button>
-
-        {/* BOTTOM HELPER HINT BAR */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none hidden sm:block">
-          <div className="flex items-center gap-3 px-4 py-2 bg-stone-900/90 border border-stone-800/80 rounded-full shadow-2xl backdrop-blur-md text-[11px] text-stone-300">
-            <span className="flex items-center gap-1 text-blue-400 font-bold">
-              <span>🖱️ دوبار کلیک:</span>
-              <span className="text-stone-300 font-normal">جداسازی / چیدن کلاف</span>
-            </span>
-            <span className="w-1 h-1 rounded-full bg-stone-700" />
-            <span className="flex items-center gap-1 text-amber-400 font-bold">
-              <span>🔄 کلیک چپ و کشیدن:</span>
-              <span className="text-stone-300 font-normal">چرخش ۳ بعدی</span>
-            </span>
-            <span className="w-1 h-1 rounded-full bg-stone-700" />
-            <span className="flex items-center gap-1 text-purple-400 font-bold">
-              <span>↔️ کلیک راست یا Shift:</span>
-              <span className="text-stone-300 font-normal">جابه‌جایی دوربین (Pan)</span>
-            </span>
-            <span className="w-1 h-1 rounded-full bg-stone-700" />
-            <span className="flex items-center gap-1 text-emerald-400 font-bold">
-              <span>🔍 اسکرول ماوس:</span>
-              <span className="text-stone-300 font-normal">زوم نرم و ماکرو</span>
-            </span>
-          </div>
-        </div>
-
-        {/* COMPACT PALLET INFO CARD */}
+        {/* COMPACT PALLET & SPOOL INFO CARD */}
         {showInfoCard && (
-          <div className="absolute bottom-6 right-6 z-40 w-72 sm:w-80 bg-stone-900/95 border border-amber-500/50 rounded-2xl p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl select-none text-right animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-2.5 border-b border-stone-800">
-              <button
-                type="button"
-                onClick={() => setShowInfoCard(false)}
-                className="p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
-                title="بستن"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-amber-300">{palletData.companyName}</span>
-                <span className="p-1 bg-amber-500/20 text-amber-400 rounded-lg border border-amber-500/30">
-                  <Package className="w-3.5 h-3.5" />
-                </span>
-              </div>
-            </div>
+          <div className="absolute bottom-6 right-6 z-40 w-80 bg-stone-900/95 border border-amber-500/50 rounded-2xl p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl select-none text-right animate-in fade-in zoom-in-95 duration-150">
+            {(() => {
+              const selectedSpool = selectedSpoolId !== null ? spools.find(s => s.id === selectedSpoolId) : null;
+              if (selectedSpool) {
+                return (
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-stone-800">
+                      <button
+                        type="button"
+                        onClick={() => setShowInfoCard(false)}
+                        className="p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
+                        title="بستن"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-amber-300">
+                          قرقره مس شماره {selectedSpool.id + 1}
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          {selectedSpool.onPallet ? 'روی پالت' : 'در سالن'}
+                        </span>
+                      </div>
+                    </div>
 
-            <div className="mt-2.5 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
-                <span className="font-mono font-black text-amber-300 text-xs">
-                  {palletData.sizeInch} ({palletData.sizeMetric} mm)
-                </span>
-                <span className="font-medium text-stone-400 text-[11px]">سایز:</span>
-              </div>
+                    <div className="mt-2.5 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                        <span className="font-mono font-black text-amber-300 text-xs">
+                          {palletData.sizeInch} ({palletData.sizeMetric} mm)
+                        </span>
+                        <span className="font-medium text-stone-400 text-[11px]">سایز کلاف:</span>
+                      </div>
 
-              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
-                <span className="font-mono font-black text-emerald-300 text-xs">
-                  {palletData.netWeightPerRoll} kg
-                </span>
-                <span className="font-medium text-stone-400 text-[11px]">وزن هر کلاف:</span>
-              </div>
+                      <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                        <span className="font-mono font-black text-emerald-300 text-xs">
+                          {selectedSpool.netWeight} kg
+                        </span>
+                        <span className="font-medium text-stone-400 text-[11px]">وزن خالص این قرقره:</span>
+                      </div>
 
-              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
-                <span className="font-mono font-bold text-amber-200 text-xs">
-                  {currentPalletNetWeight.toFixed(1)} kg ({countOnPallet} از {spools.length})
-                </span>
-                <span className="font-medium text-stone-400 text-[11px]">وزن زنده پالت:</span>
-              </div>
+                      <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                        <span className="font-mono font-bold text-stone-300 text-xs">
+                          {selectedSpool.grossWeight} kg
+                        </span>
+                        <span className="font-medium text-stone-400 text-[11px]">وزن ناخالص:</span>
+                      </div>
 
-              <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
-                <span className="font-mono text-stone-300 text-[11px]">{palletData.batchNo}</span>
-                <span className="font-medium text-stone-400 text-[11px]">شماره بچ:</span>
-              </div>
-            </div>
+                      <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                        <span className="font-mono text-stone-300 text-[11px]">{selectedSpool.batchNo}</span>
+                        <span className="font-medium text-stone-400 text-[11px]">شماره بچ:</span>
+                      </div>
+
+                      {/* PHOTO SPECIFIC TO THIS SINGLE SPOOL */}
+                      <div className="mt-2.5 pt-2 border-t border-stone-800">
+                        {selectedSpool.photoUrl ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSpoolPhoto(selectedSpool.id)}
+                                className="text-red-400 hover:text-red-300 text-[10px] underline cursor-pointer"
+                              >
+                                حذف عکس این قرقره
+                              </button>
+                              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                برچسب با عکس اختصاصی
+                              </span>
+                            </div>
+                            <div className="w-full h-20 rounded-xl overflow-hidden border border-emerald-500/40 relative bg-stone-950">
+                              <img
+                                src={selectedSpool.photoUrl}
+                                alt={`برچسب قرقره ${selectedSpool.id + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-stone-400 mb-1 flex items-center justify-between">
+                            <span className="text-[10px] text-amber-400/80">برچسب وکتور استاندارد</span>
+                            <span className="text-[10px] text-stone-500">بدون عکس اختصاصی</span>
+                          </div>
+                        )}
+
+                        <label className="mt-2 w-full py-1.5 px-3 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>{selectedSpool.photoUrl ? 'تغییر عکس همین قرقره' : 'افزودن عکس برای همین قرقره'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleUploadForSpool(selectedSpool.id, e)}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSpoolId(null)}
+                        className="w-full mt-1 py-1 text-[11px] font-bold text-stone-400 hover:text-stone-200 transition-colors cursor-pointer text-center"
+                      >
+                        نمایش اطلاعات کلی پالت ←
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // PALLET MASTER SUMMARY
+              return (
+                <div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-stone-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowInfoCard(false)}
+                      className="p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
+                      title="بستن"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-amber-300">{palletData.companyName}</span>
+                      <span className="p-1 bg-amber-500/20 text-amber-400 rounded-lg border border-amber-500/30">
+                        <Package className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                      <span className="font-mono font-black text-amber-300 text-xs">
+                        {palletData.sizeInch} ({palletData.sizeMetric} mm)
+                      </span>
+                      <span className="font-medium text-stone-400 text-[11px]">سایز:</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                      <span className="font-mono font-black text-emerald-300 text-xs">
+                        {palletData.netWeightPerRoll} kg
+                      </span>
+                      <span className="font-medium text-stone-400 text-[11px]">میانگین هر کلاف:</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                      <span className="font-mono font-bold text-amber-200 text-xs">
+                        {currentPalletNetWeight.toFixed(1)} kg ({countOnPallet} از {spools.length})
+                      </span>
+                      <span className="font-medium text-stone-400 text-[11px]">وزن زنده پالت:</span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-stone-950/70 border border-stone-800/60">
+                      <span className="font-mono text-stone-300 text-[11px]">{palletData.batchNo}</span>
+                      <span className="font-medium text-stone-400 text-[11px]">شماره بچ:</span>
+                    </div>
+
+                    <div className="text-[10px] text-amber-300/80 pt-1 text-center">
+                      روی هر قرقره کلیک کنید تا عکس و اطلاعات اختصاصی آن را ببینید یا تغییر دهید.
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2310,7 +2913,7 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
                 >
                   برچسب جامع پالت (Master Pallet Label)
                 </button>
-                {palletData.uploadedImageUrl && (
+                {Boolean(spools.find(s => s.id === selectedSpoolId)?.photoUrl || palletData.uploadedImageUrl) && (
                   <button
                     type="button"
                     onClick={() => setHdLabelTab('photo')}
@@ -2320,7 +2923,9 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
                         : 'text-stone-600 hover:text-black hover:bg-stone-200'
                     }`}
                   >
-                    عکس بارگذاری‌شده
+                    {spools.find(s => s.id === selectedSpoolId)?.photoUrl
+                      ? `عکس برچسب قرقره ${(selectedSpoolId ?? 0) + 1}`
+                      : 'عکس برچسب بارگذاری‌شده'}
                   </button>
                 )}
               </div>
@@ -2409,11 +3014,11 @@ export const WarehouseEmpty3DHangar: React.FC<WarehouseEmpty3DHangarProps> = ({ 
               )}
 
               {/* TAB CONTENT: SCANNED PHOTO */}
-              {hdLabelTab === 'photo' && palletData.uploadedImageUrl && (
+              {hdLabelTab === 'photo' && Boolean(spools.find(s => s.id === selectedSpoolId)?.photoUrl || palletData.uploadedImageUrl) && (
                 <div className="mt-4 border-2 border-stone-900 p-2 rounded-2xl bg-stone-100 flex items-center justify-center max-h-[60vh] overflow-hidden">
                   <img
-                    src={palletData.uploadedImageUrl}
-                    alt="Scanned Copper Pallet Label"
+                    src={spools.find(s => s.id === selectedSpoolId)?.photoUrl || palletData.uploadedImageUrl}
+                    alt="Scanned Copper Label"
                     className="max-h-[55vh] object-contain rounded-xl shadow-lg"
                   />
                 </div>

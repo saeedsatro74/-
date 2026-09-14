@@ -33,7 +33,8 @@ import {
   Disc,
   FileText,
   Warehouse,
-  Move3d
+  Move3d,
+  X
 } from 'lucide-react';
 import { 
   WarehouseItem, 
@@ -88,7 +89,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
 
   // Active warehouse navigation tab (live_stock or transactions)
   const [activeWarehouseTab, setActiveWarehouseTab] = useState<'live_stock' | 'transactions'>('live_stock');
-  const [is3DHangarFullscreenOpen, setIs3DHangarFullscreenOpen] = useState(false);
+  const [is2DPanelOpen, setIs2DPanelOpen] = useState(false);
 
   // Modals state
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
@@ -274,95 +275,116 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 pb-16 dir-rtl font-sans">
-      
-      {/* Top Modern Dark Header */}
-      <header className="bg-stone-900/90 backdrop-blur-md sticky top-0 z-30 shadow-xl border-b border-stone-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            
-            {/* Logo & Portal Title */}
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl overflow-hidden bg-blue-600 border border-blue-500/40 shadow-lg shadow-blue-950/40 flex items-center justify-center shrink-0">
-                <img 
-                  src={WATTEH_LOGO} 
-                  alt="لوگوی مس واته" 
-                  className="w-full h-full object-cover" 
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
-                    سامانه هوشمند انبارداری مس واته
-                  </h1>
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                    userRole === 'admin'
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                  }`}>
-                    {userRole === 'admin' ? 'مدیریت بازرگانی' : 'انبار مرکزی'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-stone-400 mt-0.5 font-mono">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-stone-500" />
-                    <span>{liveDate}</span>
+    <>
+      {/* 3D Hangar Viewport is the PRIMARY default space */}
+      <WarehouseEmpty3DHangar
+        onClose={onBack || onLogout}
+        onBackTo2D={() => setIs2DPanelOpen(true)}
+        onOpenWarehouse2DPanel={() => setIs2DPanelOpen(true)}
+        warehouseItemsCount={items.length}
+      />
+
+      {/* 2D Management & Cardex Pages Overlay */}
+      {is2DPanelOpen && (
+        <div className="fixed inset-0 z-[105] overflow-y-auto bg-stone-950 text-stone-100 pb-16 dir-rtl font-sans animate-in fade-in duration-200">
+          
+          {/* Top Modern Dark Header */}
+          <header className="bg-stone-900/95 backdrop-blur-md sticky top-0 z-30 shadow-xl border-b border-stone-800">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                
+                {/* Logo & Portal Title */}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl overflow-hidden bg-blue-600 border border-blue-500/40 shadow-lg shadow-blue-950/40 flex items-center justify-center shrink-0">
+                    <img 
+                      src={WATTEH_LOGO} 
+                      alt="لوگوی مس واته" 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
                   </div>
-                  <span>•</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="dir-ltr font-bold text-amber-300">{liveTime}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+                        صفحات مدیریت و کاردکس انبارداری مس واته
+                      </h1>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        userRole === 'admin'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                      }`}>
+                        {userRole === 'admin' ? 'مدیریت بازرگانی' : 'انبار مرکزی'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-stone-400 mt-0.5 font-mono">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-stone-500" />
+                        <span>{liveDate}</span>
+                      </div>
+                      <span>•</span>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="dir-ltr font-bold text-amber-300">{liveTime}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-2">
-              {onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                  title="بازگشت به پنل مدیریت"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  <span>پنل مدیریت</span>
-                </button>
-              )}
+                {/* Quick Actions */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* RETURN TO 3D HANGAR BUTTON */}
+                  <button
+                    type="button"
+                    onClick={() => setIs2DPanelOpen(false)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shadow-lg border bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 border-amber-300 active:scale-95 group"
+                    title="بازگشت به فضای سه بعدی سوله کارخانه‌ای واته"
+                  >
+                    <Warehouse className="w-4 h-4 text-stone-950 group-hover:scale-110 transition-transform" />
+                    <span>🏢 بازگشت به سوله ۳ بعدی</span>
+                    <span className="bg-stone-950 text-amber-300 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-black shadow-xs">
+                      3D
+                    </span>
+                  </button>
 
-              {/* 3D Hangar Quick Button: Opens in Fullscreen */}
-              <button
-                type="button"
-                onClick={() => setIs3DHangarFullscreenOpen(true)}
-                className="px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md border bg-stone-900 hover:bg-stone-850 text-amber-300 border-amber-500/50 hover:border-amber-400 active:scale-95 group"
-                title="ورود به فضای سه‌بعدی سوله کارخانه‌ای واته (تمام‌صفحه) - 3D Hangar"
-              >
-                <Warehouse className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>🏢 ورود به سوله ۳ بعدی (تمام صفحه)</span>
-                <span className="bg-amber-400 text-stone-950 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-black shadow-xs">
-                  3D
-                </span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAdd('inbound')}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-lg shadow-emerald-950/40 flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-500/50"
+                  >
+                    <PackagePlus className="w-4 h-4" />
+                    <span>+ ثبت ورود مس (رسید انبار)</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleOpenAdd('inbound')}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-lg shadow-emerald-950/40 flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-500/50"
-              >
-                <PackagePlus className="w-4 h-4" />
-                <span>+ ثبت ورود مس (رسید انبار)</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAdd('outbound')}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white shadow-lg shadow-amber-950/40 flex items-center gap-1.5 transition-all cursor-pointer border border-amber-500/50"
+                  >
+                    <PackageMinus className="w-4 h-4" />
+                    <span>- ثبت خروج مس (حواله بار)</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleOpenAdd('outbound')}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white shadow-lg shadow-amber-950/40 flex items-center gap-1.5 transition-all cursor-pointer border border-amber-500/50"
-              >
-                <PackageMinus className="w-4 h-4" />
-                <span>- ثبت خروج مس (حواله بار)</span>
-              </button>
+                  {onBack && (
+                    <button
+                      type="button"
+                      onClick={onBack}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                      title="بازگشت به پنل مدیریت"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      <span>پنل مدیریت</span>
+                    </button>
+                  )}
+
+                  {/* Close button for 2D Panel */}
+                  <button
+                    type="button"
+                    onClick={() => setIs2DPanelOpen(false)}
+                    className="p-2 rounded-xl bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white transition-colors cursor-pointer border border-stone-700"
+                    title="بستن این صفحه و بازگشت به سوله ۳ بعدی"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
 
               {onChangePassword && (
                 <button
@@ -900,7 +922,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
 
       {/* Delete Confirmation Modal */}
       {itemToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-stone-900 rounded-3xl border border-stone-800 p-6 max-w-sm w-full shadow-2xl space-y-4 text-stone-100">
             <div className="flex items-center gap-3 text-rose-400">
               <div className="w-10 h-10 rounded-2xl bg-rose-950/60 border border-rose-800 flex items-center justify-center">
@@ -931,14 +953,9 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
         </div>
       )}
 
-      {/* Fullscreen 3D Hangar Viewport */}
-      {is3DHangarFullscreenOpen && (
-        <WarehouseEmpty3DHangar
-          onClose={() => setIs3DHangarFullscreenOpen(false)}
-          onBackTo2D={() => setIs3DHangarFullscreenOpen(false)}
-        />
+        </div>
       )}
 
-    </div>
+    </>
   );
 };

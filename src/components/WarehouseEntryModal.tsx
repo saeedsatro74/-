@@ -376,7 +376,7 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
   const isInbound = entryType === 'inbound';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6 animate-in fade-in duration-150 dir-rtl">
+    <div className="fixed inset-0 z-[120] overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6 animate-in fade-in duration-150 dir-rtl">
       <div className="bg-stone-900 border border-stone-800 rounded-3xl shadow-2xl w-full max-w-4xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden text-stone-100">
         
         {/* Header */}
