@@ -156,6 +156,14 @@ export default function App() {
   const [editingWarehouseItem, setEditingWarehouseItem] = useState<WarehouseItem | null>(null);
   const [warehouseReceiptModalItem, setWarehouseReceiptModalItem] = useState<WarehouseItem | null>(null);
 
+  useEffect(() => {
+    const handleStockUpdated = () => {
+      setWarehouseItems(getStoredWarehouseItems());
+    };
+    window.addEventListener('warehouse-stock-updated', handleStockUpdated);
+    return () => window.removeEventListener('warehouse-stock-updated', handleStockUpdated);
+  }, []);
+
   // Selected Person for Detail / Ledger Modal
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [statementPersonId, setStatementPersonId] = useState<string | null>(null);

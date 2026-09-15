@@ -1152,6 +1152,9 @@ export function getStoredWarehouseItems(): WarehouseItem[] {
 export function saveWarehouseItems(items: WarehouseItem[]): void {
   try {
     localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(items));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: items }));
+    }
   } catch (err) {
     console.error('Failed to save warehouse items:', err);
   }

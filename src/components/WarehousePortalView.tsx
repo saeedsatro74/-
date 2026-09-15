@@ -476,7 +476,6 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
 
       {viewingReceiptItem && (
         <WarehouseReceiptModal
-          isOpen={!!viewingReceiptItem}
           onClose={() => setViewingReceiptItem(null)}
           item={viewingReceiptItem}
         />

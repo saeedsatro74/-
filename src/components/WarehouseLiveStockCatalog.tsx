@@ -15,6 +15,7 @@ import {
   Unlock, 
   RotateCcw, 
   CheckCircle2, 
+  Check,
   AlertTriangle, 
   ArrowRightLeft, 
   Factory, 
@@ -44,6 +45,11 @@ import {
   addWarehouseItem
 } from '../utils/storage';
 import { formatNumber, formatWeight, toFaDigits } from '../utils/formatters';
+import {
+  dismantlePalletIntoLooseSpools,
+  openSpoolToRetailFromPallet,
+  openLooseSpoolToRetail
+} from '../utils/warehousePalletManager';
 
 interface PalletStockCard {
   id: string;
@@ -111,10 +117,24 @@ interface StraightsStockGroup {
   isHard?: boolean;
 }
 
+interface RetailCopperItem {
+  id: string;
+  consignmentId: string;
+  cargoItemId: string;
+  referenceDocNumber: string;
+  date: string;
+  brand: string;
+  diameterInch: string;
+  thicknessMm: number;
+  totalWeightKg: number;
+  notes?: string;
+}
+
 interface WarehouseLiveStockCatalogProps {
   items: WarehouseItem[];
   inventorySummary: WarehouseInventorySummary;
   externalSearchQuery?: string;
+  categoryFilter?: 'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights';
   onOpenAdd?: (type: 'inbound' | 'outbound') => void;
   onViewReceipt?: (item: WarehouseItem) => void;
   onUpdateItem?: (item: WarehouseItem) => void;
@@ -125,13 +145,15 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
   items,
   inventorySummary,
   externalSearchQuery = '',
+  categoryFilter,
   onOpenAdd,
   onViewReceipt,
   onUpdateItem,
   onAddItem,
 }) => {
   // Navigation & Category Filters
-  const [stockCategoryFilter, setStockCategoryFilter] = useState<'all' | 'pallets' | 'loose_spools' | 'coils' | 'straights'>('all');
+  const [stockCategoryFilter, setStockCategoryFilter] = useState<'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights'>('all');
+  const effectiveCategoryFilter = categoryFilter || stockCategoryFilter;
   
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -165,9 +187,10 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
   };
 
   // Extract or generate default demo inventory matching Image 1 & 2
-  const { palletCards, looseSpools, coilsGroups, straightsGroups } = useMemo(() => {
+  const { palletCards, looseSpools, retailItems, coilsGroups, straightsGroups } = useMemo(() => {
     const pallets: PalletStockCard[] = [];
     const loose: LooseSpoolItem[] = [];
+    const retail: RetailCopperItem[] = [];
     const coilsMap: Record<string, CoilsStockGroup> = {};
     const straightsMap: Record<string, StraightsStockGroup> = {};
 
@@ -245,6 +268,19 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
               notes: item.notes,
             });
           }
+        } else if (item.packagingType === 'retail') {
+          retail.push({
+            id: `${consignment.id}-${item.id}`,
+            consignmentId: consignment.id,
+            cargoItemId: item.id,
+            referenceDocNumber: consignment.referenceDocNumber || consignment.id,
+            date: consignment.date,
+            brand: item.brand || 'مس متفرقه',
+            diameterInch: item.diameterInch || 'سفارشی',
+            thicknessMm: Number(item.thicknessMm) || 0.75,
+            totalWeightKg: Number(item.totalWeightKg) || 0,
+            notes: item.notes || 'مس باز شده / خورده',
+          });
         } else if (item.packagingType === 'coil') {
           const groupKey = `${item.brand || 'باهنر'}_${item.diameterInch || '5/8'}_${item.thicknessMm || 0.75}`;
           if (!coilsMap[groupKey]) {
@@ -292,8 +328,8 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       }
     }
 
-    // Default fallback inventory matching Image 1 & 2 if empty or for visual fidelity
-    if (pallets.length === 0) {
+    // Default fallback inventory matching Image 1 & 2 ONLY if empty and no consignments exist
+    if (pallets.length === 0 && (!items || items.length === 0)) {
       pallets.push(
         {
           id: 'demo-pallet-1',
@@ -384,7 +420,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       );
     }
 
-    if (loose.length === 0) {
+    if (loose.length === 0 && (!items || items.length === 0)) {
       loose.push({
         id: 'demo-loose-1',
         consignmentId: 'wh-in-106',
@@ -403,7 +439,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       });
     }
 
-    if (Object.keys(coilsMap).length === 0) {
+    if (Object.keys(coilsMap).length === 0 && (!items || items.length === 0)) {
       coilsMap['bahaner_38'] = {
         key: 'bahaner_38',
         brand: 'باهنر',
@@ -432,7 +468,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       };
     }
 
-    if (Object.keys(straightsMap).length === 0) {
+    if (Object.keys(straightsMap).length === 0 && (!items || items.length === 0)) {
       straightsMap['mehrasl_78'] = {
         key: 'mehrasl_78',
         brand: 'مهراصل',
@@ -460,6 +496,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     return {
       palletCards: pallets,
       looseSpools: loose,
+      retailItems: retail,
       coilsGroups: Object.values(coilsMap),
       straightsGroups: Object.values(straightsMap),
     };
@@ -472,7 +509,14 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     const { pallet, selectedSpoolIndex } = depalletizeTarget;
     const spoolWeightToMove = pallet.spoolWeights[selectedSpoolIndex] || pallet.avgWeightKg || 0;
 
-    triggerToast(`✅ قرقره به وزن ${toFaDigits(spoolWeightToMove.toFixed(1))} kg با موفقیت برداشت گردید.`);
+    if (depalletizeCondition === 'opened') {
+      openSpoolToRetailFromPallet(pallet, selectedSpoolIndex);
+      triggerToast(`✂ قرقره ق${toFaDigits(selectedSpoolIndex + 1)} (${toFaDigits(spoolWeightToMove.toFixed(1))} kg) باز شد و به بخش خورده‌ها منتقل گردید. مابقی قرقره‌های پالت به بخش غیرپالتی منتقل شدند.`);
+    } else {
+      dismantlePalletIntoLooseSpools(pallet);
+      triggerToast(`✅ پالت #${toFaDigits(pallet.palletIndex)} تفکیک شد و قرقره‌های آن به بخش غیرپالتی منتقل گردیدند.`);
+    }
+
     setDepalletizeTarget(null);
   };
 
@@ -488,352 +532,457 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       )}
 
       {/* SECTION 1: PALLETIZED SPOOLS INVENTORY (Matching Image 1) */}
-      <div className="space-y-3">
-        
-        {/* Section Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
-            <span>پالت‌های آماده تحویل و چیدمان</span>
-            <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
-              {toFaDigits(5)} پالت در محل
-            </span>
-          </h2>
-          <span className="text-[11px] font-bold text-stone-400">
-            استاندارد بسته‌بندی ASTM B280
-          </span>
-        </div>
-
-        {/* 6 Cards Grid (5 Pallet Cards + 1 Inventory Control Card) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'pallets') && (
+        <div className="space-y-3">
           
-          {palletCards.map((pallet) => (
-            <div
-              key={pallet.id}
-              className="bg-white rounded-2xl border border-stone-200 p-3.5 shadow-2xs hover:border-amber-500 transition-all flex flex-col justify-between space-y-3"
-            >
-              {/* Card Header */}
-              <div className="flex items-start justify-between gap-2 border-b border-stone-100 pb-2.5">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 rounded-md bg-amber-800 text-white font-black text-xs font-mono">
-                      پالت {toFaDigits(pallet.palletIndex)}#
-                    </span>
-                    {pallet.isFullStandardPallet ? (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-300/80">
-                        {toFaDigits(5)} تایی کامل
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-950 border border-sky-300/80">
-                        {toFaDigits(pallet.spoolsCount)} تایی (تکمیل‌نشده)
-                      </span>
-                    )}
-                  </div>
-                  <div className="font-bold text-xs text-stone-900 mt-2 flex items-center gap-1 flex-wrap">
-                    <span className="text-stone-900 font-black">برند {pallet.brand}</span>
-                    <span className="text-stone-300">•</span>
-                    <span className="text-stone-700">"{pallet.diameterInch} ({pallet.thicknessMm}mm)</span>
-                  </div>
-                </div>
-
-                <div className="text-left">
-                  <span className="text-[10px] text-stone-600 block font-bold">وزن کل ناخالص</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs text-stone-600 font-mono font-bold">kg</span>
-                    <span className="text-base font-black text-stone-900 font-mono">
-                      {toFaDigits(pallet.totalWeightKg.toString())}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub-reels breakdown grid */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold">
-                  <span>
-                    وزن تفکیکی قرقره‌ها ({toFaDigits(pallet.spoolsCount)} عدد):
-                  </span>
-                  <span className="font-mono text-stone-600">
-                    میانگین قرقره: {toFaDigits(pallet.avgWeightKg.toFixed(1))} kg
-                  </span>
-                </div>
-
-                {/* 5 sub-reels boxes */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {pallet.spoolWeights.map((w, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setDepalletizeTarget({ pallet, selectedSpoolIndex: idx })}
-                      title="کلیک جهت تفکیک قرقره"
-                      className="bg-stone-50/90 hover:bg-amber-100/80 border border-stone-200/90 hover:border-amber-400 p-1.5 rounded-xl text-center space-y-0.5 cursor-pointer transition-all"
-                    >
-                      <span className="text-[10px] text-stone-600 font-bold block">
-                        قرقره {toFaDigits(idx + 1)}
-                      </span>
-                      <span className="text-xs font-black text-stone-900 font-mono block">
-                        kg {toFaDigits(w.toFixed(1))}
-                      </span>
-                    </div>
-                  ))}
-
-                  {/* If missing 5th reel (Pallet 5) */}
-                  {!pallet.isFullStandardPallet && (
-                    <div className="bg-amber-50/60 border border-amber-200/80 p-1.5 rounded-xl text-center flex flex-col items-center justify-center text-[10px] font-bold text-amber-800">
-                      <span>۱ قرقره خارج شده</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Action button */}
-              <button
-                type="button"
-                onClick={() => setDepalletizeTarget({ pallet, selectedSpoolIndex: 0 })}
-                className="w-full py-2 bg-stone-100 hover:bg-amber-800 hover:text-white text-stone-800 rounded-xl text-xs font-bold border border-stone-200/90 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-              >
-                <Scissors className="w-3.5 h-3.5 text-amber-800 hover:text-white" />
-                <span>
-                  {pallet.isFullStandardPallet ? '⚖ برداشت / تفکیک قرقره از پالت' : '⚖ برداشت / خروج قرقره تکی'}
-                </span>
-              </button>
-
-              {/* Card Footer */}
-              <div className="pt-2 border-t border-stone-100 text-[10px] text-stone-600 flex items-center justify-between font-mono">
-                <span>سند ورودی: {pallet.referenceDocNumber}</span>
-                <span>{toFaDigits(pallet.date)}</span>
-              </div>
-            </div>
-          ))}
-
-          {/* Card 6: Inventory Control Widget (Matching Image 1 bottom left) */}
-          <div className="bg-gradient-to-br from-sky-50/80 to-stone-50 border border-sky-200/80 rounded-2xl p-4 shadow-2xs flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <BarChart2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-black text-xs text-stone-900">کنترل موجودی پالت‌ها</h3>
-                  <p className="text-[10px] text-stone-500 leading-snug">
-                    پایش آنی حجم قرقره‌های بسته‌بندی شده در پالت بر مبنای تلورانس وزنی استاندارد کارخانجات.
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress 1 */}
-              <div className="space-y-1 pt-2">
-                <div className="flex items-center justify-between text-[11px] font-bold text-stone-700">
-                  <span>تکمیل ظرفیت بارگیری پالت‌ها</span>
-                  <span className="font-mono text-amber-950 font-black">{toFaDigits(94)}٪</span>
-                </div>
-                <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-800 h-full rounded-full w-[94%]"></div>
-                </div>
-              </div>
-
-              {/* Progress 2 */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] font-bold text-stone-700">
-                  <span>پالت‌های دست‌نخورده فابریک</span>
-                  <span className="font-mono text-stone-900 font-black">
-                    {toFaDigits(4)} از {toFaDigits(5)} پالت
-                  </span>
-                </div>
-                <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-900 h-full rounded-full w-[80%]"></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom links */}
-            <div className="pt-2 border-t border-sky-200/60 flex items-center justify-between text-[11px] font-bold text-sky-800">
-              <button type="button" className="hover:underline cursor-pointer">
-                مشاهده لاگ توزین
-              </button>
-              <button type="button" className="hover:underline cursor-pointer">
-                گزارش انبارگردانی دوره‌ای
-              </button>
-            </div>
+          {/* Section Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
+              <span>پالت‌های آماده تحویل و چیدمان</span>
+              <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
+                {toFaDigits(palletCards.length)} پالت در محل
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-stone-400">
+              استاندارد بسته‌بندی ASTM B280
+            </span>
           </div>
 
-        </div>
+          {/* 6 Cards Grid (Pallet Cards + Inventory Control Card) */}
+          {palletCards.length === 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-6 text-center text-xs font-bold text-stone-500">
+              هیچ پالت فعال در انبار موجود نیست (پالت‌ها تفکیک شده یا خارج گردیده‌اند).
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              
+              {palletCards.map((pallet) => (
+                <div
+                  key={pallet.id}
+                  className="bg-white rounded-2xl border border-stone-200 p-3.5 shadow-2xs hover:border-amber-500 transition-all flex flex-col justify-between space-y-3"
+                >
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-2 border-b border-stone-100 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-800 text-white font-black text-xs font-mono">
+                          پالت {toFaDigits(pallet.palletIndex)}#
+                        </span>
+                        {pallet.isFullStandardPallet ? (
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-950 border border-amber-300/80">
+                            {toFaDigits(5)} تایی کامل
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-950 border border-sky-300/80">
+                            {toFaDigits(pallet.spoolsCount)} تایی (تکمیل‌نشده)
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-bold text-xs text-stone-900 mt-2 flex items-center gap-1 flex-wrap">
+                        <span className="text-stone-900 font-black">برند {pallet.brand}</span>
+                        <span className="text-stone-300">•</span>
+                        <span className="text-stone-700">"{pallet.diameterInch} ({pallet.thicknessMm}mm)</span>
+                      </div>
+                    </div>
 
-      </div>
+                    <div className="text-left">
+                      <span className="text-[10px] text-stone-600 block font-bold">وزن کل ناخالص</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xs text-stone-600 font-mono font-bold">kg</span>
+                        <span className="text-base font-black text-stone-900 font-mono">
+                          {toFaDigits(pallet.totalWeightKg.toString())}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sub-reels breakdown grid */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold">
+                      <span>
+                        قرقره‌ها (برای انتخاب و تفکیک کلیک کنید):
+                      </span>
+                      <span className="font-mono text-stone-600">
+                        میانگین: {toFaDigits(pallet.avgWeightKg.toFixed(1))} kg
+                      </span>
+                    </div>
+
+                    {/* Sub-reels boxes with check icon */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {pallet.spoolWeights.map((w, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setDepalletizeTarget({ pallet, selectedSpoolIndex: idx })}
+                          title="کلیک جهت تفکیک یا باز کردن قرقره"
+                          className="bg-stone-50/90 hover:bg-amber-100/80 border border-stone-200/90 hover:border-amber-500 p-2 rounded-xl text-center space-y-1 cursor-pointer transition-all relative group shadow-2xs"
+                        >
+                          <div className="flex items-center justify-between text-[10px] text-stone-600 font-bold">
+                            <span>قرقره {toFaDigits(idx + 1)}</span>
+                            <span className="w-3.5 h-3.5 rounded border border-amber-400 bg-white group-hover:bg-amber-800 group-hover:border-amber-800 flex items-center justify-center transition-colors">
+                              <Check className="w-2.5 h-2.5 text-stone-400 group-hover:text-white" />
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-stone-900 font-mono block">
+                            kg {toFaDigits(w.toFixed(1))}
+                          </span>
+                        </div>
+                      ))}
+
+                      {/* If missing 5th reel (Pallet 5) */}
+                      {!pallet.isFullStandardPallet && (
+                        <div className="bg-amber-50/60 border border-amber-200/80 p-1.5 rounded-xl text-center flex flex-col items-center justify-center text-[10px] font-bold text-amber-800">
+                          <span>۱ قرقره خارج شده</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action button */}
+                  <button
+                    type="button"
+                    onClick={() => setDepalletizeTarget({ pallet, selectedSpoolIndex: 0 })}
+                    className="w-full py-2 bg-stone-100 hover:bg-amber-800 hover:text-white text-stone-800 rounded-xl text-xs font-bold border border-stone-200/90 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Scissors className="w-3.5 h-3.5 text-amber-800 hover:text-white" />
+                    <span>
+                      {pallet.isFullStandardPallet ? '⚖ برداشت / تفکیک قرقره از پالت' : '⚖ برداشت / خروج قرقره تکی'}
+                    </span>
+                  </button>
+
+                  {/* Card Footer */}
+                  <div className="pt-2 border-t border-stone-100 text-[10px] text-stone-600 flex items-center justify-between font-mono">
+                    <span>سند ورودی: {pallet.referenceDocNumber}</span>
+                    <span>{toFaDigits(pallet.date)}</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Card 6: Inventory Control Widget (Matching Image 1 bottom left) */}
+              <div className="bg-gradient-to-br from-sky-50/80 to-stone-50 border border-sky-200/80 rounded-2xl p-4 shadow-2xs flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <BarChart2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xs text-stone-900">کنترل موجودی پالت‌ها</h3>
+                      <p className="text-[10px] text-stone-500 leading-snug">
+                        پایش آنی حجم قرقره‌های بسته‌بندی شده در پالت بر مبنای تلورانس وزنی استاندارد کارخانجات.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress 1 */}
+                  <div className="space-y-1 pt-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-stone-700">
+                      <span>تکمیل ظرفیت بارگیری پالت‌ها</span>
+                      <span className="font-mono text-amber-950 font-black">{toFaDigits(94)}٪</span>
+                    </div>
+                    <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+                      <div className="bg-amber-800 h-full rounded-full w-[94%]"></div>
+                    </div>
+                  </div>
+
+                  {/* Progress 2 */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-stone-700">
+                      <span>پالت‌های دست‌نخورده فابریک</span>
+                      <span className="font-mono text-stone-900 font-black">
+                        {toFaDigits(palletCards.length)} پالت
+                      </span>
+                    </div>
+                    <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+                      <div className="bg-amber-900 h-full rounded-full w-[80%]"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom links */}
+                <div className="pt-2 border-t border-sky-200/60 flex items-center justify-between text-[11px] font-bold text-sky-800">
+                  <button type="button" className="hover:underline cursor-pointer">
+                    مشاهده لاگ توزین
+                  </button>
+                  <button type="button" className="hover:underline cursor-pointer">
+                    گزارش انبارگردانی دوره‌ای
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* SECTION 2: LOOSE SPOOLS (Matching Image 2) */}
-      <div className="space-y-3 pt-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
-            <span>قرقره‌های غیرپالتی و تکی</span>
-            <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
-              {toFaDigits(1)} قلم موجود
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'loose_spools') && (
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
+              <span>قرقره‌های غیرپالتی و تکی</span>
+              <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
+                {toFaDigits(looseSpools.length)} قلم موجود
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-stone-600 font-mono">
+              کل غیرپالتی: {toFaDigits(looseSpools.reduce((acc, l) => acc + l.quantity, 0))} عدد | مجموع وزن: kg {toFaDigits(looseSpools.reduce((acc, l) => acc + l.totalWeightKg, 0).toFixed(1))}
             </span>
-          </h2>
-          <span className="text-[11px] font-bold text-stone-600 font-mono">
-            کل غیرپالتی: {toFaDigits(0)} عدد | وزن متفرقه: kg {toFaDigits(220)}
-          </span>
-        </div>
-
-        {looseSpools.map((loose) => (
-          <div
-            key={loose.id}
-            className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4"
-          >
-            <div className="space-y-1.5 flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-sm text-stone-900">قرقره مس تکی</h3>
-                <span className="px-2.5 py-0.5 rounded-md bg-stone-100 text-amber-900 font-bold text-xs border border-stone-200">
-                  باز شده از پالت ۵#
-                </span>
-              </div>
-              <div className="text-xs font-bold text-stone-700 flex items-center gap-2">
-                <span>برند قائم</span>
-                <span>•</span>
-                <span>سایز "1/4</span>
-                <span>•</span>
-                <span>0.65mm</span>
-                <span className="text-stone-300">|</span>
-                <span className="text-stone-500">تعداد: {toFaDigits(1)} عدد</span>
-              </div>
-              <div className="text-[11px] text-stone-600 font-mono">
-                موقعیت دیپو: ردیف B-12 سالن فرعی • شناسه: REEL-Q-882
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="text-left font-mono pl-3 border-l border-stone-200 hidden sm:block">
-                <span className="text-[10px] text-stone-600 block">وزن صافی</span>
-                <span className="text-xl font-black text-amber-800">kg {toFaDigits(220)}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => triggerToast('برچسب آماده چاپ می‌باشد.')}
-                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold border border-stone-300 cursor-pointer"
-                >
-                  برچسب
-                </button>
-                <button
-                  type="button"
-                  onClick={() => triggerToast('حواله خروج تکی ثبت گردید.')}
-                  className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>حواله خروج تکی</span>
-                </button>
-              </div>
-            </div>
           </div>
-        ))}
-      </div>
+
+          {looseSpools.length === 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-6 text-center text-xs font-bold text-stone-500">
+              هیچ قرقره غیرپالتی در حال حاضر موجود نیست. با تفکیک پالت‌ها، قرقره‌های آزاد در اینجا قرار می‌گیرند.
+            </div>
+          ) : (
+            looseSpools.map((loose) => (
+              <div
+                key={loose.id}
+                className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4"
+              >
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black text-sm text-stone-900">قرقره مس تکی</h3>
+                    <span className="px-2.5 py-0.5 rounded-md bg-stone-100 text-amber-900 font-bold text-xs border border-stone-200">
+                      {loose.sourcePalletInfo || (loose.spoolCondition === 'opened' ? 'قرقره باز شده' : 'غیرپالتی / آزاد')}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-stone-700 flex items-center gap-2">
+                    <span>برند {loose.brand}</span>
+                    <span>•</span>
+                    <span>سایز "{loose.diameterInch}</span>
+                    <span>•</span>
+                    <span>{loose.thicknessMm}mm</span>
+                    <span className="text-stone-300">|</span>
+                    <span className="text-stone-500">تعداد: {toFaDigits(loose.quantity)} عدد</span>
+                  </div>
+                  <div className="text-[11px] text-stone-600 font-mono">
+                    {loose.notes || `بارنامه: ${loose.referenceDocNumber} • تاریخ: ${loose.date}`}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-left font-mono pl-3 border-l border-stone-200 hidden sm:block">
+                    <span className="text-[10px] text-stone-600 block">وزن صافی</span>
+                    <span className="text-xl font-black text-amber-800">kg {toFaDigits(loose.totalWeightKg.toFixed(1))}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openLooseSpoolToRetail(loose);
+                        triggerToast(`✂ قرقره (${toFaDigits(loose.totalWeightKg.toFixed(1))} kg) باز شد و به بخش خورده‌ها منتقل گردید.`);
+                      }}
+                      className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl text-xs font-bold border border-rose-300 flex items-center gap-1.5 cursor-pointer transition-colors"
+                      title="باز کردن این قرقره و انتقال مستقیم به بخش خورده‌ها"
+                    >
+                      <Scissors className="w-3.5 h-3.5 text-rose-600" />
+                      <span>باز کردن به خورده‌ها</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => triggerToast('برچسب آماده چاپ می‌باشد.')}
+                      className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold border border-stone-300 cursor-pointer"
+                    >
+                      برچسب
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => triggerToast('حواله خروج تکی ثبت گردید.')}
+                      className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>حواله خروج تکی</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* SECTION: RETAIL COPPER (خورده‌ها و مس باز شده) */}
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'retail') && (
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-rose-950 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-xs bg-rose-700"></span>
+              <span>خورده‌ها و مس باز شده (خرده‌فروشی)</span>
+              <span className="text-xs text-rose-900 font-bold bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300/80">
+                {toFaDigits(retailItems.length)} ردیف
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-stone-600 font-mono">
+              مجموع وزن خورده‌ها: kg {toFaDigits(retailItems.reduce((acc, r) => acc + r.totalWeightKg, 0).toFixed(1))}
+            </span>
+          </div>
+
+          {retailItems.length === 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-6 text-center text-xs font-bold text-stone-500">
+              هیچ مس باز شده یا خورده‌ای در حال حاضر ثبت نشده است. با کلیک بر روی «باز کردن به خورده‌ها» روی هر قرقره، به این بخش اضافه می‌شود.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {retailItems.map((r) => (
+                <div
+                  key={r.id}
+                  className="bg-white rounded-2xl border border-rose-200/90 p-4 shadow-2xs space-y-3 flex flex-col justify-between"
+                >
+                  <div className="flex items-start justify-between gap-2 border-b border-rose-100 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-rose-700 text-white font-bold text-xs">
+                          خورده مس
+                        </span>
+                        <span className="text-xs font-bold text-stone-800">
+                          برند {r.brand} • {r.diameterInch ? `سایز "${r.diameterInch}` : ''} ({r.thicknessMm}mm)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-500 mt-1 font-bold">
+                        {r.notes || 'مس باز شده جهت مصارف خرد'}
+                      </p>
+                    </div>
+
+                    <div className="text-left font-mono">
+                      <span className="text-[10px] text-stone-500 block font-bold">وزن موجود</span>
+                      <span className="text-base font-black text-rose-900">
+                        kg {toFaDigits(r.totalWeightKg.toFixed(1))}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <span className="text-stone-400 font-bold text-[11px]">
+                      رسید/بارنامه: {toFaDigits(r.referenceDocNumber)} • {toFaDigits(r.date)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => triggerToast(`حواله خروج خورده مس به وزن ${toFaDigits(r.totalWeightKg.toFixed(1))} kg صادر گردید.`)}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl text-xs font-bold border border-rose-200 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Truck className="w-3.5 h-3.5 text-rose-700" />
+                      <span>خروج خورده</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SECTION 3: COILS INVENTORY (Matching Image 2) */}
-      <div className="space-y-3 pt-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
-            <span>کلاف‌های مس موجود</span>
-            <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
-              {toFaDigits(2)} گروه کالایی
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'coils') && (
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
+              <span>کلاف‌های مس موجود</span>
+              <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
+                {toFaDigits(coilsGroups.length)} گروه کالایی
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-stone-600 font-mono">
+              کل کلاف‌ها: {toFaDigits(coilsGroups.reduce((acc, c) => acc + c.totalCount, 0))} کلاف | مجموع وزن: kg {toFaDigits(coilsGroups.reduce((acc, c) => acc + c.totalWeightKg, 0))}
             </span>
-          </h2>
-          <span className="text-[11px] font-bold text-stone-600 font-mono">
-            کل کلاف‌ها: {toFaDigits(23)} کلاف | مجموع وزن: kg {toFaDigits(180)}
-          </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {coilsGroups.map((c) => (
+              <div key={c.key} className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-black text-sm text-stone-900">کلاف مس {c.brand}</h3>
+                    <p className="text-xs text-stone-600 font-mono mt-0.5">{c.thicknessMm}mm - "{c.diameterInch}</p>
+                  </div>
+                  <div className="text-left font-mono">
+                    <span className="text-base font-black text-amber-950">kg {toFaDigits(c.totalWeightKg)}</span>
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between text-xs font-bold text-stone-700 font-mono">
+                  <div>
+                    <span>بسته‌بندی ۱۵ متری</span>
+                    <span className="text-stone-400 mr-1.5">{toFaDigits(c.length15mCount)} کلاف</span>
+                  </div>
+                  <div>
+                    <span>بسته‌بندی ۵۰ متری</span>
+                    <span className="text-stone-400 mr-1.5">{toFaDigits(c.length50mCount)} کلاف</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-stone-500 font-bold text-[11px]">{c.standardName}</span>
+                  <button
+                    type="button"
+                    onClick={() => triggerToast('حواله خروج کلاف صادر شد.')}
+                    className="text-amber-800 font-black hover:underline cursor-pointer"
+                  >
+                    ثبت حواله خروج کلاف &gt;
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {coilsGroups.map((c) => (
-            <div key={c.key} className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-sm text-stone-900">کلاف مس {c.brand}</h3>
-                  <p className="text-xs text-stone-600 font-mono mt-0.5">{c.thicknessMm}mm - "{c.diameterInch}</p>
-                </div>
-                <div className="text-left font-mono">
-                  <span className="text-base font-black text-amber-950">kg {toFaDigits(c.totalWeightKg)}</span>
-                </div>
-              </div>
-
-              <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between text-xs font-bold text-stone-700 font-mono">
-                <div>
-                  <span>بسته‌بندی ۱۵ متری</span>
-                  <span className="text-stone-400 mr-1.5">{toFaDigits(c.length15mCount)} کلاف</span>
-                </div>
-                <div>
-                  <span>بسته‌بندی ۵۰ متری</span>
-                  <span className="text-stone-400 mr-1.5">{toFaDigits(c.length50mCount)} کلاف</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-stone-500 font-bold text-[11px]">{c.standardName}</span>
-                <button
-                  type="button"
-                  onClick={() => triggerToast('حواله خروج کلاف صادر شد.')}
-                  className="text-amber-800 font-black hover:underline cursor-pointer"
-                >
-                  ثبت حواله خروج کلاف &gt;
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* SECTION 4: STRAIGHT PIPES INVENTORY (Matching Image 2) */}
-      <div className="space-y-3 pt-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
-            <span>شاخه‌های مس موجود</span>
-            <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
-              {toFaDigits(2)} رده کالایی
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'straights') && (
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
+              <span>شاخه‌های مس موجود</span>
+              <span className="text-xs text-amber-900 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300/80">
+                {toFaDigits(straightsGroups.length)} رده کالایی
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-stone-600 font-mono">
+              کل شاخه‌ها: {toFaDigits(straightsGroups.reduce((acc, s) => acc + s.totalCount, 0))} شاخه | مجموع وزن: kg {toFaDigits(straightsGroups.reduce((acc, s) => acc + s.totalWeightKg, 0))}
             </span>
-          </h2>
-          <span className="text-[11px] font-bold text-stone-600 font-mono">
-            کل شاخه‌ها: {toFaDigits(55)} شاخه | مجموع وزن: kg {toFaDigits(225)}
-          </span>
-        </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {straightsGroups.map((s) => (
-            <div key={s.key} className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-sm text-stone-900">شاخه مس {s.brand}</h3>
-                  <p className="text-xs text-stone-600 font-mono mt-0.5">
-                    {s.thicknessMm}mm - "{s.diameterInch} {s.isHard ? '(سخت)' : '(شاخه سنگین)'}
-                  </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {straightsGroups.map((s) => (
+              <div key={s.key} className="bg-white rounded-2xl border border-stone-200 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-black text-sm text-stone-900">شاخه مس {s.brand}</h3>
+                    <p className="text-xs text-stone-600 font-mono mt-0.5">
+                      {s.thicknessMm}mm - "{s.diameterInch} {s.isHard ? '(سخت)' : '(شاخه سنگین)'}
+                    </p>
+                  </div>
+                  <div className="text-left font-mono">
+                    <span className="text-base font-black text-amber-950">kg {toFaDigits(s.totalWeightKg)}</span>
+                  </div>
                 </div>
-                <div className="text-left font-mono">
-                  <span className="text-base font-black text-amber-950">kg {toFaDigits(s.totalWeightKg)}</span>
+
+                <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between text-xs font-bold text-stone-700 font-mono">
+                  <span>تعداد کل موجود در انبار: {toFaDigits(s.totalCount)} شاخه (طول ۶ متر)</span>
+                  <span className="bg-stone-200/80 text-stone-800 px-2 py-0.5 rounded-md text-[10px]">
+                    {s.badgeTag}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-stone-500 font-bold text-[11px]">کد قفسه شاخه: {s.shelfCode}</span>
+                  <button
+                    type="button"
+                    onClick={() => triggerToast('حواله شاخه صادر گردید.')}
+                    className="text-amber-800 font-black hover:underline cursor-pointer"
+                  >
+                    صدور حواله شاخه &gt;
+                  </button>
                 </div>
               </div>
-
-              <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between text-xs font-bold text-stone-700 font-mono">
-                <span>تعداد کل موجود در انبار: {toFaDigits(s.totalCount)} شاخه (طول ۶ متر)</span>
-                <span className="bg-stone-200/80 text-stone-800 px-2 py-0.5 rounded-md text-[10px]">
-                  {s.badgeTag}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-stone-500 font-bold text-[11px]">کد قفسه شاخه: {s.shelfCode}</span>
-                <button
-                  type="button"
-                  onClick={() => triggerToast('حواله شاخه صادر گردید.')}
-                  className="text-amber-800 font-black hover:underline cursor-pointer"
-                >
-                  صدور حواله شاخه &gt;
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* BOTTOM FOOTER BAR (Matching Image 2) */}
       <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-bold text-stone-700">
@@ -887,7 +1036,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
               <div>
                 <h3 className="text-base font-black text-stone-900 flex items-center gap-1.5">
                   <Scissors className="w-4 h-4 text-amber-800" />
-                  <span>برداشت قرقره از پالت #{toFaDigits(depalletizeTarget.pallet.palletIndex)}</span>
+                  <span>برداشت / تفکیک قرقره از پالت #{toFaDigits(depalletizeTarget.pallet.palletIndex)}</span>
                 </h3>
                 <p className="text-xs text-stone-500 font-bold mt-0.5">
                   برند {depalletizeTarget.pallet.brand} • سایز "{depalletizeTarget.pallet.diameterInch} • ضخامت {depalletizeTarget.pallet.thicknessMm}mm
@@ -906,7 +1055,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             {/* Select Spool */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-stone-700 block">
-                ۱. انتخاب قرقره مورد نظر:
+                ۱. انتخاب قرقره مورد نظر در پالت:
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -917,17 +1066,65 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                       key={idx}
                       type="button"
                       onClick={() => setDepalletizeTarget({ ...depalletizeTarget, selectedSpoolIndex: idx })}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer font-mono ${
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer font-mono relative ${
                         isSelected
                           ? 'bg-amber-800 text-white border-amber-800 font-black shadow-xs'
                           : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
                       }`}
                     >
-                      <span className="text-[10px] block font-sans">قرقره {toFaDigits(idx + 1)}</span>
-                      <span className="text-xs font-bold block">kg {toFaDigits(w.toFixed(1))}</span>
+                      <div className="flex items-center justify-between text-[10px] font-sans">
+                        <span>قرقره {toFaDigits(idx + 1)}</span>
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="text-xs font-bold block mt-1">kg {toFaDigits(w.toFixed(1))}</span>
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Select Action Type */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-700 block">
+                ۲. نوع عملیات تفکیک:
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDepalletizeCondition('sealed')}
+                  className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col gap-1 ${
+                    depalletizeCondition === 'sealed'
+                      ? 'bg-amber-50/80 border-amber-600 text-amber-950 ring-1 ring-amber-500'
+                      : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                  }`}
+                >
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Boxes className="w-3.5 h-3.5 text-amber-700" />
+                    <span>تفکیک کل پالت به غیرپالتی</span>
+                  </span>
+                  <span className="text-[11px] text-stone-500 leading-tight font-medium">
+                    پالت حذف و تمام {toFaDigits(depalletizeTarget.pallet.spoolsCount)} قرقره آن به بخش غیرپالتی آزاد منتقل می‌شوند.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDepalletizeCondition('opened')}
+                  className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col gap-1 ${
+                    depalletizeCondition === 'opened'
+                      ? 'bg-rose-50/80 border-rose-500 text-rose-950 ring-1 ring-rose-400'
+                      : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                  }`}
+                >
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Scissors className="w-3.5 h-3.5 text-rose-600" />
+                    <span>باز کردن و انتقال به خورده‌ها</span>
+                  </span>
+                  <span className="text-[11px] text-stone-500 leading-tight font-medium">
+                    این قرقره باز شده و به خورده‌ها می‌رود؛ سایر قرقره‌های پالت به بخش غیرپالتی منتقل می‌شوند.
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -943,12 +1140,21 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
               <button
                 type="button"
                 onClick={handleConfirmDepalletize}
-                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-xs font-black rounded-xl flex items-center gap-1 shadow-xs cursor-pointer"
+                className={`px-4 py-2 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer ${
+                  depalletizeCondition === 'opened' ? 'bg-rose-700 hover:bg-rose-800' : 'bg-amber-800 hover:bg-amber-900'
+                }`}
               >
-                <Scissors className="w-3.5 h-3.5" />
-                <span>
-                  تأیید برداشت (kg {toFaDigits(depalletizeTarget.pallet.spoolWeights[depalletizeTarget.selectedSpoolIndex].toFixed(1))})
-                </span>
+                {depalletizeCondition === 'opened' ? (
+                  <>
+                    <Scissors className="w-3.5 h-3.5" />
+                    <span>تأیید انتقال به خورده‌ها (kg {toFaDigits(depalletizeTarget.pallet.spoolWeights[depalletizeTarget.selectedSpoolIndex].toFixed(1))})</span>
+                  </>
+                ) : (
+                  <>
+                    <Boxes className="w-3.5 h-3.5" />
+                    <span>تأیید تفکیک کل پالت به غیرپالتی</span>
+                  </>
+                )}
               </button>
             </div>
 
