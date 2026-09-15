@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet, CreditCard, Building2, Clock, CheckCircle2, PieChart } from 'lucide-react';
-import { Person, PersonWalletSummary, PaymentMethod } from '../types';
+import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet, CreditCard, Building2, Clock, CheckCircle2, PieChart, Layers } from 'lucide-react';
+import { Person, PersonWalletSummary, PaymentMethod, WarehouseItem } from '../types';
 import { getTodayJalaliString } from '../utils/persianDate';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { NumericInput } from './NumericInput';
+import { WarehouseStockPickerModal, SelectedStockItemsResult } from './WarehouseStockPickerModal';
 
 export interface ProRataAllocationItem {
   personId: string;
@@ -53,6 +54,7 @@ interface SellCopperModalProps {
   initialWeightKg?: number;
   initialNotes?: string;
   isLinkedFromExit?: boolean;
+  warehouseItems?: WarehouseItem[];
 }
 
 export const SellCopperModal: React.FC<SellCopperModalProps> = ({
@@ -67,6 +69,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   initialWeightKg,
   initialNotes,
   isLinkedFromExit = false,
+  warehouseItems = [],
 }) => {
   const [saleMode, setSaleMode] = useState<'single' | 'pro_rata'>('single');
   const [personId, setPersonId] = useState('');
@@ -78,6 +81,7 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   const [buyerName, setBuyerName] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [isStockPickerOpen, setIsStockPickerOpen] = useState(false);
 
   // Payment Method & Cheque State
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -315,57 +319,48 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/70 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6">
       <div className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-full max-w-lg my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header (Sticky at top) */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-emerald-50/90 flex items-center justify-between shrink-0 z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+        {/* Header */}
+        <div className="p-4 border-b border-stone-200 bg-white flex items-center justify-between shrink-0 z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-stone-900 text-white flex items-center justify-center shadow-2xs">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-bold text-base text-stone-900">
-                ثبت فروش مس
+                {isLinkedFromExit ? 'مرحله ۲: فاکتور فروش' : 'ثبت فروش مس'}
               </h3>
-              <p className="text-xs text-stone-600 mt-0.5">
-                ثبت حواله فروش (پس از تأیید مدیرعامل در کاردکس و دفاتر مالی اعمال خواهد شد)
-              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
-            title="بستن پنجره"
+            className="w-8 h-8 flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form Body - Scrollable */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
-          <div className="p-5 space-y-4 flex-1">
+          <div className="p-4 space-y-4 flex-1">
           
           {/* Linked Flow Step 2 Indicator */}
           {isLinkedFromExit && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-emerald-950">
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div>
-                  <span className="font-extrabold text-emerald-900 block text-xs sm:text-sm">مرحله ۲ از ۲: ثبت فاکتور مالی و تسویه فروش مس</span>
-                  <span className="text-[11px] text-emerald-800">اقلام انتخابی از انبار خروج یافتند و وزن کل بر روی فاکتور فروش اعمال شد.</span>
-                </div>
+            <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 flex items-center justify-between gap-2 text-xs text-stone-900">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-bold text-stone-900">مرحله ۲: ثبت فاکتور مالی</span>
               </div>
-              <span className="text-xs font-mono font-bold text-emerald-950 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-xl shrink-0">
-                وزن انبار: {formatWeight(weightKg || 0)}
+              <span className="text-xs font-mono font-bold text-stone-900 bg-white border border-stone-200 px-2 py-0.5 rounded">
+                وزن: {formatWeight(weightKg || 0)}
               </span>
             </div>
           )}
 
           {/* Approval Notice */}
-          <div className="p-3 bg-blue-50/90 border border-blue-300/80 rounded-xl text-xs text-blue-950 flex items-start gap-2.5">
-            <Clock className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              <strong>فرآیند نظارت مدیرعامل:</strong> با ثبت این فرم، حواله فروش در وضعیت <span className="bg-blue-200/80 text-blue-950 font-bold px-1.5 py-0.5 rounded">در انتظار تأیید</span> قرار می‌گیرد و پس از تأیید مدیرعامل به حساب ریالی و انبار اعمال خواهد شد.
-            </p>
+          <div className="p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-stone-500 shrink-0" />
+            <span>نیازمند تأیید مدیرعامل در کارتابل</span>
           </div>
           
           {error && (
@@ -725,6 +720,18 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 allowDecimals={true}
                 required
               />
+
+              {/* Visual Stock Picker Trigger Button (The requested Pallet #4 check feature) */}
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsStockPickerOpen(true)}
+                  className="w-full py-2 px-3 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-300 rounded-xl text-xs font-black text-amber-950 flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Boxes className="w-4 h-4 text-amber-600" />
+                  <span>📦 انتخاب تصویری پالت‌ها و اقلام از انبار (تیک‌زدن پالت #4 و ...)</span>
+                </button>
+              </div>
             </div>
 
           </div>
@@ -894,31 +901,45 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
           </div>
 
           {/* Footer Buttons (Fixed at bottom) */}
-          <div className="p-4 border-t border-stone-200 bg-stone-50/90 flex items-center justify-end gap-2.5 shrink-0">
+          <div className="p-4 border-t border-stone-200 bg-stone-50 flex items-center justify-end gap-2.5 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-sm font-bold text-stone-600 hover:text-stone-900 bg-stone-200/70 hover:bg-stone-200 rounded-xl transition-colors cursor-pointer"
             >
               انصراف
             </button>
             <button
               type="submit"
               disabled={hasInsufficientStock}
-              className={`px-5 py-2 text-sm font-bold text-white rounded-lg transition-colors shadow-xs flex items-center gap-1.5 ${
+              className={`px-5 py-2 text-sm font-bold text-white rounded-xl transition-colors shadow-2xs flex items-center gap-1.5 ${
                 hasInsufficientStock
                   ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                  : 'bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 cursor-pointer'
+                  : 'bg-stone-900 hover:bg-black cursor-pointer'
               }`}
             >
               <TrendingUp className="w-4 h-4" />
-              <span>ثبت حواله فروش</span>
+              <span>ثبت فاکتور</span>
             </button>
           </div>
 
         </form>
 
       </div>
+
+      {/* Visual Stock Picker Modal */}
+      <WarehouseStockPickerModal
+        isOpen={isStockPickerOpen}
+        onClose={() => setIsStockPickerOpen(false)}
+        items={warehouseItems}
+        onConfirmSelection={(result) => {
+          setWeightKg(result.totalWeightKg);
+          if (result.summaryText) {
+            setNotes((prev) => prev ? `${prev} | ${result.summaryText}` : result.summaryText);
+          }
+          setError('');
+        }}
+      />
     </div>
   );
 };

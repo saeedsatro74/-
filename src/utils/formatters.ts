@@ -2,6 +2,28 @@
  * Number, Currency, Weight, and Financial Formatting Utilities
  */
 
+export function toFaDigits(input: string | number | undefined | null): string {
+  if (input === undefined || input === null) return '';
+  const str = input.toString();
+  const farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return str.replace(/[0-9]/g, (w) => farsiDigits[+w]);
+}
+
+/**
+ * Format weight with Persian slash separator matching warehouse documentation
+ * e.g. 75 -> "۷۵/۰۰", 256.5 -> "۲۵۶/۵۰", 1290 -> "۱٬۲۹۰/۰۰"
+ */
+export function formatWeightSlash(weight: number | undefined | null, decimals = 2): string {
+  if (weight === undefined || weight === null || isNaN(weight)) return '۰/۰۰';
+  const absWeight = Math.abs(weight);
+  const fixedStr = absWeight.toFixed(decimals);
+  const [intPart, decPart] = fixedStr.split('.');
+  const formattedInt = toFaDigits(intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '٬'));
+  const formattedDec = toFaDigits(decPart || '۰۰');
+  const sign = weight < 0 ? '-' : '';
+  return `${sign}${formattedInt}/${formattedDec}`;
+}
+
 /**
  * Format numbers with 3-digit comma separation in Persian digits
  */

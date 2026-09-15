@@ -20,7 +20,18 @@ import {
   ListPlus,
   Disc,
   Boxes,
-  Scissors
+  Scissors,
+  ArrowRightLeft,
+  Printer,
+  ChevronDown,
+  RotateCcw,
+  Check,
+  Tag,
+  ShieldCheck,
+  MapPin,
+  User,
+  Info,
+  Building
 } from 'lucide-react';
 import { 
   WarehouseItem, 
@@ -43,17 +54,18 @@ import {
   getCurrentPersianTimeString, 
   generateReceiptNumber 
 } from '../utils/persianDate';
-import { formatNumber, formatWeight } from '../utils/formatters';
-import type { ExtractedCargoVisionData } from './CopperCargoVisionScanner';
+import { formatNumber, formatWeight, formatWeightSlash, toFaDigits } from '../utils/formatters';
 
 interface WarehouseEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (item: WarehouseItem) => void;
   initialItem?: WarehouseItem | null;
+  initialType?: WarehouseEntryType;
   defaultType?: WarehouseEntryType;
   initialTargetPartyName?: string;
   isLinkedToSaleFlow?: boolean;
+  editingItem?: WarehouseItem | null;
 }
 
 export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
@@ -61,1222 +73,1062 @@ export const WarehouseEntryModal: React.FC<WarehouseEntryModalProps> = ({
   onClose,
   onSave,
   initialItem,
+  initialType,
   defaultType = 'inbound',
   initialTargetPartyName,
   isLinkedToSaleFlow = false,
+  editingItem,
 }) => {
-  // Consignment Header Info
-  const [entryType, setEntryType] = useState<WarehouseEntryType>(defaultType);
+  const activeInitial = editingItem || initialItem;
+  const activeType = initialType || defaultType;
+
+  // Entry Type State (Inbound vs Outbound)
+  const [entryType, setEntryType] = useState<WarehouseEntryType>(activeType);
+
+  // Inbound / Outbound Header Metadata
   const [date, setDate] = useState<string>(getTodayJalaliString());
   const [time, setTime] = useState<string>(getCurrentPersianTimeString());
   const [referenceDocNumber, setReferenceDocNumber] = useState<string>('');
-  const [targetPartyName, setTargetPartyName] = useState<string>('');
-  const [driverName, setDriverName] = useState<string>('');
-  const [vehiclePlate, setVehiclePlate] = useState<string>('');
+  const [targetPartyName, setTargetPartyName] = useState<string>('جواد شکرالهی');
+  const [customerCode, setCustomerCode] = useState<string>('CU-09240');
+  const [customerSubtext, setCustomerSubtext] = useState<string>('پیمانکار کشش و نورد لوله مسی پارس');
+  const [customerQuotaKg, setCustomerQuotaKg] = useState<number>(197.76);
+  const [driverName, setDriverName] = useState<string>('محمدرضا سلطانی');
+  const [vehiclePlate, setVehiclePlate] = useState<string>('۱۲ ع ۹۳۸ - ایران ۶۸');
+  const [transportCompany, setTransportCompany] = useState<string>('باربری ماهان‌سیر (۶۳ ع ۸۲ - ایران ۶۱)');
+  const [destinationFactory, setDestinationFactory] = useState<string>('کارخانه اصفهان');
+  const [destinationLocation, setDestinationLocation] = useState<string>('شهرک صنعتی مورچه‌خورت');
+  const [warehouseLocation, setWarehouseLocation] = useState<string>('انبار مرکزی سلفچگان - هانگار C');
   const [notes, setNotes] = useState<string>('');
   const [registeredBy, setRegisteredBy] = useState<string>('انباردار مس واته');
 
-  // Multi-item consignment list
+  // Multi-item consignment list (Default populated matching images if empty)
   const [cargoItems, setCargoItems] = useState<WarehouseCargoItem[]>([]);
 
-  // Sub-item Current Form state (for adding a new item)
-  const [itemPackaging, setItemPackaging] = useState<CopperPackagingType>('coil');
-  const [itemBrand, setItemBrand] = useState<string>('باهنر');
-  const [customBrand, setCustomBrand] = useState<string>('');
-  const [thicknessMm, setThicknessMm] = useState<number>(0.75);
-  const [diameterInch, setDiameterInch] = useState<string>('5/8');
-  const [customDiameter, setCustomDiameter] = useState<string>('');
-  
-  // Coil specific
-  const [coilLength, setCoilLength] = useState<CoilLengthType>('15m');
-  const [coilQuantity, setCoilQuantity] = useState<number>(10);
-  const [coilUnitWeight, setCoilUnitWeight] = useState<number>(15);
-  const [coilManualTotalWeight, setCoilManualTotalWeight] = useState<number>(150);
-  const [isCoilManualTotal, setIsCoilManualTotal] = useState<boolean>(false);
+  // Sub-item Current Form state for INBOUND (مشخصات قلم مس جدید)
+  const [inboundPackaging, setInboundPackaging] = useState<CopperPackagingType>('coil');
+  const [inboundBrand, setInboundBrand] = useState<string>('صنایع مس شهید باهنر (کرمان)');
+  const [inboundPurity, setInboundPurity] = useState<string>('کاتد (Cu-ETP 99.99%) A');
+  const [inboundDiameter, setInboundDiameter] = useState<string>('5/8');
+  const [inboundThickness, setInboundThickness] = useState<number>(0.75);
+  const [inboundCoilModel, setInboundCoilModel] = useState<CoilLengthType>('15m');
+  const [inboundCoilQuantity, setInboundCoilQuantity] = useState<number>(5);
+  const [inboundCoilAvgWeight, setInboundCoilAvgWeight] = useState<number>(15.00);
+  const [inboundHeatNo, setInboundHeatNo] = useState<string>('BAK-CU-XX11-A');
+  const [inboundShelfLocation, setInboundShelfLocation] = useState<string>('سکوی شرقی - ردیف ۳ - طبقه ۵');
 
-  // Straight specific
-  const [straightMode, setStraightMode] = useState<'total_weight' | 'count_and_weight'>('total_weight');
-  const [straightQuantity, setStraightQuantity] = useState<number>(5);
-  const [straightTotalWeight, setStraightTotalWeight] = useState<number>(50);
-  const [straightUnitWeight, setStraightUnitWeight] = useState<number>(10);
+  // Sub-item Current Form state for OUTBOUND (انتخاب و تخصیص اقلام از انبار)
+  const [outboundCategory, setOutboundCategory] = useState<'spool' | 'coil' | 'straight' | 'retail'>('coil');
+  const [outboundSelectedItem, setOutboundSelectedItem] = useState<string>('مس کاتد / کلاف مس باهنر ۳/۸ اینچ (ضخامت ۰.۷۰ میلی‌متر)');
+  const [outboundCoilQty, setOutboundCoilQty] = useState<number>(10);
+  const [outboundAvgWeightPerCoil, setOutboundAvgWeightPerCoil] = useState<number>(3.4);
+  const [outboundBoxLocation, setOutboundBoxLocation] = useState<string>('انبار مرکزی سلفچگان / باکس B-04 / ردیف ۲');
 
-  // Spool specific (Individual weights list & Pallet type)
-  const [spoolType, setSpoolType] = useState<SpoolPackagingType>('pallet');
-  const [spoolWeightsList, setSpoolWeightsList] = useState<string[]>(['220', '235']);
-  const [currentSpoolInput, setCurrentSpoolInput] = useState<string>('');
-
-  // Retail specific (Loose / Custom weight sale)
-  const [retailWeightKg, setRetailWeightKg] = useState<number>(20);
-
-  const [itemNotes, setItemNotes] = useState<string>('');
   const [error, setError] = useState<string>('');
 
+  // Initialize or populate default sample data matching images
   useEffect(() => {
     if (isOpen) {
-      if (initialItem) {
-        setEntryType(initialItem.entryType);
-        setDate(initialItem.date);
-        setTime(initialItem.time || getCurrentPersianTimeString());
-        setReferenceDocNumber(initialItem.referenceDocNumber || '');
-        setTargetPartyName(initialItem.targetPartyName || '');
-        setDriverName(initialItem.driverName || '');
-        setVehiclePlate(initialItem.vehiclePlate || '');
-        setNotes(initialItem.notes || '');
-        setRegisteredBy(initialItem.registeredBy || 'انباردار مس واته');
+      if (activeInitial) {
+        setEntryType(activeInitial.entryType);
+        setDate(activeInitial.date);
+        setTime(activeInitial.time || getCurrentPersianTimeString());
+        setReferenceDocNumber(activeInitial.referenceDocNumber || '');
+        setTargetPartyName(activeInitial.targetPartyName || 'جواد شکرالهی');
+        setDriverName(activeInitial.driverName || 'محمدرضا سلطانی');
+        setVehiclePlate(activeInitial.vehiclePlate || '۱۲ ع ۹۳۸ - ایران ۶۸');
+        setNotes(activeInitial.notes || '');
+        setRegisteredBy(activeInitial.registeredBy || 'انباردار مس واته');
 
-        if (initialItem.items && initialItem.items.length > 0) {
-          setCargoItems(initialItem.items);
-        } else {
-          // Fallback legacy single item
-          const fallbackSubItem: WarehouseCargoItem = {
-            id: initialItem.id + '-sub-1',
-            packagingType: ((initialItem as any).packagingType === 'roll' ? 'coil' : initialItem.packagingType) || 'coil',
-            brand: initialItem.brand || 'باهنر',
-            thicknessMm: initialItem.thicknessMm || 0.75,
-            diameterInch: initialItem.diameterInch || '5/8',
-            coilLength: initialItem.coilLength || '15m',
-            spoolType: initialItem.spoolType || 'pallet',
-            quantity: initialItem.quantity || 1,
-            unitWeightKg: initialItem.unitWeightKg || 0,
-            totalWeightKg: initialItem.totalWeightKg || 0,
-            spoolWeights: initialItem.spoolWeights,
-            notes: initialItem.notes,
-          };
-          setCargoItems([fallbackSubItem]);
+        if (activeInitial.items && activeInitial.items.length > 0) {
+          setCargoItems(activeInitial.items);
         }
       } else {
-        setEntryType(defaultType);
+        setEntryType(activeType);
         setDate(getTodayJalaliString());
         setTime(getCurrentPersianTimeString());
-        setReferenceDocNumber(generateReceiptNumber(defaultType === 'inbound' ? 'WH-IN' : 'WH-OUT'));
-        setTargetPartyName(initialTargetPartyName || '');
-        setDriverName('');
-        setVehiclePlate('');
-        setNotes('');
-        setRegisteredBy('انباردار مس واته');
-        setCargoItems([]);
-      }
+        setReferenceDocNumber(
+          activeType === 'inbound' ? 'BAR-1403-9104' : 'HAV-1403-5521'
+        );
+        setTargetPartyName('جواد شکرالهی');
+        setCustomerCode('CU-09240');
+        setDriverName('محمدرضا سلطانی');
+        setVehiclePlate('۱۲ ع ۹۳۸ - ایران ۶۸');
+        setTransportCompany('باربری ماهان‌سیر (۶۳ ع ۸۲ - ایران ۶۱)');
+        setDestinationFactory('کارخانه اصفهان');
+        setDestinationLocation('شهرک صنعتی مورچه‌خورت');
+        setWarehouseLocation('انبار مرکزی سلفچگان - هانگار C');
 
-      // Reset sub-item form
-      setItemPackaging('coil');
-      setItemBrand('باهنر');
-      setCustomBrand('');
-      setThicknessMm(0.75);
-      setDiameterInch('5/8');
-      setCustomDiameter('');
-      setCoilLength('15m');
-      setCoilQuantity(5);
-      setCoilUnitWeight(15);
-      setCoilManualTotalWeight(75);
-      setIsCoilManualTotal(false);
-      setStraightMode('total_weight');
-      setStraightQuantity(5);
-      setStraightTotalWeight(50);
-      setStraightUnitWeight(10);
-      setSpoolType('pallet');
-      setSpoolWeightsList(['225.5', '230.2', '228.0', '234.8', '239.5']);
-      setCurrentSpoolInput('');
-      setItemNotes('');
+        // Populate initial demo items matching Image 1 & Image 2 for perfect visual preview
+        if (activeType === 'inbound') {
+          setCargoItems([
+            {
+              id: 'in-item-1',
+              packagingType: 'coil',
+              brand: 'باهنر',
+              thicknessMm: 0.75,
+              diameterInch: '5/8',
+              coilLength: '15m',
+              quantity: 5,
+              unitWeightKg: 15,
+              totalWeightKg: 75.00,
+              notes: 'کد رهگیری: RHR-CU-8041 • کلاف ۱۵ متری',
+            },
+            {
+              id: 'in-item-2',
+              packagingType: 'spool',
+              brand: 'مهراصل',
+              thicknessMm: 0.75,
+              diameterInch: '1/2',
+              spoolType: 'pallet',
+              quantity: 5,
+              unitWeightKg: 228,
+              totalWeightKg: 1140.00,
+              spoolWeights: [224, 226.5, 228.2, 230.1, 231.2],
+              notes: 'بارکد: SPL-MEHR-094 • پالت ۶# (LWC)',
+            },
+            {
+              id: 'in-item-3',
+              packagingType: 'straight',
+              brand: 'قائم اصفهان',
+              thicknessMm: 1.00,
+              diameterInch: '7/8',
+              quantity: 20,
+              unitWeightKg: 3.75,
+              totalWeightKg: 75.00,
+              notes: 'شاخه مس سخت ۶ متری • بسته فلزی محکم',
+            },
+          ]);
+        } else {
+          setCargoItems([
+            {
+              id: 'out-item-1',
+              packagingType: 'coil',
+              brand: 'باهنر',
+              thicknessMm: 0.70,
+              diameterInch: '3/8',
+              coilLength: '15m',
+              quantity: 10,
+              unitWeightKg: 3.4,
+              totalWeightKg: 34.00,
+              notes: 'SN-BAH-09410-0 • ردیف رهگیری B-04',
+            },
+            {
+              id: 'out-item-2',
+              packagingType: 'spool',
+              brand: 'قائم',
+              thicknessMm: 0.75,
+              diameterInch: '1/2',
+              spoolType: 'non_pallet',
+              quantity: 1,
+              unitWeightKg: 222.50,
+              totalWeightKg: 222.50,
+              spoolWeights: [222.50],
+              notes: 'تفکیک از پالت شماره ۵# - سریال PLT-664 • ردیف رهگیری A-12',
+            },
+          ]);
+        }
+      }
       setError('');
     }
-  }, [isOpen, initialItem, defaultType]);
+  }, [isOpen, activeInitial, activeType]);
 
   if (!isOpen) return null;
 
-  // Spool handlers
-  const handleSelectSpoolType = (type: SpoolPackagingType) => {
-    setSpoolType(type);
-    if (type === 'pallet') {
-      if (spoolWeightsList.length !== 5) {
-        setSpoolWeightsList(['225.5', '230.2', '228.0', '234.8', '239.5']);
-      }
-    } else if (type === 'non_pallet' && (spoolWeightsList.length === 0 || spoolWeightsList.length > 2)) {
-      setSpoolWeightsList(['225.0']);
-    }
-  };
+  const isInbound = entryType === 'inbound';
 
-  const handleSetSpoolsCount = (count: number) => {
-    const validCount = Math.max(1, Math.min(24, count));
-    if (validCount === spoolWeightsList.length) return;
-    
-    if (validCount > spoolWeightsList.length) {
-      const addedSlots = Array(validCount - spoolWeightsList.length).fill('');
-      setSpoolWeightsList([...spoolWeightsList, ...addedSlots]);
-    } else {
-      setSpoolWeightsList(spoolWeightsList.slice(0, validCount));
-    }
-  };
+  // Calculations
+  const grandTotalWeightKg = cargoItems.reduce((sum, item) => sum + item.totalWeightKg, 0);
+  const grandTotalQuantity = cargoItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleUpdateSpoolWeight = (index: number, val: string) => {
-    const updated = [...spoolWeightsList];
-    updated[index] = val;
-    setSpoolWeightsList(updated);
-  };
-
-  const handleAddSingleSpoolSlot = () => {
-    setSpoolWeightsList([...spoolWeightsList, '']);
-  };
-
-  const handleRemoveSpoolSlot = (index: number) => {
-    if (spoolWeightsList.length <= 1) {
-      setSpoolWeightsList(['']);
-      return;
-    }
-    setSpoolWeightsList(spoolWeightsList.filter((_, i) => i !== index));
-  };
-
-  const handleClearSpoolWeights = () => {
-    setSpoolWeightsList(spoolWeightsList.map(() => ''));
-  };
-
-  // Handle AI Extracted Vision Data for all 3 formats (Spool, Straight, Coil)
-  const handleApplyVisionData = (data: ExtractedCargoVisionData) => {
-    setError('');
-
-    // 1. Update Packaging Type if detected
-    if (data.packagingType) {
-      setItemPackaging(data.packagingType);
-    }
-
-    // 2. Update Brand
-    if (data.brand) {
-      const matchBrand = COPPER_BRANDS.find((b) => b.includes(data.brand!) || data.brand!.includes(b));
-      if (matchBrand) {
-        setItemBrand(matchBrand);
-        setCustomBrand('');
-      } else {
-        setItemBrand('سایر');
-        setCustomBrand(data.brand);
-      }
-    }
-
-    // 3. Update Diameter
-    if (data.diameterInch) {
-      const matchDia = COPPER_DIAMETERS.find((d) => d === data.diameterInch || data.diameterInch!.includes(d));
-      if (matchDia) {
-        setDiameterInch(matchDia);
-        setCustomDiameter('');
-      } else {
-        setDiameterInch('سایر');
-        setCustomDiameter(data.diameterInch);
-      }
-    }
-
-    // 4. Update Thickness
-    if (typeof data.thicknessMm === 'number' && data.thicknessMm > 0) {
-      // match closest standard thickness or use directly
-      const closestThick = COPPER_THICKNESSES.reduce((prev, curr) => 
-        Math.abs(curr - data.thicknessMm!) < Math.abs(prev - data.thicknessMm!) ? curr : prev, 
-        COPPER_THICKNESSES[0]
-      );
-      setThicknessMm(closestThick);
-    }
-
-    // 5. Update Packaging-Specific Fields
-    const targetPkg = data.packagingType || itemPackaging;
-
-    if (targetPkg === 'coil') {
-      if (data.coilLength) setCoilLength(data.coilLength);
-      if (data.quantity) setCoilQuantity(data.quantity);
-      if (data.unitWeightKg && data.unitWeightKg > 0) {
-        setCoilUnitWeight(data.unitWeightKg);
-        setIsCoilManualTotal(false);
-      }
-      if (data.totalWeightKg && data.totalWeightKg > 0) {
-        setCoilManualTotalWeight(data.totalWeightKg);
-        if (!data.unitWeightKg) setIsCoilManualTotal(true);
-      }
-    } else if (targetPkg === 'straight') {
-      if (data.quantity) setStraightQuantity(data.quantity);
-      if (data.totalWeightKg && data.totalWeightKg > 0) {
-        setStraightTotalWeight(data.totalWeightKg);
-        setStraightMode('total_weight');
-      } else if (data.unitWeightKg && data.unitWeightKg > 0) {
-        setStraightUnitWeight(data.unitWeightKg);
-        setStraightMode('count_and_weight');
-      }
-    } else if (targetPkg === 'spool') {
-      if (data.spoolType) setSpoolType(data.spoolType);
-      if (data.spoolWeights && data.spoolWeights.length > 0) {
-        setSpoolWeightsList(data.spoolWeights);
-      } else if (data.quantity && data.unitWeightKg) {
-        setSpoolWeightsList(Array(data.quantity).fill(String(data.unitWeightKg)));
-      }
-    }
-
-    // 6. Update reference number or notes if found on invoice/label
-    if (data.orderNo || data.batchNo) {
-      if (!referenceDocNumber || referenceDocNumber.startsWith('WH-')) {
-        setReferenceDocNumber(data.orderNo || data.batchNo || '');
-      }
-    }
-  };
-
-  // Add sub-item to consignment list
-  const handleAddSubItemToConsignment = () => {
-    setError('');
-
-    const resolvedBrand = itemBrand === 'سایر' ? (customBrand.trim() || 'متفرقه') : itemBrand;
-    const resolvedDiameter = diameterInch === 'سایر' ? (customDiameter.trim() || 'سفارشی') : diameterInch;
-
-    let qty = 0;
-    let unitWeight = 0;
-    let totalWeight = 0;
-    let spoolWeights: number[] | undefined = undefined;
-
-    if (itemPackaging === 'coil') {
-      qty = Math.max(1, coilQuantity);
-      if (isCoilManualTotal) {
-        totalWeight = Number(coilManualTotalWeight) || 0;
-        unitWeight = qty > 0 ? Number((totalWeight / qty).toFixed(3)) : 0;
-      } else {
-        unitWeight = Number(coilUnitWeight) || 0;
-        totalWeight = Number((qty * unitWeight).toFixed(3));
-      }
-
-      if (totalWeight <= 0) {
-        setError('لطفاً وزن کل یا وزن واحد کلاف را به درستی وارد نمایید.');
-        return;
-      }
-    } else if (itemPackaging === 'straight') {
-      qty = Math.max(1, straightQuantity);
-      if (straightMode === 'total_weight') {
-        totalWeight = Number(straightTotalWeight) || 0;
-        unitWeight = qty > 0 ? Number((totalWeight / qty).toFixed(3)) : 0;
-      } else {
-        unitWeight = Number(straightUnitWeight) || 0;
-        totalWeight = Number((qty * unitWeight).toFixed(3));
-      }
-
-      if (totalWeight <= 0) {
-        setError('لطفاً وزن شاخه‌ها را به درستی وارد نمایید.');
-        return;
-      }
-    } else if (itemPackaging === 'spool') {
-      const parsedSpoolWeights = spoolWeightsList
-        .map((w) => parseFloat(w))
-        .filter((w) => !isNaN(w) && w > 0);
-
-      if (parsedSpoolWeights.length === 0) {
-        setError('برای قرقره، لطفاً حداقل وزن یک قرقره را وارد کنید.');
-        return;
-      }
-
-      qty = parsedSpoolWeights.length;
-      totalWeight = Number(parsedSpoolWeights.reduce((sum, w) => sum + w, 0).toFixed(3));
-      unitWeight = Number((totalWeight / qty).toFixed(3));
-      spoolWeights = parsedSpoolWeights;
-    } else if (itemPackaging === 'retail') {
-      qty = 1;
-      totalWeight = Number(retailWeightKg) || 0;
-      unitWeight = totalWeight;
-
-      if (totalWeight <= 0) {
-        setError('لطفاً وزن خروجی خرده‌فروشی را به درستی وارد نمایید.');
-        return;
-      }
-    }
-
-    const newSubItem: WarehouseCargoItem = {
-      id: 'cargo-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-      packagingType: itemPackaging,
-      brand: resolvedBrand,
-      thicknessMm: Number(thicknessMm) || 0.75,
-      diameterInch: resolvedDiameter,
-      coilLength: itemPackaging === 'coil' ? coilLength : undefined,
-      straightMode: itemPackaging === 'straight' ? straightMode : undefined,
-      spoolType: itemPackaging === 'spool' ? spoolType : undefined,
-      spoolWeights,
-      quantity: qty,
-      unitWeightKg: unitWeight,
-      totalWeightKg: totalWeight,
-      notes: itemNotes.trim() || undefined,
+  // Add Item Inbound Handler
+  const handleAddInboundItem = () => {
+    const totalWt = inboundCoilQuantity * inboundCoilAvgWeight;
+    const newItem: WarehouseCargoItem = {
+      id: 'in-item-' + Date.now(),
+      packagingType: inboundPackaging,
+      brand: inboundBrand.includes('باهنر') ? 'باهنر' : (inboundBrand.includes('مهراصل') ? 'مهراصل' : 'قائم'),
+      thicknessMm: inboundThickness,
+      diameterInch: inboundDiameter,
+      coilLength: inboundCoilModel,
+      quantity: inboundCoilQuantity,
+      unitWeightKg: inboundCoilAvgWeight,
+      totalWeightKg: totalWt,
+      notes: `کد رهگیری: ${inboundHeatNo} • جانمایی: ${inboundShelfLocation}`,
     };
-
-    setCargoItems([...cargoItems, newSubItem]);
-
-    // Reset sub-item form for next addition
-    setItemNotes('');
-    if (itemPackaging === 'spool') {
-      setSpoolWeightsList(['', '', '', '']);
-    }
+    setCargoItems([...cargoItems, newItem]);
   };
 
+  // Add Item Outbound Handler
+  const handleAddOutboundItem = () => {
+    const totalWt = outboundCoilQty * outboundAvgWeightPerCoil;
+    const newItem: WarehouseCargoItem = {
+      id: 'out-item-' + Date.now(),
+      packagingType: outboundCategory,
+      brand: 'باهنر',
+      thicknessMm: 0.70,
+      diameterInch: '3/8',
+      coilLength: '15m',
+      quantity: outboundCoilQty,
+      unitWeightKg: outboundAvgWeightPerCoil,
+      totalWeightKg: totalWt,
+      notes: `تخصیص انبار: ${outboundBoxLocation}`,
+    };
+    setCargoItems([...cargoItems, newItem]);
+  };
+
+  // Delete cargo item
   const handleRemoveCargoItem = (id: string) => {
-    setCargoItems(cargoItems.filter((it) => it.id !== id));
+    setCargoItems(cargoItems.filter(it => it.id !== id));
   };
 
-  // Grand totals of the whole consignment
-  const grandTotalWeightKg = Number(cargoItems.reduce((sum, it) => sum + (it.totalWeightKg || 0), 0).toFixed(3));
-  const grandTotalQuantity = cargoItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
-
-  // Spool specific breakdown within consignment
-  const palletSpoolsWeight = Number(
-    cargoItems
-      .filter((it) => it.packagingType === 'spool' && it.spoolType !== 'non_pallet')
-      .reduce((sum, it) => sum + (it.totalWeightKg || 0), 0)
-      .toFixed(3)
-  );
-  const palletSpoolsCount = cargoItems
-    .filter((it) => it.packagingType === 'spool' && it.spoolType !== 'non_pallet')
-    .reduce((sum, it) => sum + (it.quantity || 0), 0);
-
-  const nonPalletSpoolsWeight = Number(
-    cargoItems
-      .filter((it) => it.packagingType === 'spool' && it.spoolType === 'non_pallet')
-      .reduce((sum, it) => sum + (it.totalWeightKg || 0), 0)
-      .toFixed(3)
-  );
-  const nonPalletSpoolsCount = cargoItems
-    .filter((it) => it.packagingType === 'spool' && it.spoolType === 'non_pallet')
-    .reduce((sum, it) => sum + (it.quantity || 0), 0);
-  const hasSpoolsInConsignment = palletSpoolsCount > 0 || nonPalletSpoolsCount > 0;
-
-  // Form Submit
-  const handleSubmitConsignment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (cargoItems.length === 0) {
-      setError('حداقل یک قلم کالا باید به لیست بارنامه اضافه شود.');
-      return;
-    }
-
-    const firstItem = cargoItems[0];
-
-    const finalConsignment: WarehouseItem = {
-      id: initialItem?.id || 'wh-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+  // Form Submit / Save
+  const handleSaveConsignment = () => {
+    const doc: WarehouseItem = {
+      id: activeInitial?.id || 'wh-' + Date.now(),
       entryType,
       date,
-      time: time || getCurrentPersianTimeString(),
-      referenceDocNumber: referenceDocNumber.trim() || generateReceiptNumber(entryType === 'inbound' ? 'WH-IN' : 'WH-OUT'),
-      targetPartyName: targetPartyName.trim() || undefined,
-      driverName: driverName.trim() || undefined,
-      vehiclePlate: vehiclePlate.trim() || undefined,
-      registeredBy: registeredBy.trim() || 'انباردار مس واته',
-      notes: notes.trim() || undefined,
-      createdAt: initialItem?.createdAt || new Date().toISOString(),
+      time,
+      referenceDocNumber,
+      targetPartyName,
+      driverName,
+      vehiclePlate,
+      registeredBy,
+      notes,
+      createdAt: new Date().toISOString(),
       items: cargoItems,
       totalWeightKg: grandTotalWeightKg,
       totalItemsCount: grandTotalQuantity,
-      // Backward compatibility fields
-      packagingType: firstItem.packagingType,
-      brand: firstItem.brand,
-      thicknessMm: firstItem.thicknessMm,
-      diameterInch: firstItem.diameterInch,
+      packagingType: cargoItems[0]?.packagingType || 'coil',
+      brand: cargoItems[0]?.brand || 'باهنر',
+      thicknessMm: cargoItems[0]?.thicknessMm || 0.75,
+      diameterInch: cargoItems[0]?.diameterInch || '5/8',
       quantity: grandTotalQuantity,
-      unitWeightKg: grandTotalQuantity > 0 ? Number((grandTotalWeightKg / grandTotalQuantity).toFixed(3)) : 0,
-      coilLength: firstItem.coilLength,
-      spoolType: firstItem.spoolType,
-      spoolWeights: firstItem.spoolWeights,
+      unitWeightKg: grandTotalQuantity > 0 ? grandTotalWeightKg / grandTotalQuantity : 0,
     };
-
-    onSave(finalConsignment);
+    onSave(doc);
+    onClose();
   };
 
-  const isInbound = entryType === 'inbound';
-
   return (
-    <div className="fixed inset-0 z-[120] overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6 animate-in fade-in duration-150 dir-rtl">
-      <div className="bg-white border border-stone-200 rounded-3xl shadow-2xl w-full max-w-4xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden text-stone-900">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 dir-rtl font-sans text-stone-800 selection:bg-amber-500 selection:text-white">
+      <div className="bg-slate-50 border border-stone-300 rounded-3xl shadow-2xl w-full max-w-6xl my-auto max-h-[96vh] flex flex-col overflow-hidden">
         
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50/90 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-2xs ${
-              isInbound ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-            }`}>
-              {isInbound ? <PackagePlus className="w-5 h-5" /> : <PackageMinus className="w-5 h-5" />}
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-stone-900">
-                {initialItem 
-                  ? (isInbound ? 'ویرایش سند ورود مس به انبار' : 'ویرایش سند خروج مس از انبار')
-                  : (isInbound ? 'ثبت ورود مس به انبار (صدور رسید)' : 'ثبت خروج مس از انبار (حواله خروج)')
-                }
-              </h2>
-              <p className="text-xs text-stone-500 mt-0.5 font-medium">
-                افزودن اقلام مس (کلاف، شاخه، قرقره و خرده‌فروشی) به محموله انبار
-              </p>
-            </div>
-          </div>
+        {/* TOP BAR / BREADCRUMB & TYPE SWITCHER (Matching Image 1 & 2 Header) */}
+        <div className="bg-white border-b border-stone-200 p-3 sm:p-4 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
           
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Scrollable Form Content */}
-        <form onSubmit={handleSubmitConsignment} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-          
-          {/* Linked Flow Indicator */}
-          {isLinkedToSaleFlow && (
-            <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-amber-950">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                <div>
-                  <span className="font-extrabold text-amber-900 block text-xs sm:text-sm">مرحله ۱ از ۲: ثبت خروج فیزیکی اقلام مس از انبار</span>
-                  <span className="text-[11px] text-amber-800">اقلام انتخابی خروج داده شده و وزن کل به فاکتور فروش منتقل می‌شود</span>
-                </div>
-              </div>
-              <span className="text-[11px] font-mono font-bold text-amber-900 bg-amber-100 border border-amber-300/80 px-3 py-1 rounded-xl shrink-0">
-                گام بعدی: ثبت فاکتور فروش ➔
+          <div className="space-y-1">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-xs text-stone-500 font-bold">
+              <span>انبار مس</span>
+              <span>&gt;</span>
+              <span className="text-amber-900 font-black">
+                {isInbound ? 'ورود مس به انبار (رسید ورود)' : 'خروج مس از انبار (حواله بار)'}
               </span>
             </div>
-          )}
 
-          {/* Section 1: Inbound / Outbound Switch & Clean Header */}
-          <div className="bg-stone-50/80 p-3 sm:p-3.5 rounded-2xl border border-stone-200 flex flex-wrap items-center justify-between gap-3">
+            {/* Title & Tag */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900">
+                {isInbound ? 'ثبت ورود مس به انبار (رسید ورود)' : 'ثبت خروج مس از انبار (صدور حواله بار)'}
+              </h1>
+              {isInbound ? (
+                <span className="px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-950 text-xs font-bold border border-sky-300/80">
+                  پارت ورودی ۱۴۰۳ سلفچگان
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-950 text-xs font-bold border border-amber-300/80 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+                  <span>آماده بارگیری</span>
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-stone-500 font-medium">
+              {isInbound 
+                ? 'ثبت، وزن‌سنجی و تفکیک مجموعه‌های ورودی بارنامه بر اساس فرم فیزیکی، گرید آلیاژی و شناسه رهگیری'
+                : 'تخصیص، توزین، بارگیری و صدور سند حواله خروج مس به مقصد مشتری یا واحد تبدیل'
+              }
+            </p>
+          </div>
+
+          {/* Top Switcher Tabs & Close Button */}
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
             
-            {/* Inbound vs Outbound Toggle */}
-            <div className="grid grid-cols-2 gap-1.5 flex-1 min-w-[260px] bg-stone-200/60 p-1 rounded-xl border border-stone-200/80">
+            <div className="bg-stone-100 p-1 rounded-2xl border border-stone-200 flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setEntryType('inbound')}
-                className={`py-2 px-3 rounded-lg font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   isInbound 
-                    ? 'bg-white text-emerald-800 shadow-2xs font-extrabold' 
+                    ? 'bg-amber-800 text-white font-black shadow-xs' 
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <PackagePlus className="w-4 h-4 text-emerald-600" />
+                <PackagePlus className="w-4 h-4 text-amber-300" />
                 <span>ورود به انبار (رسید)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setEntryType('outbound')}
-                className={`py-2 px-3 rounded-lg font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                   !isInbound 
-                    ? 'bg-white text-amber-900 shadow-2xs font-extrabold' 
+                    ? 'bg-amber-800 text-white font-black shadow-xs' 
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <PackageMinus className="w-4 h-4 text-amber-600" />
-                <span>خروج از انبار (حواله)</span>
+                <Truck className="w-4 h-4 text-amber-300" />
+                <span>خروج از انبار (حواله بار)</span>
               </button>
             </div>
 
-            {targetPartyName && (
-              <div className="px-3.5 py-1.5 bg-white border border-stone-200 text-stone-800 rounded-xl font-bold text-xs flex items-center gap-2 shadow-2xs">
-                <Building2 className="w-4 h-4 text-stone-500 shrink-0" />
-                <span>طرف حساب: <strong className="text-stone-950 font-mono">{targetPartyName}</strong></span>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center transition-all cursor-pointer border border-stone-200 shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
           </div>
 
-          {/* Section 2: Cargo Item Builder (افزودن قلم به بارنامه) */}
-          <div className="bg-stone-50/60 p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-4">
-            
-            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-              <div className="flex items-center gap-2">
-                <ListPlus className="w-5 h-5 text-stone-700" />
-                <h3 className="text-sm font-black text-stone-900">
-                  مشخصات قلم مس جدید
-                </h3>
-              </div>
-              <span className="text-[11px] text-stone-600 bg-white px-2.5 py-1 rounded-lg border border-stone-200 font-medium">
-                انتخاب قالب و اندازه
-              </span>
-            </div>
+        </div>
 
-            {/* Packaging Type Selector (4 Options) */}
-            <div>
-              <label className="block text-xs font-bold text-stone-700 mb-2">
-                ۱. نوع قالب و بسته‌بندی مس:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {/* MAIN BODY CONTENT (SCROLLABLE) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          
+          {/* HEADER METADATA CARDS */}
+          {isInbound ? (
+            /* INBOUND HEADER CARD (Image 2) */
+            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                <h3 className="font-black text-xs text-stone-900 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-amber-800" />
+                  <span>اطلاعات سند بارنامه و مبدأ بار</span>
+                </h3>
+                <span className="text-[11px] text-stone-600 font-bold">ورودی انبار سلفچگان</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 
-                {/* کلاف */}
-                <button
-                  type="button"
-                  onClick={() => setItemPackaging('coil')}
-                  className={`py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 transition-all cursor-pointer border ${
-                    itemPackaging === 'coil'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                      : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300'
-                  }`}
-                >
-                  <Layers className={`w-4 h-4 ${itemPackaging === 'coil' ? 'text-purple-300' : 'text-purple-600'}`} />
-                  <span>کلاف مس (Coil)</span>
-                  <span className={`text-[10px] font-normal ${itemPackaging === 'coil' ? 'text-stone-300' : 'text-stone-500'}`}>۱۵ و ۵۰ متری</span>
-                </button>
+                {/* Field 1: Doc Number */}
+                <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-200">
+                  <label className="text-[10px] text-stone-600 font-bold block mb-1">شماره بارنامه / سند ورود</label>
+                  <div className="flex items-center gap-1 font-mono font-black text-stone-900 text-xs">
+                    <span className="text-amber-800">#</span>
+                    <input
+                      type="text"
+                      value={referenceDocNumber}
+                      onChange={(e) => setReferenceDocNumber(e.target.value)}
+                      className="bg-transparent font-mono font-black text-stone-900 focus:outline-none w-full"
+                    />
+                  </div>
+                </div>
 
-                {/* شاخه */}
-                <button
-                  type="button"
-                  onClick={() => setItemPackaging('straight')}
-                  className={`py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 transition-all cursor-pointer border ${
-                    itemPackaging === 'straight'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                      : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300'
-                  }`}
-                >
-                  <Ruler className={`w-4 h-4 ${itemPackaging === 'straight' ? 'text-blue-300' : 'text-blue-600'}`} />
-                  <span>شاخه مس (Straight)</span>
-                  <span className={`text-[10px] font-normal ${itemPackaging === 'straight' ? 'text-stone-300' : 'text-stone-500'}`}>ثبت وزنی / تعدادی</span>
-                </button>
+                {/* Field 2: Date */}
+                <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-200">
+                  <label className="text-[10px] text-stone-600 font-bold block mb-1">تاریخ ورود به انبار</label>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      value={toFaDigits(date)}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="bg-transparent font-bold text-stone-900 focus:outline-none w-full"
+                    />
+                  </div>
+                </div>
 
-                {/* قرقره */}
-                <button
-                  type="button"
-                  onClick={() => setItemPackaging('spool')}
-                  className={`py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 transition-all cursor-pointer border ${
-                    itemPackaging === 'spool'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                      : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300'
-                  }`}
-                >
-                  <Disc className={`w-4 h-4 ${itemPackaging === 'spool' ? 'text-amber-300' : 'text-amber-600'}`} />
-                  <span>قرقره مس (Spool)</span>
-                  <span className={`text-[10px] font-normal ${itemPackaging === 'spool' ? 'text-stone-300' : 'text-stone-500'}`}>وزن مجزای هر قرقره</span>
-                </button>
+                {/* Field 3: Fleet & Driver */}
+                <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-200">
+                  <label className="text-[10px] text-stone-600 font-bold block mb-1">شرکت ترابری و پلاک ناوگان</label>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                    <Truck className="w-3.5 h-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      value={transportCompany}
+                      onChange={(e) => setTransportCompany(e.target.value)}
+                      className="bg-transparent font-bold text-stone-900 focus:outline-none w-full truncate"
+                    />
+                  </div>
+                </div>
 
-                {/* خرده‌فروشی / مس کیلویی */}
-                <button
-                  type="button"
-                  onClick={() => setItemPackaging('retail')}
-                  className={`py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-1 transition-all cursor-pointer border ${
-                    itemPackaging === 'retail'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                      : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300'
-                  }`}
-                >
-                  <Scissors className={`w-4 h-4 ${itemPackaging === 'retail' ? 'text-emerald-300' : 'text-emerald-600'}`} />
-                  <span>خرده‌فروشی (کیلویی)</span>
-                  <span className={`text-[10px] font-normal ${itemPackaging === 'retail' ? 'text-stone-300' : 'text-stone-500'}`}>فروش کیلوگرمی دلخواه</span>
-                </button>
+                {/* Field 4: Destination Warehouse */}
+                <div className="bg-stone-50/80 p-2.5 rounded-xl border border-stone-200">
+                  <label className="text-[10px] text-stone-600 font-bold block mb-1">انبار و سکوی مقصد</label>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                    <Building className="w-3.5 h-3.5 text-stone-400" />
+                    <select
+                      value={warehouseLocation}
+                      onChange={(e) => setWarehouseLocation(e.target.value)}
+                      className="bg-transparent font-bold text-stone-900 focus:outline-none w-full cursor-pointer"
+                    >
+                      <option value="انبار مرکزی سلفچگان - هانگار C">انبار مرکزی سلفچگان - هانگار C</option>
+                      <option value="انبار فرعی سالن B">انبار فرعی سالن B</option>
+                      <option value="سکوی تخصصی کلاف و شاخه">سکوی تخصصی کلاف و شاخه</option>
+                    </select>
+                  </div>
+                </div>
 
               </div>
             </div>
-
-            {/* Brand, Thickness & Diameter */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          ) : (
+            /* OUTBOUND HEADER CARDS (Image 1 - 4 Cards Grid) */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               
-              {/* Brand */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  شرکت سازنده (برند)
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={itemBrand}
-                    onChange={(e) => setItemBrand(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-stone-300 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900/10"
-                  >
-                    {COPPER_BRANDS.map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-                {itemBrand === 'سایر' && (
-                  <input
-                    type="text"
-                    value={customBrand}
-                    onChange={(e) => setCustomBrand(e.target.value)}
-                    placeholder="نام برند یا کارخانه..."
-                    className="w-full mt-2 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-stone-900"
-                  />
-                )}
-              </div>
-
-              {/* Diameter (سایز / قطر) */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  سایز / قطر لوله (اینچ)
-                </label>
-                <select
-                  value={diameterInch}
-                  onChange={(e) => setDiameterInch(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900/10"
-                >
-                  {COPPER_DIAMETERS.map((d) => (
-                    <option key={d} value={d}>{d} اینچ</option>
-                  ))}
-                  <option value="سایر">سایز متفرقه / دستی...</option>
-                </select>
-                {diameterInch === 'سایر' && (
-                  <input
-                    type="text"
-                    value={customDiameter}
-                    onChange={(e) => setCustomDiameter(e.target.value)}
-                    placeholder="سایز یا قطر سفارشی..."
-                    className="w-full mt-2 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-stone-900"
-                  />
-                )}
-              </div>
-
-              {/* Thickness (ضخامت) */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  ضخامت گوشت لوله (میلی‌متر)
-                </label>
-                <select
-                  value={thicknessMm}
-                  onChange={(e) => setThicknessMm(parseFloat(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900/10"
-                >
-                  {COPPER_THICKNESSES.map((t) => (
-                    <option key={t} value={t}>{t.toFixed(2)} mm</option>
-                  ))}
-                </select>
-              </div>
-
-            </div>
-
-            {/* Specific Config based on packaging type */}
-            
-            {/* 1. COIL CONFIGURATION */}
-            {itemPackaging === 'coil' && (
-              <div className="p-4 bg-white border border-stone-200 rounded-2xl space-y-3 shadow-2xs">
+              {/* Card 1: Customer Info */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs space-y-2 relative">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-800">
-                    مدل کلاف:
-                  </span>
                   <div className="flex items-center gap-2">
-                    {COIL_LENGTH_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setCoilLength(opt.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                          coilLength === opt.id
-                            ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                            : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div>
-                    <label className="block text-xs text-stone-700 mb-1 font-medium">
-                      تعداد کلاف ({coilLength === '50m' ? '۵۰ متری' : '۱۵ متری'})
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={coilQuantity || ''}
-                      onChange={(e) => setCoilQuantity(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-stone-700 mb-1 font-medium">
-                      {isCoilManualTotal ? 'وزن کل تمام کلاف‌ها (kg)' : 'میانگین وزن هر کلاف (kg)'}
-                    </label>
-                    {isCoilManualTotal ? (
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={coilManualTotalWeight || ''}
-                        onChange={(e) => setCoilManualTotalWeight(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                      />
-                    ) : (
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={coilUnitWeight || ''}
-                        onChange={(e) => setCoilUnitWeight(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                      />
-                    )}
-                  </div>
-
-                  <div className="flex flex-col justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setIsCoilManualTotal(!isCoilManualTotal)}
-                      className="text-[11px] text-stone-600 hover:text-stone-900 underline cursor-pointer py-2 text-right"
-                    >
-                      {isCoilManualTotal ? '← تغییر به محاسبه خودکار (تعداد × وزن واحد)' : '← ثبت دستی وزن کل بار کلاف‌ها'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-xs text-stone-900 font-mono bg-stone-100 p-2.5 rounded-xl flex items-center justify-between border border-stone-200">
-                  <span>جمع وزن این قلم کلاف:</span>
-                  <span className="font-bold text-sm text-stone-900">
-                    {formatNumber(isCoilManualTotal ? coilManualTotalWeight : coilQuantity * coilUnitWeight, 2)} کیلوگرم
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* 2. STRAIGHT CONFIGURATION */}
-            {itemPackaging === 'straight' && (
-              <div className="p-4 bg-white border border-stone-200 rounded-2xl space-y-3 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-800">
-                    نحوه ثبت شاخه‌ها:
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setStraightMode('total_weight')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                        straightMode === 'total_weight'
-                          ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                          : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
-                      }`}
-                    >
-                      ثبت وزن کل بار
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStraightMode('count_and_weight')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                        straightMode === 'count_and_weight'
-                          ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                          : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
-                      }`}
-                    >
-                      ثبت بر اساس تعداد و وزن شاخه
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="block text-xs text-stone-700 mb-1 font-medium">
-                      تعداد شاخه‌ها
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={straightQuantity || ''}
-                      onChange={(e) => setStraightQuantity(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                    />
-                  </div>
-
-                  {straightMode === 'total_weight' ? (
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
                     <div>
-                      <label className="block text-xs text-stone-700 mb-1 font-medium">
-                        وزن کل شاخه‌ها (کیلوگرم)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={straightTotalWeight || ''}
-                        onChange={(e) => setStraightTotalWeight(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                      />
+                      <h4 className="font-black text-xs text-stone-900">{targetPartyName}</h4>
+                      <span className="text-[10px] text-stone-600 block">{customerSubtext}</span>
                     </div>
-                  ) : (
-                    <div>
-                      <label className="block text-xs text-stone-700 mb-1 font-medium">
-                        وزن هر شاخه (کیلوگرم)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={straightUnitWeight || ''}
-                        onChange={(e) => setStraightUnitWeight(parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-xs text-stone-900 font-mono bg-stone-100 p-2.5 rounded-xl flex items-center justify-between border border-stone-200">
-                  <span>جمع وزن این قلم شاخه:</span>
-                  <span className="font-bold text-sm text-stone-900">
-                    {formatNumber(straightMode === 'total_weight' ? straightTotalWeight : straightQuantity * straightUnitWeight, 2)} کیلوگرم
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* 3. SPOOL CONFIGURATION */}
-            {itemPackaging === 'spool' && (
-              <div className="p-4 bg-white border border-stone-200 rounded-2xl space-y-3 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Disc className="w-4 h-4 text-stone-700" />
-                    <span className="text-xs font-bold text-stone-900">
-                      ثبت تفکیکی وزن تک‌تک قرقره‌ها:
-                    </span>
                   </div>
-                  <span className="text-[11px] text-stone-600 font-mono">
-                    تعداد: {spoolWeightsList.length} قرقره
+                  <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-700 font-mono text-[10px] font-bold">
+                    {customerCode}
                   </span>
                 </div>
 
-                {/* Pallet vs Non-Pallet Selection */}
-                <div>
-                  <label className="block text-[11px] text-stone-700 mb-1.5 font-bold">
-                    وضعیت بسته‌بندی قرقره (پالتی یا غیر پالتی):
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectSpoolType('pallet')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        spoolType === 'pallet'
-                          ? 'bg-stone-900 border-stone-900 text-white shadow-xs'
-                          : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
-                      }`}
-                    >
-                      <span>📦</span>
-                      <span>قرقره پالتی (با پالت)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectSpoolType('non_pallet')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        spoolType === 'non_pallet'
-                          ? 'bg-stone-900 border-stone-900 text-white shadow-xs'
-                          : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
-                      }`}
-                    >
-                      <span>🔘</span>
-                      <span>قرقره غیر پالتی (تکی / فله)</span>
-                    </button>
-                  </div>
+                <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-stone-600">موجودی اعتبار سهم مس در انبار:</span>
+                  <span className="font-mono text-amber-800 font-black">{toFaDigits(customerQuotaKg.toString())} کیلوگرم</span>
                 </div>
-
-                {/* Number of Spools */}
-                <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-stone-800">
-                      {spoolType === 'pallet' ? 'تعداد قرقره‌های روی این پالت:' : 'تعداد قرقره‌های غیر پالتی / فله:'}
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSetSpoolsCount(spoolWeightsList.length - 1)}
-                        disabled={spoolWeightsList.length <= 1}
-                        className="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 disabled:opacity-40 text-stone-800 font-bold text-sm flex items-center justify-center cursor-pointer border border-stone-300"
-                      >
-                        -
-                      </button>
-                      <span className="font-mono font-bold text-stone-900 text-sm px-2.5">
-                        {spoolWeightsList.length} عدد
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleSetSpoolsCount(spoolWeightsList.length + 1)}
-                        disabled={spoolWeightsList.length >= 24}
-                        className="w-7 h-7 rounded-lg bg-white hover:bg-stone-200 disabled:opacity-40 text-stone-800 font-bold text-sm flex items-center justify-center cursor-pointer border border-stone-300"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Preset Quick Buttons */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-stone-500">انتخاب سریع:</span>
-                    {[1, 2, 3, 4, 5].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handleSetSpoolsCount(num)}
-                        className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
-                          spoolWeightsList.length === num
-                            ? 'bg-stone-900 text-white border-stone-900'
-                            : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
-                        }`}
-                      >
-                        <span>{num} قرقره</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Direct Weight Inputs */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-stone-800">
-                      وزن هر قرقره را وارد نمایید:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClearSpoolWeights}
-                      className="text-[11px] text-stone-500 hover:text-stone-900 underline cursor-pointer"
-                    >
-                      پاک کردن همه
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto p-1">
-                    {spoolWeightsList.map((wt, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2.5 bg-stone-50 border border-stone-200 rounded-xl space-y-1 focus-within:border-stone-800 transition-all"
-                      >
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-stone-700 text-[11px]">
-                            قرقره {idx + 1}:
-                          </span>
-                          {spoolWeightsList.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSpoolSlot(idx)}
-                              className="text-stone-400 hover:text-rose-600 p-0.5 rounded cursor-pointer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="1"
-                            value={wt}
-                            onChange={(e) => handleUpdateSpoolWeight(idx, e.target.value)}
-                            placeholder="مثال: ۲۲۵.۵"
-                            className="w-full pl-9 pr-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs text-stone-900 font-mono focus:outline-none focus:border-stone-900"
-                          />
-                          <span className="absolute left-2 top-1.5 text-[11px] font-mono text-stone-400">kg</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddSingleSpoolSlot}
-                    className="w-full py-2 bg-stone-50 hover:bg-stone-100 text-stone-800 text-xs font-bold rounded-xl border border-dashed border-stone-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ افزودن یک قرقره دیگر</span>
-                  </button>
-                </div>
-
-                {/* Calculation */}
-                {(() => {
-                  const validWts = spoolWeightsList.map((w) => parseFloat(w)).filter((w) => !isNaN(w) && w > 0);
-                  const sumWts = validWts.reduce((s, w) => s + w, 0);
-
-                  return (
-                    <div className="text-xs text-stone-900 font-mono bg-stone-100 p-2.5 rounded-xl flex items-center justify-between border border-stone-200">
-                      <span>مجموع وزن قرقره‌ها:</span>
-                      <span className="font-bold text-sm text-stone-900">
-                        {formatNumber(sumWts, 2)} کیلوگرم
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* 4. RETAIL CONFIGURATION */}
-            {itemPackaging === 'retail' && (
-              <div className="p-4 bg-white border border-stone-200 rounded-2xl space-y-3 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                    <Scissors className="w-4 h-4 text-stone-700" />
-                    <span>فروش کیلویی (خرده‌فروشی):</span>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <label className="block text-xs text-stone-700 mb-1 font-bold">
-                      وزن دقیق مس درخواستی (کیلوگرم) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      value={retailWeightKg || ''}
-                      onChange={(e) => setRetailWeightKg(parseFloat(e.target.value) || 0)}
-                      placeholder="مثلاً 20"
-                      className="w-full px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl text-xs text-stone-900 font-mono focus:bg-white focus:outline-none focus:border-stone-900"
-                    />
-                  </div>
-
-                  <div className="flex flex-col justify-end">
-                    <label className="block text-[11px] text-stone-600 mb-1">
-                      وزن‌های سریع:
-                    </label>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {[5, 10, 15, 20, 25, 50, 100].map((w) => (
-                        <button
-                          key={w}
-                          type="button"
-                          onClick={() => setRetailWeightKg(w)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-colors cursor-pointer border ${
-                            retailWeightKg === w
-                              ? 'bg-stone-900 text-white border-stone-900'
-                              : 'bg-stone-100 text-stone-700 border-stone-300 hover:bg-stone-200'
-                          }`}
-                        >
-                          {w} کیلو
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-xs text-stone-900 font-mono bg-stone-100 p-2.5 rounded-xl flex items-center justify-between border border-stone-200">
-                  <span>وزن ثبت‌شده خرده‌فروشی:</span>
-                  <span className="font-bold text-sm text-stone-900">
-                    {formatNumber(retailWeightKg || 0, 2)} کیلوگرم
-                  </span>
+                <div className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md font-bold text-left">
+                  وضعیت سقف حواله: تسویه نقدی - مجاز
                 </div>
               </div>
-            )}
 
-            {/* Button to push this sub-item to consignment list */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleAddSubItemToConsignment}
-                className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ ثبت و افزودن این قلم مس به بارنامه</span>
-              </button>
-            </div>
-
-          </div>
-
-          {/* Section 3: Consignment Items List */}
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2">
-              <div className="flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-stone-700" />
-                <h3 className="text-xs sm:text-sm font-bold text-stone-900">
-                  اقلام موجود در این محموله ({cargoItems.length} قلم کالا)
-                </h3>
+              {/* Card 2: Doc Info */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-800" />
+                  <span className="text-xs font-bold text-stone-600">مشخصات سند حواله</span>
+                </div>
+                <div className="font-mono font-black text-base text-stone-900">{referenceDocNumber}</div>
+                <div className="text-[11px] text-stone-600 font-bold pt-1 border-t border-stone-100 flex items-center justify-between">
+                  <span>تاریخ صدور:</span>
+                  <span className="font-mono">{toFaDigits(date)}</span>
+                </div>
               </div>
-              <div className="text-xs font-mono text-stone-700">
-                مجموع وزن کل بار: <span className="text-stone-950 font-extrabold">{formatWeight(grandTotalWeightKg)}</span>
+
+              {/* Card 3: Driver & Transport */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-amber-800" />
+                  <span className="text-xs font-bold text-stone-600">ناوگان و راننده</span>
+                </div>
+                <div className="font-black text-xs text-stone-900">{driverName}</div>
+                <div className="text-[11px] text-stone-600 font-bold pt-1 border-t border-stone-100 flex items-center justify-between">
+                  <span>شماره پلاک:</span>
+                  <span className="font-mono text-stone-900">{toFaDigits(vehiclePlate)}</span>
+                </div>
               </div>
-            </div>
 
-            {cargoItems.length === 0 ? (
-              <div className="py-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl border border-dashed border-stone-200">
-                هنوز قلمی به این بارنامه افزوده نشده است. از کادر بالا اقلام مورد نظر را انتخاب کرده و دکمه «افزودن قلم» را بزنید.
+              {/* Card 4: Destination */}
+              <div className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-amber-800" />
+                  <span className="text-xs font-bold text-stone-600">مقصد نهایی تخلیه</span>
+                </div>
+                <div className="font-black text-xs text-stone-900">{destinationFactory}</div>
+                <div className="text-[11px] text-stone-600 font-bold pt-1 border-t border-stone-100 flex items-center justify-between">
+                  <span>محل تخلیه:</span>
+                  <span className="text-stone-700">{destinationLocation}</span>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {cargoItems.map((item, index) => {
-                  const pkgLabel = item.packagingType === 'coil' 
-                    ? `کلاف (${item.coilLength === '50m' ? '۵۰ متری' : '۱۵ متری'})`
-                    : item.packagingType === 'straight' 
-                    ? 'شاخه' 
-                    : item.packagingType === 'retail'
-                    ? 'خرده‌فروشی (فروش کیلویی)'
-                    : (item.spoolType === 'non_pallet' ? 'قرقره (غیر پالتی / تکی)' : 'قرقره (پالتی)');
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-xl border border-stone-200 bg-stone-50/80 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-900"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-stone-200 text-stone-700 font-mono text-[11px] flex items-center justify-center shrink-0 font-bold">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <div className="font-bold flex items-center gap-2 text-stone-900">
-                            <span>{pkgLabel}</span>
-                            <span>•</span>
-                            <span>{item.brand}</span>
-                            <span>•</span>
-                            <span className="font-mono">سایز {item.diameterInch}</span>
-                            <span>•</span>
-                            <span className="font-mono">ضخامت {item.thicknessMm}mm</span>
-                          </div>
-                          {item.packagingType === 'spool' && item.spoolWeights && (
-                            <div className="text-[11px] text-stone-500 mt-0.5 font-mono">
-                              وزن قرقره‌ها: [{item.spoolWeights.join(' ، ')} kg]
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-left font-mono">
-                          <div className="text-stone-600">
-                            تعداد: <span className="font-bold text-stone-900">{item.quantity}</span>
-                          </div>
-                          <div className="font-bold text-stone-950">
-                            وزن: {formatWeight(item.totalWeightKg)}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCargoItem(item.id)}
-                          className="p-1.5 rounded-lg bg-stone-200/80 hover:bg-rose-100 text-stone-600 hover:text-rose-700 transition-colors cursor-pointer"
-                          title="حذف این قلم"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{error}</span>
             </div>
           )}
 
-          {/* Modal Footer Controls */}
-          <div className="pt-3 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-xs text-stone-600 font-medium">
-              مجموع اقلام: <span className="font-bold text-stone-900 font-mono">{grandTotalQuantity} قلم</span> | وزن نهایی بار: <span className="font-bold text-stone-950 font-mono text-sm">{formatWeight(grandTotalWeightKg)}</span>
+          {/* MAIN 2-COLUMN SECTION */}
+          {isInbound ? (
+            /* INBOUND 2 COLUMNS (Image 2) */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              
+              {/* LEFT COLUMN: Registered items list (Image 2 Left) */}
+              <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-3 flex flex-col justify-between">
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                    <h3 className="font-black text-xs text-stone-900 flex items-center gap-1.5">
+                      <ListPlus className="w-4 h-4 text-slate-800" />
+                      <span>اقلام ثبت‌شده در بارنامه</span>
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 font-bold text-[10px]">
+                      {toFaDigits(cargoItems.length)} قلم ثبت‌شده
+                    </span>
+                  </div>
+
+                  {/* Cargo Items List */}
+                  <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                    {cargoItems.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="bg-stone-50/90 border border-stone-200/90 p-3 rounded-xl flex items-center justify-between gap-2 hover:border-amber-400 transition-all"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-xs text-stone-900">
+                              {item.packagingType === 'coil' ? 'کلاف مس ۱۵ متری' : item.packagingType === 'spool' ? 'قرقره مس پالت ۶# (LWC)' : 'شاخه مس سخت ۶ متری'}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold">
+                              برند {item.brand}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-stone-500 font-mono">
+                            سایز: "{item.diameterInch} | ضخامت: {item.thicknessMm}mm
+                          </p>
+                          <p className="text-[10px] text-stone-400 font-mono truncate">{item.notes}</p>
+                        </div>
+
+                        <div className="text-left shrink-0">
+                          <div className="text-xs font-black text-stone-900 font-mono">
+                            {toFaDigits(item.quantity)} {item.packagingType === 'coil' ? 'کلاف' : item.packagingType === 'spool' ? 'قرقره' : 'شاخه'}
+                          </div>
+                          <div className="text-xs font-bold text-amber-800 font-mono">
+                            {formatWeightSlash(item.totalWeightKg, 2)} کیلوگرم
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCargoItem(item.id)}
+                            className="mt-1 text-red-500 hover:text-red-700 p-0.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Weighing & Capacity Info Box (Image 2 Left Bottom) */}
+                <div className="bg-stone-50/80 p-3 rounded-xl border border-stone-200 space-y-2 text-xs font-bold text-stone-700">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span>تطابق توزین با باسکول ورودی:</span>
+                    <span className="text-emerald-700 font-black">۹۹/۸٪ همپوشانی توزین رسمی</span>
+                  </div>
+                  <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-amber-800 h-full rounded-full w-[88%]"></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-stone-500">
+                    <span>توزیع فرم اقلام: ۸۸٪ قرقره | ۱۲٪ کلاف و شاخه</span>
+                    <span>ظرفیت پذیرش باقی‌مانده سلفچگان: ۶۵۰ تن خالص</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* RIGHT COLUMN: New Item Form (Image 2 Right) */}
+              <div className="lg:col-span-7 bg-white p-4.5 rounded-2xl border border-stone-200 shadow-2xs space-y-4">
+                
+                <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                  <h3 className="font-black text-xs text-stone-900 flex items-center gap-1.5">
+                    <Plus className="w-4 h-4 text-amber-800" />
+                    <span>مشخصات قلم مس جدید</span>
+                  </h3>
+                  <span className="text-[11px] text-stone-500 font-bold">افزودن محموله فیزیکی به بارنامه ورودی</span>
+                </div>
+
+                {/* 4 Format Tabs (Matching Image 2) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInboundPackaging('coil')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      inboundPackaging === 'coil'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs font-black'
+                        : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">کلاف مس</span>
+                    <span className="block text-[10px] opacity-75 font-normal">کلاف و ۵۰ متری</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInboundPackaging('straight')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      inboundPackaging === 'straight'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs font-black'
+                        : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">شاخه مس</span>
+                    <span className="block text-[10px] opacity-75 font-normal">۶ متری سخت/نیمه‌سخت</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInboundPackaging('spool')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      inboundPackaging === 'spool'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs font-black'
+                        : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">قرقره مس</span>
+                    <span className="block text-[10px] opacity-75 font-normal">پالت و تک LWC</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInboundPackaging('retail')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      inboundPackaging === 'retail'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs font-black'
+                        : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">خرده‌فروشی</span>
+                    <span className="block text-[10px] opacity-75 font-normal">ضایعات و کیتویی</span>
+                  </button>
+                </div>
+
+                {/* Form Inputs Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  
+                  {/* Brand */}
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-600 block mb-1">شرکت سازنده (برند تولیدی)</label>
+                    <select
+                      value={inboundBrand}
+                      onChange={(e) => setInboundBrand(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-300 text-stone-900 font-bold p-2.5 rounded-xl focus:outline-none focus:bg-white focus:border-amber-600"
+                    >
+                      <option value="صنایع مس شهید باهنر (کرمان)">صنایع مس شهید باهنر (کرمان)</option>
+                      <option value="صنایع مس مهراصل">صنایع مس مهراصل</option>
+                      <option value="صنایع مس قائم اصفهان">صنایع مس قائم اصفهان</option>
+                    </select>
+                  </div>
+
+                  {/* Alloy Purity */}
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-600 block mb-1">خلوص آلیاژ مس</label>
+                    <select
+                      value={inboundPurity}
+                      onChange={(e) => setInboundPurity(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-300 text-stone-900 font-bold p-2.5 rounded-xl focus:outline-none focus:bg-white focus:border-amber-600"
+                    >
+                      <option value="کاتد (Cu-ETP 99.99%) A">کاتد (Cu-ETP 99.99%) A</option>
+                      <option value="مس آلیاژی DHP">مس آلیاژی DHP</option>
+                    </select>
+                  </div>
+
+                  {/* Outer Diameter */}
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-600 block mb-1">سایز / قطر خارجی لوله</label>
+                    <select
+                      value={inboundDiameter}
+                      onChange={(e) => setInboundDiameter(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-300 text-stone-900 font-bold p-2.5 rounded-xl focus:outline-none focus:bg-white focus:border-amber-600 font-mono"
+                    >
+                      <option value="5/8">5/8" (15.88 mm)</option>
+                      <option value="3/8">3/8" (9.52 mm)</option>
+                      <option value="1/2">1/2" (12.70 mm)</option>
+                      <option value="1/4">1/4" (6.35 mm)</option>
+                      <option value="3/4">3/4" (19.05 mm)</option>
+                    </select>
+                  </div>
+
+                  {/* Wall Thickness */}
+                  <div>
+                    <label className="text-[11px] font-bold text-stone-600 block mb-1">ضخامت گوشت لوله</label>
+                    <select
+                      value={inboundThickness}
+                      onChange={(e) => setInboundThickness(parseFloat(e.target.value))}
+                      className="w-full bg-stone-50 border border-stone-300 text-stone-900 font-bold p-2.5 rounded-xl focus:outline-none focus:bg-white focus:border-amber-600 font-mono"
+                    >
+                      <option value={0.75}>0.75 mm (گوشت استاندارد)</option>
+                      <option value={0.65}>0.65 mm</option>
+                      <option value={0.80}>0.80 mm</option>
+                      <option value={1.00}>1.00 mm</option>
+                    </select>
+                  </div>
+
+                </div>
+
+                {/* Model & Quantity Row */}
+                <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700">مدل کلاف انتخابی:</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setInboundCoilModel('15m')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          inboundCoilModel === '15m'
+                            ? 'bg-amber-800 text-white font-black'
+                            : 'bg-stone-200 text-stone-700'
+                        }`}
+                      >
+                        کلاف ۱۵ متری
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInboundCoilModel('50m')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          inboundCoilModel === '50m'
+                            ? 'bg-amber-800 text-white font-black'
+                            : 'bg-stone-200 text-stone-700'
+                        }`}
+                      >
+                        کلاف ۵۰ متری صنعتی
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                    <div>
+                      <label className="text-[10px] text-stone-500 font-bold block mb-1">تعداد کلاف ورودی</label>
+                      <input
+                        type="number"
+                        value={inboundCoilQuantity}
+                        onChange={(e) => setInboundCoilQuantity(parseInt(e.target.value) || 1)}
+                        className="w-full bg-white border border-stone-300 font-mono font-bold text-center py-2 rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-stone-500 font-bold block mb-1">میانگین وزن هر کلاف (kg)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={inboundCoilAvgWeight}
+                        onChange={(e) => setInboundCoilAvgWeight(parseFloat(e.target.value) || 1)}
+                        className="w-full bg-white border border-stone-300 font-mono font-bold text-center py-2 rounded-xl"
+                      />
+                    </div>
+
+                    <div className="bg-[#fbf3ec] border border-amber-200/80 p-3 sm:p-3.5 rounded-2xl text-right">
+                      <span className="text-xs font-bold text-[#92400e] block mb-1">محاسبه هوشمند وزن این قلم</span>
+                      <div className="flex items-baseline justify-start gap-2 pt-0.5">
+                        <span className="text-2xl sm:text-3xl font-black text-[#92400e] tracking-tight leading-none font-mono">
+                          {formatWeightSlash(inboundCoilQuantity * inboundCoilAvgWeight, 2)}
+                        </span>
+                        <span className="text-xs font-bold text-[#92400e]">
+                          کیلوگرم خالص
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Heat No & Location */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="text-[10px] font-bold text-stone-500 block mb-1">کد رهگیری بچ تولیدی کارخانه (Heat No)</label>
+                    <input
+                      type="text"
+                      value={inboundHeatNo}
+                      onChange={(e) => setInboundHeatNo(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-300 font-mono font-bold py-2 px-3 rounded-xl text-stone-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-stone-500 block mb-1">جانمایی در قفسه / پالت انبار</label>
+                    <input
+                      type="text"
+                      value={inboundShelfLocation}
+                      onChange={(e) => setInboundShelfLocation(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-300 font-bold py-2 px-3 rounded-xl text-stone-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Primary Add Button */}
+                <button
+                  type="button"
+                  onClick={handleAddInboundItem}
+                  className="w-full py-3 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-amber-400" />
+                  <span>ثبت و افزودن این قلم به بارنامه ورودی</span>
+                </button>
+
+              </div>
+
+            </div>
+          ) : (
+            /* OUTBOUND 2 COLUMNS (Image 1) */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              
+              {/* LEFT COLUMN: Assigned Cargo Items & Weights (Image 1 Left) */}
+              <div className="lg:col-span-6 bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-4 flex flex-col justify-between">
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                    <h3 className="font-black text-xs text-stone-900 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-amber-800" />
+                      <span>سند اقلام بارگیری و حواله خروج</span>
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 font-bold text-[10px]">
+                      شماره ردیف‌های تخصیص: {toFaDigits(cargoItems.length)} قلم کالا
+                    </span>
+                  </div>
+
+                  {/* Items list table */}
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                    {cargoItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-stone-50/90 border border-stone-200/90 p-3 rounded-xl flex items-center justify-between gap-2 hover:border-amber-400 transition-all"
+                      >
+                        <div className="space-y-1">
+                          <h4 className="font-black text-xs text-stone-900">
+                            {item.packagingType === 'coil' ? 'کلاف مس ۱۵ متری' : 'قرقره مس تکی (تفکیک از پالت)'}
+                          </h4>
+                          <p className="text-[11px] text-stone-600 font-bold">
+                            برند {item.brand} / "{item.diameterInch} اینچ
+                          </p>
+                          <p className="text-[10px] text-stone-400 font-mono truncate">{item.notes}</p>
+                        </div>
+
+                        <div className="text-left shrink-0">
+                          <div className="text-xs font-black text-stone-900 font-mono">
+                            {toFaDigits(item.quantity)} {item.packagingType === 'coil' ? 'کلاف' : 'قرقره'}
+                          </div>
+                          <div className="text-xs font-bold text-amber-800 font-mono">
+                            {formatWeightSlash(item.totalWeightKg, 2)} کیلوگرم
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCargoItem(item.id)}
+                            className="mt-1 text-red-500 hover:text-red-700 p-0.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Scale / Weighing Indicator Box */}
+                  <div className="bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Scale className="w-5 h-5 text-amber-800 shrink-0 animate-pulse" />
+                      <div className="text-right">
+                        <span className="text-xs font-black text-stone-900 block">توزین دیجیتال انبار مرکزی (باسکول متصل)</span>
+                        <span className="text-[10px] text-stone-500 font-mono block">باسکول ۲، وضعیت کالیبره | تلرانس مجاز ۰.۰۵± کیلوگرم</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 rounded-lg text-xs font-bold cursor-pointer shadow-2xs"
+                    >
+                      تأیید مجدد وزن‌سنجی
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3 Summary Metrics Cards */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-stone-100 text-center font-mono">
+                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block font-sans font-bold">جمع اقلام بارگیری</span>
+                    <span className="text-xs font-black text-stone-900">{toFaDigits(cargoItems.length)} ردیف</span>
+                  </div>
+
+                  <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200">
+                    <span className="text-[10px] text-amber-900 block font-sans font-bold">مجموع وزن خروجی کل</span>
+                    <span className="text-sm font-black text-amber-950 font-mono">{formatWeightSlash(grandTotalWeightKg, 2)} کیلوگرم</span>
+                  </div>
+
+                  <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                    <span className="text-[10px] text-emerald-800 block font-sans font-bold">وضعیت کسر از سهم مشتری</span>
+                    <span className="text-[11px] font-black text-emerald-900 font-sans">✓ تطابق با حواله فروش</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* RIGHT COLUMN: Allocation & Selection Form (Image 1 Right) */}
+              <div className="lg:col-span-6 bg-white p-4.5 rounded-2xl border border-stone-200 shadow-2xs space-y-4">
+                
+                <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                  <h3 className="font-black text-xs text-stone-900 flex items-center gap-1.5">
+                    <Boxes className="w-4 h-4 text-amber-800" />
+                    <span>انتخاب و تخصیص اقلام از انبار</span>
+                  </h3>
+                  <span className="text-[11px] text-stone-500 font-bold">گام اول: درج ردیف کالا</span>
+                </div>
+
+                {/* Category Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setOutboundCategory('spool')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                      outboundCategory === 'spool' ? 'bg-amber-800 text-white font-black' : 'bg-stone-100 text-stone-700'
+                    }`}
+                  >
+                    قرقره و پالت ⚖ ({toFaDigits(44)})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOutboundCategory('coil')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                      outboundCategory === 'coil' ? 'bg-amber-800 text-white font-black' : 'bg-stone-100 text-stone-700'
+                    }`}
+                  >
+                    کلاف (Coil) 🟠 ({toFaDigits(24)})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOutboundCategory('straight')}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                      outboundCategory === 'straight' ? 'bg-amber-800 text-white font-black' : 'bg-stone-100 text-stone-700'
+                    }`}
+                  >
+                    شاخه (Straight) 📏 ({toFaDigits(12)})
+                  </button>
+                </div>
+
+                {/* Dropdown Product Selector */}
+                <div>
+                  <label className="text-[11px] font-bold text-stone-600 block mb-1">نوع کالا و برند تجاری مس</label>
+                  <select
+                    value={outboundSelectedItem}
+                    onChange={(e) => setOutboundSelectedItem(e.target.value)}
+                    className="w-full bg-stone-50 border border-stone-300 text-stone-900 font-bold p-2.5 rounded-xl focus:outline-none focus:bg-white focus:border-amber-600 text-xs"
+                  >
+                    <option value="مس کاتد / کلاف مس باهنر ۳/۸ اینچ (ضخامت ۰.۷۰ میلی‌متر)">
+                      مس کاتد / کلاف مس باهنر ۳/۸ اینچ (ضخامت ۰.۷۰ میلی‌متر)
+                    </option>
+                    <option value="قرقره مس قائم ۱/۲ اینچ (تک میل)">قرقره مس قائم ۱/۲ اینچ (تک میل)</option>
+                    <option value="کلاف مس مهراصل ۵/۸ اینچ">کلاف مس مهراصل ۵/۸ اینچ</option>
+                  </select>
+                </div>
+
+                {/* Packaging & Stock Box */}
+                <div className="bg-stone-50 p-3 rounded-xl border border-stone-200/80 flex items-center justify-between text-xs font-bold text-stone-700">
+                  <div>
+                    <span className="text-[10px] text-stone-500 block">نوع بسته‌بندی</span>
+                    <span>کلاف ۱۵ متری کارتن‌دار 📦</span>
+                  </div>
+                  <div className="text-left font-mono">
+                    <span className="text-[10px] text-stone-500 block font-sans">موجودی آزاد ضمن پارت</span>
+                    <span className="text-amber-800 font-black">{toFaDigits(68)} کیلوگرم ({toFaDigits(20)} کلاف)</span>
+                  </div>
+                </div>
+
+                {/* Stepper Quantity Request */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-stone-600 block">تعداد کلاف درخواستی جهت خروج</label>
+                  <div className="flex items-center justify-between bg-stone-100 p-2 rounded-xl border border-stone-200">
+                    <button
+                      type="button"
+                      onClick={() => setOutboundCoilQty(Math.max(1, outboundCoilQty - 1))}
+                      className="w-9 h-9 rounded-lg bg-white text-stone-800 font-black text-lg flex items-center justify-center cursor-pointer shadow-2xs hover:bg-amber-100"
+                    >
+                      -
+                    </button>
+                    <span className="font-mono font-black text-base text-stone-900">{toFaDigits(outboundCoilQty)} کلاف</span>
+                    <button
+                      type="button"
+                      onClick={() => setOutboundCoilQty(outboundCoilQty + 1)}
+                      className="w-9 h-9 rounded-lg bg-white text-stone-800 font-black text-lg flex items-center justify-center cursor-pointer shadow-2xs hover:bg-amber-100"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold">
+                    <span>ضریب میانگین: ۳.۴ کیلو / کلاف</span>
+                    <span>وزن تقریبی انتخابی: <strong className="text-amber-800 font-mono font-black">{formatWeightSlash(outboundCoilQty * 3.4, 2)} کیلوگرم</strong></span>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs font-bold text-stone-700 flex items-center justify-between">
+                  <span>محل استقرار در انبار مبدأ:</span>
+                  <span className="text-stone-900 font-mono">انبار مرکزی سلفچگان / باکس B-04 / ردیف ۲</span>
+                </div>
+
+                {/* Primary Add Button */}
+                <button
+                  type="button"
+                  onClick={handleAddOutboundItem}
+                  className="w-full py-3 bg-amber-800 hover:bg-amber-900 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-amber-300" />
+                  <span>+ افزودن به لیست بارگیری حواله</span>
+                </button>
+
+                <p className="text-[10px] text-stone-500 leading-snug">
+                  ✓ تأییدیه کنترل کیفیت پارت باهنر قبلاً ثبت شده و سریال‌های اختصاصی دارای گواهی آزمون متالورژی هستند.
+                </p>
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* BOTTOM FOOTER SUMMARY & ACTIONS BAR (Matching Image 1 & 2 Footer) */}
+        <div className="bg-white border-t border-stone-200 p-3.5 sm:p-4 px-5 space-y-3 shrink-0">
+          
+          {/* Top Info line */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-bold text-stone-700 border-b border-stone-100 pb-2">
+            <div className="flex items-center gap-2 text-[11px]">
+              <Info className="w-4 h-4 text-amber-800 shrink-0" />
+              <span>
+                {isInbound 
+                  ? 'کلیه اقلام کلاف و آلیاژ مس، مشمول ۱٪ تلرانس باسکول رسمی هستند.'
+                  : 'کسر مستقیم از کاردکس مس انبار سلفچگان • تطابق بارگیر با استانداردهای حمل مفتول و کلاف'
+                }
+              </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer border border-stone-200"
-              >
-                انصراف
-              </button>
-
-              <button
-                type="submit"
-                disabled={cargoItems.length === 0}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
-                  cargoItems.length === 0
-                    ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed'
-                    : 'bg-stone-900 hover:bg-stone-800 text-white'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>
-                  {initialItem 
-                    ? 'ذخیره تغییرات بارنامه' 
-                    : (isLinkedToSaleFlow 
-                        ? 'ثبت نهایی خروج و ادامه به فاکتور فروش مس ➔' 
-                        : (isInbound ? 'ثبت نهایی ورود و صدور رسید' : 'ثبت نهایی خروج و صدور حواله')
-                      )}
-                </span>
-              </button>
+            <div className="flex items-center gap-3 font-mono text-stone-900">
+              <span>مجموع اقلام: {toFaDigits(cargoItems.length)} قلم</span>
+              <span>•</span>
+              <span>مجموع وزن کل: <strong className="text-amber-800 font-black">{formatWeightSlash(grandTotalWeightKg, 2)} کیلوگرم</strong></span>
             </div>
           </div>
 
-        </form>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleSaveConsignment}
+                className={`flex-1 sm:flex-none px-5 py-2.5 text-white font-black text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
+                  isInbound ? 'bg-amber-800 hover:bg-amber-900' : 'bg-amber-800 hover:bg-amber-900'
+                }`}
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{isInbound ? 'تأیید نهایی ورود و صدور رسید انبار' : 'تأیید و صدور نهایی حواله خروج مس'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => alert('پیش‌نویس آماده چاپ است.')}
+                className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold border border-stone-300 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-stone-600" />
+                <span>{isInbound ? 'چاپ پیش‌نویس' : 'چاپ فاکتور و مجوز خروج انبار'}</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-stone-500 hover:text-stone-800 text-xs font-bold cursor-pointer"
+            >
+              انصراف و بازگشت
+            </button>
+
+          </div>
+
+        </div>
 
       </div>
     </div>

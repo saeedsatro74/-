@@ -41,6 +41,7 @@ interface HeaderProps {
   onOpenCopperChart: () => void;
   onOpenAiAnalysis?: () => void;
   onOpenWarehouse?: () => void;
+  onClearPerson?: () => void;
   activeView?: 'dashboard' | 'copper-chart' | 'ai-analysis' | 'warehouse';
   onOpenFactoryReset?: () => void;
   onOpenApprovalsModal?: () => void;
@@ -75,6 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCopperChart,
   onOpenAiAnalysis,
   onOpenWarehouse,
+  onClearPerson,
   activeView = 'dashboard',
   onOpenFactoryReset,
   onOpenApprovalsModal,
@@ -119,410 +121,164 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-white border-b border-stone-200 lg:sticky lg:top-0 z-30 shadow-xs no-print">
+    <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs no-print dir-rtl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 gap-3">
+        <div className="flex items-center justify-between h-16 gap-3">
           
-          {/* Logo and App Title */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl overflow-hidden bg-blue-600 border border-blue-500/30 shadow-md flex items-center justify-center shrink-0">
-                <img 
-                  src={WATTEH_LOGO} 
-                  alt="لوگوی مس واته" 
-                  className="w-full h-full object-cover" 
-                  referrerPolicy="no-referrer"
-                />
+          {/* Right Section: Logo, Cathode Rate, Navigation Tabs, Header Search */}
+          <div className="flex items-center gap-4 flex-1 overflow-x-auto no-scrollbar py-1">
+            
+            {/* Logo */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 text-white flex items-center justify-center font-black shadow-xs">
+                <Boxes className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg font-bold text-stone-900 tracking-tight">
-                    پلتفرم مس واته
-                  </h1>
-                  
-                  {/* Role Badge */}
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                    userRole === 'admin'
-                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                      : userRole === 'warehouse'
-                      ? 'bg-blue-100 text-blue-900 border-blue-300'
-                      : 'bg-stone-100 text-stone-700 border-stone-200'
-                  }`}>
-                    {userRole === 'admin' ? 'مدیرعامل' : userRole === 'warehouse' ? 'انباردار' : userRole === 'staff' ? 'حسابدار' : 'مشتری'}
-                  </span>                </div>
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-500 mt-0.5">
-                  <div className="flex items-center gap-1 text-stone-600 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                    <span>{liveDate}</span>
-                  </div>
-                  <span className="text-stone-300">•</span>
-                  <div className="flex items-center gap-1 text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
-                    <Clock className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="font-mono font-bold text-[11px] dir-ltr">{liveTime}</span>
-                  </div>
-                  <span className="text-stone-300">•</span>
-                  <span>مس کل مشتریان: <b className="font-semibold text-stone-800">{formatWeight(totalStockKg)}</b></span>
-                </div>
+              <div className="flex flex-col">
+                <span className="text-base font-black text-stone-900 tracking-tight leading-none">واته</span>
+                <span className="text-[10px] text-stone-500 font-bold leading-tight mt-0.5">سامانه معاملات مس</span>
               </div>
             </div>
 
-            {/* Mobile Data & Approvals Buttons */}
-            {!isPersonSelected && (
-              <div className="lg:hidden flex items-center gap-1.5">
-                {/* Sound Alert Toggle Button (Mobile) */}
-                <button
-                  type="button"
-                  onClick={handleToggleSound}
-                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                    soundEnabled
-                      ? 'bg-amber-100 text-amber-900 border-amber-300'
-                      : 'bg-stone-100 text-stone-400 border-stone-200'
-                  }`}
-                  title={soundEnabled ? 'صدای اعلان زنده فعال است (کلیک برای قطع)' : 'صدای اعلان غیرفعال است (کلیک برای فعال‌سازی)'}
-                >
-                  {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-700" /> : <VolumeX className="w-4 h-4" />}
-                </button>
+            {/* Cathode Rate Pill */}
+            <div 
+              onClick={(userRole === 'admin' || userRole === 'staff') ? onOpenMarketPrice : undefined}
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-100 rounded-xl text-xs font-bold text-sky-900 shrink-0 ${
+                (userRole === 'admin' || userRole === 'staff') ? 'cursor-pointer hover:bg-sky-100/70' : ''
+              }`}
+              title="تنظیم نرخ مرجع مس"
+            >
+              <span className="text-sky-700 font-medium">نرخ مس کاتد:</span>
+              <span className="font-mono font-black text-sky-950">{formatNumber(buyRate)}</span>
+              <span className="text-[10px] text-sky-600 font-normal">ت</span>
+            </div>
 
-                {onRefreshData && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onRefreshData) onRefreshData();
-                      window.location.reload();
-                    }}
-                    className="p-1.5 text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
-                    title="به‌روزرسانی و دریافت اطلاعات تازه"
-                  >
-                    <RefreshCw className={`w-4 h-4 text-emerald-700 ${isSyncing ? 'animate-spin' : ''}`} />
-                  </button>
-                )}
-                {onChangePassword && (
-                  <button
-                    type="button"
-                    onClick={onChangePassword}
-                    className="p-1.5 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
-                    title={userRole === 'admin' ? 'تغییر رمز مدیرعامل' : 'تغییر رمز عبور'}
-                  >
-                    <KeyRound className="w-4 h-4" />
-                  </button>
-                )}
-                {onLogout && (
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutModal(true)}
-                    className="p-1.5 text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg border border-stone-200 cursor-pointer"
-                    title="خروج و قفل سامانه"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                )}
-                {userRole === 'admin' && onOpenApprovalsModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenApprovalsModal}
-                    className={`p-2 rounded-lg border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                      pendingApprovalsCount > 0
-                        ? 'bg-rose-700 hover:bg-rose-800 text-white border-rose-800 ring-2 ring-rose-400 animate-pulse shadow-md'
-                        : 'bg-stone-100 text-stone-700 border-stone-200'
-                    }`}
-                    title="کارتابل تأییدات مدیرعامل"
-                  >
-                    <ShieldCheck className={`w-4 h-4 ${pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-stone-500'}`} />
-                    {pendingApprovalsCount > 0 && (
-                      <span className="bg-amber-400 text-stone-950 font-black text-[10px] px-1.5 py-0.2 rounded-full shadow-xs">
-                        {pendingApprovalsCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={onOpenCopperChart}
-                  className={`p-1.5 border rounded-lg cursor-pointer flex items-center justify-center ${
-                    activeView === 'copper-chart'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                      : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
-                  }`}
-                  title="مشاهده چارت زنده قیمت جهانی مس"
-                >
-                  <TrendingUp className="w-4 h-4" />
-                </button>
-                {onOpenAiAnalysis && (
-                  <button
-                    type="button"
-                    onClick={onOpenAiAnalysis}
-                    className={`p-1.5 border rounded-lg cursor-pointer flex items-center justify-center ${
-                      activeView === 'ai-analysis'
-                        ? 'bg-stone-900 text-white border-stone-900 shadow-sm'
-                        : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
-                    }`}
-                    title="مشاهده تحلیل هوشمند جمنای"
-                  >
-                    <Sparkles className="w-4 h-4 text-stone-500" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={onOpenMarketPrice}
-                  className="px-2.5 py-1.5 text-stone-800 bg-stone-100 border border-stone-200 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                  title="تنظیم نرخ مس"
-                >
-                  <Tag className="w-3.5 h-3.5 text-stone-600" />
-                  <span>نرخ</span>
-                </button>
-              </div>
-            )}
+            {/* Navigation Menu Tabs */}
+            <nav className="hidden lg:flex items-center gap-1.5 shrink-0 font-bold text-xs text-stone-600">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClearPerson) onClearPerson();
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeView === 'dashboard' && !isPersonSelected
+                    ? 'text-amber-950 bg-amber-100/90 font-black border-b-2 border-amber-700 shadow-xs ring-2 ring-amber-500/20'
+                    : 'hover:text-stone-900 hover:bg-stone-100/80 text-stone-600'
+                }`}
+              >
+                داشبورد
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClearPerson) onClearPerson();
+                  if (onOpenWarehouse) onOpenWarehouse();
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeView === 'warehouse' && !isPersonSelected
+                    ? 'text-amber-950 bg-amber-100/90 font-black border-b-2 border-amber-700 shadow-xs ring-2 ring-amber-500/20'
+                    : 'hover:text-stone-900 hover:bg-stone-100/80 text-stone-600'
+                }`}
+              >
+                انبار مس
+              </button>
+              <button
+                type="button"
+                onClick={onAddSale}
+                className="px-3.5 py-1.5 rounded-xl hover:text-stone-900 hover:bg-stone-100/80 transition-all cursor-pointer text-stone-600"
+              >
+                معاملات
+              </button>
+              <button
+                type="button"
+                onClick={() => {}}
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                  isPersonSelected
+                    ? 'text-amber-950 bg-amber-100/90 font-black border-b-2 border-amber-700 shadow-xs ring-2 ring-amber-500/20'
+                    : 'hover:text-stone-900 hover:bg-stone-100/80 text-stone-600'
+                }`}
+              >
+                طرف‌های حساب
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClearPerson) onClearPerson();
+                  if (onOpenAiAnalysis) onOpenAiAnalysis();
+                }}
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                  (activeView === 'ai-analysis' || activeView === 'copper-chart') && !isPersonSelected
+                    ? 'text-amber-950 bg-amber-100/90 font-black border-b-2 border-amber-700 shadow-xs ring-2 ring-amber-500/20'
+                    : 'hover:text-stone-900 hover:bg-stone-100/80 text-stone-600'
+                }`}
+              >
+                گزارش‌ها
+              </button>
+            </nav>
+
+            {/* Top Header Search Input */}
+            <div className="relative hidden xl:block w-56 shrink-0">
+              <input
+                type="text"
+                placeholder="جستجوی حواله، پارت، مشتری..."
+                className="w-full pl-3 pr-8 py-1.5 text-xs bg-stone-100/80 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-stone-400 focus:bg-white"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">🔍</span>
+            </div>
+
           </div>
 
-          {/* Quick Action Toolbar */}
-          {!isPersonSelected && (
-            <div className="flex flex-wrap items-center gap-2">
-              
-              {/* Refresh Data Button */}
+          {/* Left Section: Notifications & User Profile */}
+          <div className="flex items-center gap-3 shrink-0">
+            
+            {/* Notification Bell */}
+            <div className="relative cursor-pointer p-1.5 rounded-xl hover:bg-stone-100 text-stone-600 transition-colors" onClick={onOpenApprovalsModal}>
+              <span className="text-base">🔔</span>
+              {pendingApprovalsCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-white"></span>
+              )}
+            </div>
+
+            {/* User Profile Info */}
+            <div className="flex items-center gap-2.5 pl-1 border-l border-stone-200">
+              <div className="w-8 h-8 rounded-full bg-amber-800 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                👤
+              </div>
+              <div className="hidden sm:flex flex-col text-right">
+                <span className="text-xs font-bold text-stone-900 leading-tight">
+                  {currentUsername || 'صنایع مس پارس'}
+                </span>
+                <span className="text-[10px] text-stone-500 font-medium leading-tight">
+                  {userRole === 'admin' ? 'واحد بازرگانی' : userRole === 'warehouse' ? 'انبارداری' : 'مشتری'}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Tools (Logout & Refresh) */}
+            <div className="flex items-center gap-1">
               {onRefreshData && (
                 <button
-                  id="btn-refresh-header"
                   type="button"
-                  onClick={() => {
-                    if (onRefreshData) onRefreshData();
-                    window.location.reload();
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-stone-800 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-300 rounded-lg transition-all cursor-pointer shadow-xs"
-                  title="همگام‌سازی و بروزرسانی مجدد کامل صفحه و دریافت داده‌ها از سرور"
+                  onClick={onRefreshData}
+                  className="p-1.5 text-stone-500 hover:text-stone-900 rounded-lg hover:bg-stone-100 cursor-pointer"
+                  title="بروزرسانی"
                 >
-                  <RefreshCw className={`w-4 h-4 text-amber-800 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>بروزرسانی</span>
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                 </button>
               )}
-
-              {/* Global Copper Chart Button */}
-              <button
-                id="btn-copper-chart-header"
-                type="button"
-                onClick={onOpenCopperChart}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
-                  activeView === 'copper-chart'
-                    ? 'bg-stone-900 text-white border-stone-900 shadow-md'
-                    : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
-                }`}
-                title="مشاهده چارت زنده قیمت جهانی مس در TradingView"
-              >
-                <TrendingUp className="w-4 h-4" />
-                <span>چارت جهانی مس</span>
-              </button>
-
-              {/* AI Smart Analysis Button */}
-              {onOpenAiAnalysis && (
-                <button
-                  id="btn-ai-analysis-header"
-                  type="button"
-                  onClick={onOpenAiAnalysis}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
-                    activeView === 'ai-analysis'
-                      ? 'bg-stone-900 text-white border-stone-900 shadow-md'
-                      : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
-                  }`}
-                  title="مشاهده تحلیل هوشمند بازار مس با هوش مصنوعی جمنای"
-                >
-                  <Sparkles className="w-4 h-4 text-stone-500" />
-                  <span>تحلیل هوشمند جمنای</span>
-                </button>
-              )}
-
-              {/* Warehouse Portal Button */}
-              {onOpenWarehouse && (
-                <button
-                  id="btn-warehouse-portal-header"
-                  type="button"
-                  onClick={onOpenWarehouse}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
-                    activeView === 'warehouse'
-                      ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-md font-black'
-                      : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
-                  }`}
-                  title="ورود به سامانه انبارداری مس (موجودی پالت‌ها، شاخه‌ها، کلاف‌ها و کاردکس)"
-                >
-                  <Boxes className="w-4 h-4 text-amber-600" />
-                  <span>انبارداری مس</span>
-                </button>
-              )}
-
-
-              {/* Company Copper Warehouse Stock Button - ONLY for CEO / Admin */}
-              {userRole === 'admin' && onOpenEditCompanyStock && (
-                <button
-                  id="btn-company-copper-stock-header"
-                  type="button"
-                  onClick={onOpenEditCompanyStock}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
-                    companyCopperStockKg === 0
-                      ? 'bg-amber-500 hover:bg-amber-600 text-stone-950 border-amber-600 ring-2 ring-amber-300 animate-pulse'
-                      : 'bg-amber-50 hover:bg-amber-100 text-amber-950 border-amber-300'
-                  }`}
-                  title="تنظیم، ورود و شارژ موجودی مس انبار شرکت"
-                >
-                  <Boxes className="w-4 h-4 text-amber-800" />
-                  <span>انبار مس شرکت:</span>
-                  <span className="font-mono font-black">{formatWeight(companyCopperStockKg)}</span>
-                  {companyCopperStockKg === 0 ? (
-                    <span className="bg-stone-950 text-amber-300 text-[10px] px-1.5 py-0.5 rounded font-black mr-1">
-                      + ورود موجودی
-                    </span>
-                  ) : (
-                    <Edit2 className="w-3 h-3 text-amber-700 mr-0.5" />
-                  )}
-                </button>
-              )}
-
-              {/* CEO Approvals Portal Button - ONLY visible to CEO (admin) */}
-              {userRole === 'admin' && onOpenApprovalsModal && (
-                <button
-                  id="btn-approvals-header"
-                  type="button"
-                  onClick={onOpenApprovalsModal}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg border transition-all cursor-pointer shadow-xs ${
-                    pendingApprovalsCount > 0
-                      ? 'bg-rose-700 hover:bg-rose-800 text-white border-rose-800 ring-2 ring-rose-400 animate-pulse shadow-md'
-                      : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
-                  }`}
-                  title="کارتابل تأییدات و بررسی معاملات مس توسط مدیرعامل"
-                >
-                  <ShieldCheck className={`w-4 h-4 ${pendingApprovalsCount > 0 ? 'text-amber-300' : 'text-stone-600'}`} />
-                  <span>تأییدات مدیرعامل</span>
-                  {pendingApprovalsCount > 0 && (
-                    <span className="bg-amber-400 text-stone-950 text-xs px-2 py-0.5 rounded-full font-mono font-black mr-0.5 shadow-xs">
-                      {pendingApprovalsCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* CEO Bank Credentials Edit Button */}
-              {userRole === 'admin' && onOpenBankModal && (
-                <button
-                  type="button"
-                  onClick={onOpenBankModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-stone-700 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg transition-colors cursor-pointer"
-                  title="ویرایش شماره شبا و شماره کارت شرکت توسط مدیرعامل"
-                >
-                  <CreditCard className="w-4 h-4 text-stone-500" />
-                  <span>حساب بانکی شرکت</span>
-                </button>
-              )}
-
-              {/* Factory Reset Button - ONLY for CEO / Admin */}
-              {userRole === 'admin' && onOpenFactoryReset && (
-                <button
-                  id="btn-factory-reset-header"
-                  type="button"
-                  onClick={onOpenFactoryReset}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-stone-500 hover:text-stone-700 bg-white hover:bg-stone-50 border border-stone-200 rounded-lg transition-colors cursor-pointer"
-                  title="حذف کلی، صفر کردن حساب‌ها و بازنشانی به حالت کارخانه (ویژه مدیرعامل)"
-                >
-                  <Trash2 className="w-4 h-4 text-stone-400" />
-                  <span>حذف کارخانه</span>
-                </button>
-              )}
-              {onOpenChequesModal && (
-                <button
-                  id="btn-cheques-header"
-                  type="button"
-                  onClick={onOpenChequesModal}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
-                    pendingChequesCount > 0
-                      ? 'bg-stone-900 text-white border-stone-900'
-                      : 'bg-white hover:bg-stone-50 text-stone-700 border-stone-200'
-                  }`}
-                  title="مدیریت چک‌های صیادی و وضعیت پاس شدن"
-                >
-                  <CreditCard className="w-4 h-4 text-stone-500" />
-                  <span>چک‌ها</span>
-                  {pendingChequesCount > 0 && (
-                    <span className="bg-stone-900 text-white text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold">
-                      {pendingChequesCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* Market Price Widget */}
-              <div 
-                onClick={(userRole === 'admin' || userRole === 'staff') ? onOpenMarketPrice : undefined}
-                className={`hidden sm:flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 rounded-lg transition-colors ${
-                  (userRole === 'admin' || userRole === 'staff') ? 'hover:bg-stone-50 cursor-pointer' : ''
-                }`}
-                title={(userRole === 'admin' || userRole === 'staff') ? 'برای تغییر قیمت‌های مرجع خرید و فروش کلیک کنید' : 'قیمت مرجع خرید و فروش مس'}
-              >
-                <Tag className="w-3.5 h-3.5 text-stone-400" />
-                <div className="text-xs flex items-center gap-1.5">
-                  <span className="text-stone-500">خرید:</span>
-                  <span className="font-bold text-stone-900 font-mono">{formatNumber(buyRate)}</span>
-                  <span className="text-stone-300">|</span>
-                  <span className="text-stone-500">فروش:</span>
-                  <span className="font-bold text-stone-900 font-mono">{formatNumber(sellRate)}</span>
-                  <span className="text-[11px] text-stone-400 mr-0.5">تومان</span>
-                </div>
-                {(userRole === 'admin' || userRole === 'staff') && (
-                  <Edit2 className="w-3 h-3 text-stone-400 mr-0.5" />
-                )}
-              </div>
-
-              {/* Add Person Button - ONLY for CEO / Staff */}
-              {(userRole === 'admin' || userRole === 'staff') && onAddPerson && (
-                <button
-                  id="btn-add-person-header"
-                  type="button"
-                  onClick={onAddPerson}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-white bg-stone-900 hover:bg-stone-800 rounded-lg transition-colors cursor-pointer shadow-xs"
-                  title="افزودن طرف حساب جدید"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>شخص جدید</span>
-                </button>
-              )}
-
-              {/* Change Password Button */}
-              {onChangePassword && (
-                <button
-                  id="btn-change-password"
-                  type="button"
-                  onClick={onChangePassword}
-                  className="hidden lg:flex p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-stone-200 transition-colors cursor-pointer"
-                  title={userRole === 'admin' ? 'تغییر رمز عبور مدیرعامل' : 'تغییر رمز عبور'}
-                >
-                  <KeyRound className="w-4 h-4" />
-                </button>
-              )}
-
-              {/* Sound Notifications Toggle Button (Desktop) */}
-              <button
-                type="button"
-                onClick={handleToggleSound}
-                className={`p-2 rounded-lg border transition-colors cursor-pointer ${
-                  soundEnabled
-                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
-                    : 'bg-stone-50 hover:bg-stone-100 text-stone-400 border-stone-200'
-                }`}
-                title={soundEnabled ? 'صدای اعلان زنده فعال است (کلیک برای قطع یا تست)' : 'صدای اعلان قطع است (کلیک برای فعال‌سازی)'}
-              >
-                {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-700" /> : <VolumeX className="w-4 h-4" />}
-              </button>
-
-              {/* Logout / Lock Button */}
               {onLogout && (
                 <button
-                  id="btn-logout"
                   type="button"
                   onClick={() => setShowLogoutModal(true)}
-                  className="p-2 text-stone-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-stone-200 transition-colors cursor-pointer"
-                  title="قفل و خروج از سامانه"
+                  className="p-1.5 text-stone-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 cursor-pointer"
+                  title="خروج"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               )}
-
             </div>
-          )}
+
+          </div>
+
         </div>
       </div>
 

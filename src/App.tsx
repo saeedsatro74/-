@@ -74,7 +74,7 @@ import { exportComprehensiveBackupToExcel } from './utils/excelExport';
 import { Header } from './components/Header';
 import { StatCards } from './components/StatCards';
 import { PeopleTable } from './components/PeopleTable';
-import { PersonDetailModal } from './components/PersonDetailModal';
+import { PersonDetailView } from './components/PersonDetailView';
 import { PersonFormModal } from './components/PersonFormModal';
 import { DepositWithdrawModal } from './components/DepositWithdrawModal';
 import { BuyCopperModal } from './components/BuyCopperModal';
@@ -100,6 +100,7 @@ import { CopperChartView } from './components/CopperChartView';
 import { AiAnalysisView } from './components/AiAnalysisView';
 import { WarehousePortalView } from './components/WarehousePortalView';
 import { WarehouseEntryModal } from './components/WarehouseEntryModal';
+import { WarehouseStockPickerModal, SelectedStockItemsResult } from './components/WarehouseStockPickerModal';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString, getCurrentPersianTimeString } from './utils/persianDate';
 import { formatToman, formatWeight } from './utils/formatters';
@@ -864,41 +865,135 @@ export default function App() {
     });
   };
 
-  const handleSaveWarehouseExitFromFlow = async (savedItem: WarehouseItem) => {
-    // 1. Record physical exit in warehouse inventory
-    const updatedWarehouse = addWarehouseItem(savedItem);
-    setWarehouseItems(updatedWarehouse);
+  const handleConfirmStockPickerForSale = async (result: SelectedStockItemsResult) => {
+    const cargoItemsList: any[] = [];
 
-    // 2. Close step 1 modal
-    setWarehouseExitFlowState({ isOpen: false });
+    // Map selected pallets
+    result.selectedPallets.forEach((pallet) => {
+      cargoItemsList.push({
+        id: 'cargo-pallet-' + pallet.id + '-' + Date.now(),
+        packagingType: 'spool',
+        spoolType: 'pallet',
+        brand: pallet.brand,
+        thicknessMm: pallet.thicknessMm,
+        diameterInch: pallet.diameterInch,
+        quantity: pallet.spoolsCount,
+        unitWeightKg: pallet.avgWeightKg,
+        totalWeightKg: pallet.totalWeightKg,
+        spoolWeights: pallet.spoolWeights,
+        notes: `برداشت پالت #${pallet.palletIndex}`,
+      });
+    });
 
-    // 3. Format items description for notes
-    const itemsDesc = savedItem.items && savedItem.items.length > 0
-      ? savedItem.items.map((c) => {
-          const pkgFa = c.packagingType === 'spool' ? 'قرقره' : c.packagingType === 'coil' ? 'کلاف' : 'شاخه';
-          return `${c.quantity} ${pkgFa} ${c.brand || ''}`.trim();
-        }).join('، ')
-      : 'اقلام مس خروجی از انبار';
+    // Map selected loose spools
+    result.selectedLooseSpools.forEach((loose) => {
+      cargoItemsList.push({
+        id: 'cargo-loose-' + loose.id + '-' + Date.now(),
+        packagingType: 'spool',
+        spoolType: 'non_pallet',
+        brand: loose.brand,
+        thicknessMm: loose.thicknessMm,
+        diameterInch: loose.diameterInch,
+        quantity: loose.quantity,
+        unitWeightKg: loose.totalWeightKg / Math.max(1, loose.quantity),
+        totalWeightKg: loose.totalWeightKg,
+        spoolWeights: loose.spoolWeights,
+        notes: 'برداشت قرقره آزاد',
+      });
+    });
 
-    const formattedNotes = `حواله خروج انبار شماره ${savedItem.referenceDocNumber || savedItem.id.slice(-6)} - (${itemsDesc}) - وزن کل: ${formatWeight(savedItem.totalWeightKg)}`;
-
-    // 4. Resolve target person ID
-    let resolvedPersonId = warehouseExitFlowState.targetPersonId;
-    if (!resolvedPersonId && savedItem.targetPartyName) {
-      const foundPerson = people.find((p) => p.name.trim().toLowerCase() === savedItem.targetPartyName?.trim().toLowerCase());
-      if (foundPerson) resolvedPersonId = foundPerson.id;
+    // Coils
+    if (result.selectedCoilsWeightKg > 0) {
+      cargoItemsList.push({
+        id: 'cargo-coil-' + Date.now(),
+        packagingType: 'coil',
+        brand: 'باهنر',
+        thicknessMm: 0.75,
+        diameterInch: '5/8',
+        coilLength: '15m',
+        quantity: 1,
+        unitWeightKg: result.selectedCoilsWeightKg,
+        totalWeightKg: result.selectedCoilsWeightKg,
+        notes: 'برداشت کلاف مس',
+      });
     }
 
-    // 5. Open Step 2: Sell Copper Modal
+    // Straights
+    if (result.selectedStraightsWeightKg > 0) {
+      cargoItemsList.push({
+        id: 'cargo-straight-' + Date.now(),
+        packagingType: 'straight',
+        brand: 'باهنر',
+        thicknessMm: 0.75,
+        diameterInch: '5/8',
+        quantity: 1,
+        unitWeightKg: result.selectedStraightsWeightKg,
+        totalWeightKg: result.selectedStraightsWeightKg,
+        notes: 'برداشت شاخه مس',
+      });
+    }
+
+    // Retail
+    if (result.retailWeightKg > 0) {
+      cargoItemsList.push({
+        id: 'cargo-retail-' + Date.now(),
+        packagingType: 'retail',
+        brand: 'متفرقه',
+        thicknessMm: 0.75,
+        diameterInch: 'سفارشی',
+        quantity: 1,
+        unitWeightKg: result.retailWeightKg,
+        totalWeightKg: result.retailWeightKg,
+        notes: 'خرده‌فروشی مس',
+      });
+    }
+
+    const firstItem = cargoItemsList[0] || {
+      packagingType: 'spool',
+      brand: 'باهنر',
+      thicknessMm: 0.75,
+      diameterInch: '5/8',
+    };
+
+    const targetPerson = warehouseExitFlowState.targetPersonId ? people.find(p => p.id === warehouseExitFlowState.targetPersonId) : null;
+
+    const outboundDoc: WarehouseItem = {
+      id: 'wh-out-' + Date.now(),
+      entryType: 'outbound',
+      date: new Date().toLocaleDateString('fa-IR'),
+      referenceDocNumber: 'WH-OUT-' + Math.floor(100000 + Math.random() * 900000),
+      registeredBy: authSession?.role === 'admin' ? 'مدیرعامل' : 'مسئول مس',
+      targetPartyName: targetPerson ? targetPerson.name : (warehouseExitFlowState.initialPartyName || undefined),
+      notes: `خروج انتخابی از انبار بابت فروش - (${result.summaryText || ''})`,
+      createdAt: new Date().toISOString(),
+      items: cargoItemsList,
+      totalWeightKg: result.totalWeightKg,
+      totalItemsCount: cargoItemsList.length,
+      packagingType: firstItem.packagingType,
+      brand: firstItem.brand,
+      thicknessMm: firstItem.thicknessMm,
+      diameterInch: firstItem.diameterInch,
+      quantity: cargoItemsList.length,
+      unitWeightKg: result.totalWeightKg / Math.max(1, cargoItemsList.length),
+    };
+
+    // 1. Save physical warehouse exit
+    const updatedWarehouse = addWarehouseItem(outboundDoc);
+    setWarehouseItems(updatedWarehouse);
+
+    // 2. Close Step 1 Modal
+    setWarehouseExitFlowState({ isOpen: false });
+
+    // 3. Open Step 2: Sell Copper Modal
     setSellCopperState({
       isOpen: true,
-      targetPersonId: resolvedPersonId,
-      initialWeightKg: savedItem.totalWeightKg,
-      initialNotes: formattedNotes,
+      targetPersonId: warehouseExitFlowState.targetPersonId,
+      initialWeightKg: result.totalWeightKg,
+      initialNotes: `برداشت انبار: (${result.summaryText || 'اقلام مس'}) - وزن خروج: ${formatWeight(result.totalWeightKg)}`,
       isLinkedFromExit: true,
     });
 
-    showToast(`حواله خروج انبار (${formatWeight(savedItem.totalWeightKg)}) ثبت گردید. اکنون فاکتور فروش مس را تکمیل کنید.`);
+    showToast(`اقلام انبار با موفقیت تیک زده شد (${formatWeight(result.totalWeightKg)}). اکنون فاکتور فروش مس را ثبت کنید.`);
   };
 
   const handleSaveSellCopper = async (data: {
@@ -1731,6 +1826,10 @@ export default function App() {
         currentUsername={authSession?.username}
         onOpenEditCompanyStock={() => setIsCompanyCopperStockModalOpen(true)}
         isPersonSelected={!!selectedPersonId}
+        onClearPerson={() => {
+          setSelectedPersonId(null);
+          setActiveView('dashboard');
+        }}
         onRefreshData={() => handleRefreshData(false)}
       />
 
@@ -1758,6 +1857,25 @@ export default function App() {
             onLogout={handleLogout}
             onChangePassword={() => setIsChangePassModalOpen(true)}
             userRole={(authSession?.role as 'admin' | 'warehouse') || 'admin'}
+          />
+        ) : selectedPerson ? (
+          <PersonDetailView
+            person={selectedPerson}
+            onBack={() => setSelectedPersonId(null)}
+            transactions={transactions}
+            marketCopperPrice={marketPrices.buyPrice}
+            onAddDeposit={(personId) => handleOpenDeposit(personId)}
+            onAddWithdrawal={(personId) => handleOpenWithdrawal(personId)}
+            onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
+            onAddSale={(personId) => handleOpenSellCopper(personId)}
+            onAddAdjustment={(personId) => handleOpenAdjustment(personId)}
+            onEditTransaction={handleOpenEditTransaction}
+            onDeleteTransaction={handlePromptDeleteTransaction}
+            onEditPerson={handleOpenEditPerson}
+            onOpenStatement={(personId) => setStatementPersonId(personId)}
+            onViewReceipt={(tx) => setReceiptModalTx(tx)}
+            onUpdateChequeStatus={handleUpdateChequeStatus}
+            onOpenChequesModal={() => setIsChequesModalOpen(true)}
           />
         ) : (
           <>
@@ -1807,29 +1925,6 @@ export default function App() {
           </div>
         </div>
       </footer>
-
-      {/* Person Detail / Ledger Modal */}
-      {selectedPerson && (
-        <PersonDetailModal
-          isOpen={!!selectedPersonId}
-          onClose={() => setSelectedPersonId(null)}
-          person={selectedPerson}
-          transactions={transactions}
-          marketCopperPrice={marketPrices.buyPrice}
-          onAddDeposit={(personId) => handleOpenDeposit(personId)}
-          onAddWithdrawal={(personId) => handleOpenWithdrawal(personId)}
-          onAddPurchase={(personId) => handleOpenBuyCopper(personId)}
-          onAddSale={(personId) => handleOpenSellCopper(personId)}
-          onAddAdjustment={(personId) => handleOpenAdjustment(personId)}
-          onEditTransaction={handleOpenEditTransaction}
-          onDeleteTransaction={handlePromptDeleteTransaction}
-          onEditPerson={handleOpenEditPerson}
-          onOpenStatement={(personId) => setStatementPersonId(personId)}
-          onViewReceipt={(tx) => setReceiptModalTx(tx)}
-          onUpdateChequeStatus={handleUpdateChequeStatus}
-          onOpenChequesModal={() => setIsChequesModalOpen(true)}
-        />
-      )}
 
       {/* Official Account Statement & PDF Modal (Single Person) */}
       {statementPerson && (
@@ -1919,14 +2014,14 @@ export default function App() {
         onUpdateChequeStatus={handleUpdateChequeStatus}
       />
 
-      {/* Step 1: Warehouse Exit Modal for Linked Sell Flow */}
-      <WarehouseEntryModal
+      {/* Step 1: Visual Stock Picker Modal for Linked Sell Flow */}
+      <WarehouseStockPickerModal
         isOpen={warehouseExitFlowState.isOpen}
         onClose={() => setWarehouseExitFlowState({ isOpen: false })}
-        onSave={handleSaveWarehouseExitFromFlow}
-        defaultType="outbound"
-        initialTargetPartyName={warehouseExitFlowState.initialPartyName}
-        isLinkedToSaleFlow={warehouseExitFlowState.isLinkedToSale}
+        items={warehouseItems}
+        onConfirmSelection={handleConfirmStockPickerForSale}
+        title="مرحله ۱ از ۲: انتخاب تصویری پالت‌ها و اقلام از انبار جهت فروش مس"
+        isStepOneOfSale={true}
       />
 
       {/* Step 2: Sell Copper Modal */}
@@ -1942,6 +2037,7 @@ export default function App() {
         initialWeightKg={sellCopperState.initialWeightKg}
         initialNotes={sellCopperState.initialNotes}
         isLinkedFromExit={sellCopperState.isLinkedFromExit}
+        warehouseItems={warehouseItems}
       />
 
       {/* Adjustment Modal */}
