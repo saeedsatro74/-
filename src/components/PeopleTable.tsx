@@ -15,7 +15,8 @@ import {
   Landmark,
   UserPlus,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  PieChart
 } from 'lucide-react';
 import { PersonWalletSummary, FilterStatus, SortField, SortOrder } from '../types';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
@@ -62,6 +63,11 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
     }
   };
 
+  // Total Copper Stock across all customers in warehouse
+  const totalCustomerCopperKg = useMemo(() => {
+    return summaries.reduce((sum, item) => sum + Math.max(0, item.copperStockKg), 0);
+  }, [summaries]);
+
   // Filter and Sort Data
   const filteredAndSortedSummaries = useMemo(() => {
     return summaries
@@ -86,10 +92,11 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
         switch (sortField) {
           case 'name':
             return factor * a.person.name.localeCompare(b.person.name, 'fa');
-          case 'cash':
-            return factor * (a.cashBalance - b.cashBalance);
+          case 'share':
           case 'stock':
             return factor * (a.copperStockKg - b.copperStockKg);
+          case 'cash':
+            return factor * (a.cashBalance - b.cashBalance);
           case 'copperValue':
             return factor * (a.copperMarketValue - b.copperMarketValue);
           case 'totalAsset':
@@ -216,6 +223,19 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                   <ArrowUpDown className="w-3 h-3 text-stone-400" />
                 </button>
               </th>
+
+              <th scope="col" className="py-3.5 px-4 font-semibold text-center">
+                <button
+                  type="button"
+                  onClick={() => handleSort('share')}
+                  className="flex items-center justify-center gap-1 mx-auto hover:text-stone-900 cursor-pointer text-amber-950 font-bold"
+                  title="درصد سهم شخص از کل موجودی مس انبار مشتریان (مدل سهامداری بورس)"
+                >
+                  <PieChart className="w-3.5 h-3.5 text-amber-600" />
+                  <span>درصد سهم (بورس)</span>
+                  <ArrowUpDown className="w-3 h-3 text-amber-600" />
+                </button>
+              </th>
               
               <th scope="col" className="py-3.5 px-4 font-semibold text-left">
                 <button
@@ -283,7 +303,7 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
           <tbody className="divide-y divide-stone-100">
             {filteredAndSortedSummaries.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-stone-400">
+                <td colSpan={8} className="py-12 text-center text-stone-400">
                   <PackageCheck className="w-10 h-10 mx-auto text-stone-300 mb-2" />
                   <p className="font-medium text-stone-600">هیچ رکوردی یافت نشد</p>
                   <button
@@ -299,6 +319,9 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
             ) : (
               filteredAndSortedSummaries.map((item) => {
                 const isProfitPos = item.realizedProfit >= 0;
+                const personStockKg = Math.max(0, item.copperStockKg);
+                const sharePercent = totalCustomerCopperKg > 0 ? (personStockKg / totalCustomerCopperKg) * 100 : 0;
+
                 return (
                   <tr 
                     key={item.person.id} 
@@ -321,6 +344,28 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                           <span className="text-[11px] text-stone-400 truncate max-w-[180px] mt-0.5">
                             {item.person.notes}
                           </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Stock Share Percentage (بورس) */}
+                    <td className="py-3.5 px-4 text-center font-mono">
+                      <div className="inline-flex flex-col items-center justify-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-black border flex items-center gap-1 shadow-2xs ${
+                          sharePercent > 0 
+                            ? 'bg-amber-500/10 text-amber-950 border-amber-300/80' 
+                            : 'bg-stone-100 text-stone-400 border-stone-200 font-normal'
+                        }`}>
+                          <PieChart className={`w-3 h-3 ${sharePercent > 0 ? 'text-amber-600' : 'text-stone-400'}`} />
+                          <span>{sharePercent > 0 ? `${sharePercent.toFixed(1)}٪` : '۰٪'}</span>
+                        </span>
+                        {sharePercent > 0 && (
+                          <div className="w-16 bg-stone-200/80 h-1.5 rounded-full mt-1.5 overflow-hidden" title={`سهم فرد: ${sharePercent.toFixed(2)}٪ از کل مس انبار`}>
+                            <div 
+                              className="bg-amber-500 h-full rounded-full transition-all duration-300" 
+                              style={{ width: `${Math.min(100, sharePercent)}%` }}
+                            />
+                          </div>
                         )}
                       </div>
                     </td>
@@ -479,13 +524,16 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
         ) : (
           filteredAndSortedSummaries.map((item) => {
             const isProfitPos = item.realizedProfit >= 0;
+            const personStockKg = Math.max(0, item.copperStockKg);
+            const sharePercent = totalCustomerCopperKg > 0 ? (personStockKg / totalCustomerCopperKg) * 100 : 0;
+
             return (
               <div 
                 key={item.person.id}
                 className="p-2.5 space-y-2 hover:bg-stone-50/70 transition-colors"
               >
                 <div className="flex items-center justify-between gap-1">
-                  <div>
+                  <div className="flex items-center gap-2">
                     <h3 
                       onClick={() => onSelectPerson(item.person.id)}
                       className="font-black text-xs sm:text-sm text-stone-900 hover:text-amber-800 cursor-pointer flex items-center gap-1.5"
@@ -495,6 +543,12 @@ export const PeopleTable: React.FC<PeopleTableProps> = ({
                         <span className="text-[10px] text-stone-400 font-normal font-mono">({item.person.phone})</span>
                       )}
                     </h3>
+                    {sharePercent > 0 && (
+                      <span className="text-[10px] font-mono font-bold text-amber-950 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0">
+                        <PieChart className="w-2.5 h-2.5 text-amber-600" />
+                        <span>{sharePercent.toFixed(1)}٪</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-left font-mono shrink-0">

@@ -99,6 +99,7 @@ import { ClientPortalView } from './components/ClientPortalView';
 import { CopperChartView } from './components/CopperChartView';
 import { AiAnalysisView } from './components/AiAnalysisView';
 import { WarehousePortalView } from './components/WarehousePortalView';
+import { WarehouseEntryModal } from './components/WarehouseEntryModal';
 import { CheckCircle2, AlertTriangle, Cloud, CloudOff } from 'lucide-react';
 import { getTodayJalaliString, generateReceiptNumber, getPersianDateTimeString, getCurrentPersianTimeString } from './utils/persianDate';
 import { formatToman, formatWeight } from './utils/formatters';
@@ -184,9 +185,21 @@ export default function App() {
     isOpen: false,
   });
 
+  const [warehouseExitFlowState, setWarehouseExitFlowState] = useState<{
+    isOpen: boolean;
+    targetPersonId?: string;
+    initialPartyName?: string;
+    isLinkedToSale?: boolean;
+  }>({
+    isOpen: false,
+  });
+
   const [sellCopperState, setSellCopperState] = useState<{
     isOpen: boolean;
     targetPersonId?: string;
+    initialWeightKg?: number;
+    initialNotes?: string;
+    isLinkedFromExit?: boolean;
   }>({
     isOpen: false,
   });
@@ -840,12 +853,52 @@ export default function App() {
     setReceiptModalTx(newTx);
   };
 
-  // --- Handlers for Sell Copper ---
+  // --- Handlers for Sell Copper & Linked Warehouse Exit ---
   const handleOpenSellCopper = (targetPersonId?: string) => {
-    setSellCopperState({
+    const targetPerson = targetPersonId ? people.find((p) => p.id === targetPersonId) : null;
+    setWarehouseExitFlowState({
       isOpen: true,
       targetPersonId,
+      initialPartyName: targetPerson ? targetPerson.name : '',
+      isLinkedToSale: true,
     });
+  };
+
+  const handleSaveWarehouseExitFromFlow = async (savedItem: WarehouseItem) => {
+    // 1. Record physical exit in warehouse inventory
+    const updatedWarehouse = addWarehouseItem(savedItem);
+    setWarehouseItems(updatedWarehouse);
+
+    // 2. Close step 1 modal
+    setWarehouseExitFlowState({ isOpen: false });
+
+    // 3. Format items description for notes
+    const itemsDesc = savedItem.items && savedItem.items.length > 0
+      ? savedItem.items.map((c) => {
+          const pkgFa = c.packagingType === 'spool' ? 'قرقره' : c.packagingType === 'coil' ? 'کلاف' : 'شاخه';
+          return `${c.quantity} ${pkgFa} ${c.brand || ''}`.trim();
+        }).join('، ')
+      : 'اقلام مس خروجی از انبار';
+
+    const formattedNotes = `حواله خروج انبار شماره ${savedItem.referenceDocNumber || savedItem.id.slice(-6)} - (${itemsDesc}) - وزن کل: ${formatWeight(savedItem.totalWeightKg)}`;
+
+    // 4. Resolve target person ID
+    let resolvedPersonId = warehouseExitFlowState.targetPersonId;
+    if (!resolvedPersonId && savedItem.targetPartyName) {
+      const foundPerson = people.find((p) => p.name.trim().toLowerCase() === savedItem.targetPartyName?.trim().toLowerCase());
+      if (foundPerson) resolvedPersonId = foundPerson.id;
+    }
+
+    // 5. Open Step 2: Sell Copper Modal
+    setSellCopperState({
+      isOpen: true,
+      targetPersonId: resolvedPersonId,
+      initialWeightKg: savedItem.totalWeightKg,
+      initialNotes: formattedNotes,
+      isLinkedFromExit: true,
+    });
+
+    showToast(`حواله خروج انبار (${formatWeight(savedItem.totalWeightKg)}) ثبت گردید. اکنون فاکتور فروش مس را تکمیل کنید.`);
   };
 
   const handleSaveSellCopper = async (data: {
@@ -916,6 +969,81 @@ export default function App() {
         : `حواله فروش ${data.weightKg} کیلوگرم مس ثبت و با وضعیت «در انتظار تأیید مدیرعامل» ارسال گردید.`
     );
     setReceiptModalTx(newTx);
+  };
+
+  const handleSaveProRataSellCopper = async (data: {
+    date: string;
+    totalWeightKg: number;
+    pricePerKg: number;
+    totalPrice: number;
+    notes?: string;
+    registeredBy?: string;
+    paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
+    saleCategory?: 'internal' | 'external';
+    buyerName?: string;
+    allocations: Array<{
+      personId: string;
+      personName: string;
+      sharePercent: number;
+      weightKg: number;
+      totalPrice: number;
+    }>;
+  }) => {
+    const isCEO = authSession?.role === 'admin';
+    const saleCat = data.saleCategory || 'internal';
+    const effectiveBuyer = saleCat === 'external' ? (data.buyerName || 'خریدار بیرونی') : 'شرکت مس واته';
+
+    const newTxs: Transaction[] = data.allocations.map((alloc, idx) => {
+      const pSummary = summaries.find((s) => s.person.id === alloc.personId);
+      return {
+        id: `tx-${Date.now()}-${idx}`,
+        personId: alloc.personId,
+        date: data.date,
+        time: getCurrentPersianTimeString(),
+        type: 'sell',
+        saleCategory: saleCat,
+        buyerName: effectiveBuyer,
+        sellerName: alloc.personName,
+        counterpartyName: effectiveBuyer,
+        amount: alloc.totalPrice,
+        weightKg: alloc.weightKg,
+        unitPrice: data.pricePerKg,
+        notes: `${data.notes || ''} (سهم مس: ${alloc.sharePercent.toFixed(1)}٪)`,
+        approvalStatus: isCEO ? 'approved' : 'pending',
+        registeredBy: data.registeredBy || (isCEO ? 'مدیرعامل' : 'مسئول مس'),
+        approvedBy: isCEO ? 'مدیرعامل' : undefined,
+        approvedAt: isCEO ? getPersianDateTimeString() : undefined,
+        receiptNumber: generateReceiptNumber('sell'),
+        cashBalanceBefore: pSummary?.cashBalance ?? 0,
+        copperStockBefore: pSummary?.copperStockKg ?? 0,
+        paymentMethod: data.paymentMethod || 'cash',
+        chequeNumber: data.paymentMethod === 'cheque' ? data.chequeNumber : undefined,
+        chequeDueDate: data.paymentMethod === 'cheque' ? data.chequeDueDate : undefined,
+        chequeBank: data.paymentMethod === 'cheque' ? data.chequeBank : undefined,
+        chequeStatus: data.paymentMethod === 'cheque' ? 'pending' : undefined,
+        createdAt: new Date(Date.now() + idx).toISOString(),
+      };
+    });
+
+    const replayed = await updateTransactions([...transactions, ...newTxs]);
+    for (const alloc of data.allocations) {
+      await syncPersonLedgerToCloud(alloc.personId, replayed);
+    }
+
+    if (isCEO && data.totalWeightKg && saleCat === 'internal') {
+      const newStock = companyCopperStockKg + data.totalWeightKg;
+      await handleSaveCompanyCopperStock(newStock, true);
+    }
+
+    soundManager.playApprovedChime();
+    showToast(
+      isCEO
+        ? `فروش بورسی ${formatWeight(data.totalWeightKg)} مس بین ${data.allocations.length} سهامدار با موفقیت کسر و تسویه شد.`
+        : `فروش بورسی ${formatWeight(data.totalWeightKg)} مس ثبت و جهت تأیید مدیرعامل ارسال گردید.`
+    );
   };
 
   // --- Handlers for Client Self-Service Requests ---
@@ -1791,15 +1919,29 @@ export default function App() {
         onUpdateChequeStatus={handleUpdateChequeStatus}
       />
 
-      {/* Sell Copper Modal */}
+      {/* Step 1: Warehouse Exit Modal for Linked Sell Flow */}
+      <WarehouseEntryModal
+        isOpen={warehouseExitFlowState.isOpen}
+        onClose={() => setWarehouseExitFlowState({ isOpen: false })}
+        onSave={handleSaveWarehouseExitFromFlow}
+        defaultType="outbound"
+        initialTargetPartyName={warehouseExitFlowState.initialPartyName}
+        isLinkedToSaleFlow={warehouseExitFlowState.isLinkedToSale}
+      />
+
+      {/* Step 2: Sell Copper Modal */}
       <SellCopperModal
         isOpen={sellCopperState.isOpen}
         onClose={() => setSellCopperState((prev) => ({ ...prev, isOpen: false }))}
         onSave={handleSaveSellCopper}
+        onSaveProRata={handleSaveProRataSellCopper}
         people={people}
         summaries={summaries}
         selectedPersonId={sellCopperState.targetPersonId}
         defaultPricePerKg={marketPrices.sellPrice}
+        initialWeightKg={sellCopperState.initialWeightKg}
+        initialNotes={sellCopperState.initialNotes}
+        isLinkedFromExit={sellCopperState.isLinkedFromExit}
       />
 
       {/* Adjustment Modal */}

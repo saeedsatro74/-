@@ -20,7 +20,7 @@ export interface AuthSession {
   loginAt: string;
 }
 
-export type CopperPackagingType = 'coil' | 'straight' | 'spool'; // کلاف، شاخه، قرقره (رول حذف شد)
+export type CopperPackagingType = 'coil' | 'straight' | 'spool' | 'retail'; // کلاف، شاخه، قرقره، خرده‌فروشی (فروش کیلویی)
 
 export type CoilLengthType = '15m' | '50m'; // کلاف ۱۵ متری و کلاف ۵۰ متری
 
@@ -204,7 +204,7 @@ export interface OverallStats {
 
 export type FilterStatus = 'all' | 'has_cash' | 'has_stock' | 'has_asset';
 
-export type SortField = 'name' | 'cash' | 'stock' | 'copperValue' | 'totalAsset' | 'profit' | 'date';
+export type SortField = 'name' | 'share' | 'cash' | 'stock' | 'copperValue' | 'totalAsset' | 'profit' | 'date';
 export type SortOrder = 'asc' | 'desc';
 
 export interface CompanyBankAccount {

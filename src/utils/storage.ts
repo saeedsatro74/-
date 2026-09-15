@@ -901,6 +901,7 @@ export const COPPER_PACKAGING_TYPES: { id: CopperPackagingType; label: string; u
   { id: 'coil', label: 'کلاف', unitName: 'کلاف' },
   { id: 'straight', label: 'شاخه', unitName: 'شاخه' },
   { id: 'spool', label: 'قرقره', unitName: 'قرقره' },
+  { id: 'retail', label: 'خرده‌فروشی', unitName: 'کیلو' },
 ];
 
 export const COIL_LENGTH_OPTIONS: { id: CoilLengthType; label: string; meters: number }[] = [
@@ -1194,6 +1195,7 @@ export function calculateWarehouseInventory(items: WarehouseItem[]): WarehouseIn
     coil: { weightKg: 0, count: 0 },
     straight: { weightKg: 0, count: 0 },
     spool: { weightKg: 0, count: 0 },
+    retail: { weightKg: 0, count: 0 },
   };
 
   // Initialize brands

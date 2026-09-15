@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet, CreditCard, Building2, Clock, CheckCircle2 } from 'lucide-react';
+import { X, TrendingUp, Calendar, Weight, DollarSign, FileText, User, Calculator, AlertTriangle, ArrowUpRight, ArrowDownRight, Boxes, Wallet, CreditCard, Building2, Clock, CheckCircle2, PieChart } from 'lucide-react';
 import { Person, PersonWalletSummary, PaymentMethod } from '../types';
 import { getTodayJalaliString } from '../utils/persianDate';
 import { formatNumber, formatToman, formatWeight, formatPercent } from '../utils/formatters';
 import { NumericInput } from './NumericInput';
+
+export interface ProRataAllocationItem {
+  personId: string;
+  personName: string;
+  sharePercent: number;
+  weightKg: number;
+  totalPrice: number;
+}
 
 interface SellCopperModalProps {
   isOpen: boolean;
@@ -23,21 +31,44 @@ interface SellCopperModalProps {
     saleCategory?: 'internal' | 'external';
     buyerName?: string;
   }) => void;
+  onSaveProRata?: (data: {
+    date: string;
+    totalWeightKg: number;
+    pricePerKg: number;
+    totalPrice: number;
+    notes?: string;
+    registeredBy?: string;
+    paymentMethod?: PaymentMethod;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+    chequeBank?: string;
+    saleCategory?: 'internal' | 'external';
+    buyerName?: string;
+    allocations: ProRataAllocationItem[];
+  }) => void;
   people: Person[];
   summaries: PersonWalletSummary[];
   selectedPersonId?: string;
   defaultPricePerKg?: number;
+  initialWeightKg?: number;
+  initialNotes?: string;
+  isLinkedFromExit?: boolean;
 }
 
 export const SellCopperModal: React.FC<SellCopperModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onSaveProRata,
   people,
   summaries,
   selectedPersonId,
   defaultPricePerKg = 2850000,
+  initialWeightKg,
+  initialNotes,
+  isLinkedFromExit = false,
 }) => {
+  const [saleMode, setSaleMode] = useState<'single' | 'pro_rata'>('single');
   const [personId, setPersonId] = useState('');
   const [date, setDate] = useState(getTodayJalaliString());
   const [weightKg, setWeightKg] = useState<number>(0);
@@ -60,12 +91,12 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
     if (isOpen && !prevIsOpenRef.current) {
       setPersonId(selectedPersonId || (people.length > 0 ? people[0].id : ''));
       setDate(getTodayJalaliString());
-      setWeightKg(0);
+      setWeightKg(initialWeightKg !== undefined && initialWeightKg > 0 ? initialWeightKg : 0);
       setPricePerKg(defaultPricePerKg || 2850000);
       setRegisteredBy('حسابدار مس');
       setSaleCategory('internal');
       setBuyerName('');
-      setNotes('');
+      setNotes(initialNotes || '');
       setError('');
       setPaymentMethod('cash');
       setChequeNumber('');
@@ -76,19 +107,54 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
         if (prev && people.some((p) => p.id === prev)) return prev;
         return selectedPersonId || (people.length > 0 ? people[0].id : '');
       });
+      if (initialWeightKg !== undefined && initialWeightKg > 0) {
+        setWeightKg(initialWeightKg);
+      }
+      if (initialNotes) {
+        setNotes(initialNotes);
+      }
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, selectedPersonId, people, defaultPricePerKg]);
+  }, [isOpen, selectedPersonId, people, defaultPricePerKg, initialWeightKg, initialNotes]);
 
   const selectedPersonSummary = summaries.find((s) => s.person.id === personId);
   const currentStock = selectedPersonSummary?.copperStockKg || 0;
   const currentCash = selectedPersonSummary?.cashBalance || 0;
   const weightedBuyPrice = selectedPersonSummary?.weightedAvgBuyPrice || 0;
 
+  // Total customer copper pool across all shareholders
+  const totalCustomerCopperPool = useMemo(() => {
+    return summaries.reduce((acc, s) => acc + Math.max(0, s.copperStockKg), 0);
+  }, [summaries]);
+
   // Auto-calculated total sales amount
   const calculatedTotal = useMemo(() => {
     return Math.round(weightKg * pricePerKg);
   }, [weightKg, pricePerKg]);
+
+  // Pro-Rata Allocations calculation based on stock ownership share %
+  const proRataAllocations = useMemo(() => {
+    if (totalCustomerCopperPool <= 0 || weightKg <= 0) return [];
+    
+    return summaries
+      .filter((s) => s.copperStockKg > 0)
+      .map((s) => {
+        const shareRatio = s.copperStockKg / totalCustomerCopperPool;
+        const sharePercent = shareRatio * 100;
+        const allocatedWeightKg = weightKg * shareRatio;
+        const allocatedCash = Math.round(calculatedTotal * shareRatio);
+
+        return {
+          personId: s.person.id,
+          personName: s.person.name,
+          currentStockKg: s.copperStockKg,
+          sharePercent,
+          weightKg: allocatedWeightKg,
+          totalPrice: allocatedCash,
+        };
+      })
+      .sort((a, b) => b.sharePercent - a.sharePercent);
+  }, [summaries, totalCustomerCopperPool, weightKg, calculatedTotal]);
 
   // Realized COGS and Profit on this sale
   const estimatedCogs = useMemo(() => {
@@ -105,12 +171,83 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
     return (estimatedProfit / estimatedCogs) * 100;
   }, [estimatedProfit, estimatedCogs]);
 
-  const hasInsufficientStock = weightKg > 0 && weightKg > currentStock;
+  const hasInsufficientStock = saleMode === 'single' && weightKg > 0 && weightKg > currentStock;
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (saleMode === 'pro_rata') {
+      if (weightKg <= 0) {
+        setError('لطفاً مقدار کل مس فروخته‌شده (وزن به کیلوگرم) را وارد کنید.');
+        return;
+      }
+      if (totalCustomerCopperPool <= 0) {
+        setError('هیچ موجودی مسی در انبار مشتریان برای فروش وجود ندارد.');
+        return;
+      }
+      if (weightKg > totalCustomerCopperPool) {
+        setError(
+          `وزن کل درخواستی فروش (${formatWeight(weightKg)}) بیشتر از مجموع کل موجودی مس مشتریان (${formatWeight(totalCustomerCopperPool)}) است!`
+        );
+        return;
+      }
+      if (pricePerKg <= 0) {
+        setError('لطفاً قیمت فروش هر کیلوگرم مس را وارد کنید.');
+        return;
+      }
+
+      if (paymentMethod === 'cheque') {
+        if (!chequeNumber.trim()) {
+          setError('لطفاً شماره چک / صیادی را وارد کنید.');
+          return;
+        }
+        if (!chequeDueDate.trim()) {
+          setError('لطفاً تاریخ سررسید چک را وارد کنید.');
+          return;
+        }
+      }
+
+      if (saleCategory === 'external' && !buyerName.trim()) {
+        setError('لطفاً نام شخص یا شرکت خریدار بیرونی را وارد نمایید.');
+        return;
+      }
+
+      const effectiveBuyer = saleCategory === 'external' ? buyerName.trim() : 'شرکت مس واته';
+      const catTitle = saleCategory === 'external' ? `فروش خارجی بورس (خریدار: ${effectiveBuyer})` : 'فروش داخلی بورس (تحویل به انبار شرکت)';
+      let finalNotes = notes.trim()
+        ? `[${catTitle} - تسهیم متناسب بورسی] ${notes.trim()}`
+        : `[${catTitle} - تسهیم متناسب بر اساس درصد سهم دارایی مس]`;
+
+      if (onSaveProRata) {
+        onSaveProRata({
+          date: date.trim() || getTodayJalaliString(),
+          totalWeightKg: weightKg,
+          pricePerKg,
+          totalPrice: calculatedTotal,
+          notes: finalNotes,
+          registeredBy: registeredBy.trim() || 'مسئول مس',
+          paymentMethod,
+          chequeNumber: paymentMethod === 'cheque' ? chequeNumber.trim() : undefined,
+          chequeDueDate: paymentMethod === 'cheque' ? chequeDueDate.trim() : undefined,
+          chequeBank: paymentMethod === 'cheque' ? chequeBank.trim() : undefined,
+          saleCategory,
+          buyerName: effectiveBuyer,
+          allocations: proRataAllocations.map((a) => ({
+            personId: a.personId,
+            personName: a.personName,
+            sharePercent: a.sharePercent,
+            weightKg: a.weightKg,
+            totalPrice: a.totalPrice,
+          })),
+        });
+        onClose();
+        return;
+      }
+    }
+
+    // Standard Single Person Sale
     if (!personId) {
       setError('لطفاً فرد مورد نظر را انتخاب کنید.');
       return;
@@ -207,6 +344,22 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
           <div className="p-5 space-y-4 flex-1">
           
+          {/* Linked Flow Step 2 Indicator */}
+          {isLinkedFromExit && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-emerald-950">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-extrabold text-emerald-900 block text-xs sm:text-sm">مرحله ۲ از ۲: ثبت فاکتور مالی و تسویه فروش مس</span>
+                  <span className="text-[11px] text-emerald-800">اقلام انتخابی از انبار خروج یافتند و وزن کل بر روی فاکتور فروش اعمال شد.</span>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-950 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-xl shrink-0">
+                وزن انبار: {formatWeight(weightKg || 0)}
+              </span>
+            </div>
+          )}
+
           {/* Approval Notice */}
           <div className="p-3 bg-blue-50/90 border border-blue-300/80 rounded-xl text-xs text-blue-950 flex items-start gap-2.5">
             <Clock className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
@@ -222,39 +375,91 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
             </div>
           )}
 
-          {/* Person Selection */}
+          {/* Sale Mode Switcher (Single Person vs Bourse Share Pool) */}
           <div>
-            <label htmlFor="sell-person" className="block text-xs font-bold text-stone-700 mb-1.5">
-              نام فرد / طرف حساب <span className="text-rose-500">*</span>
+            <label className="block text-xs font-bold text-stone-700 mb-1.5">
+              مدل فروش مس <span className="text-rose-500">*</span>
             </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-stone-400 absolute right-3 top-1/2 -translate-y-1/2" />
-              <select
-                id="sell-person"
-                value={personId}
-                onChange={(e) => {
-                  setPersonId(e.target.value);
-                  setError('');
-                }}
-                required
-                className="w-full pl-3 pr-9 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all cursor-pointer"
+            <div className="grid grid-cols-2 gap-2 bg-stone-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => { setSaleMode('single'); setError(''); }}
+                className={`p-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  saleMode === 'single'
+                    ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80 font-black'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
               >
-                <option value="" disabled>-- انتخاب کنید --</option>
-                {people.map((p) => {
-                  const pSummary = summaries.find((s) => s.person.id === p.id);
-                  const stock = pSummary?.copperStockKg || 0;
-                  return (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {stock > 0 ? `(موجودی مس: ${formatNumber(stock)} کیلو)` : '(بدون موجودی مس)'}
-                    </option>
-                  );
-                })}
-              </select>
+                <User className="w-4 h-4 text-stone-600" />
+                <span>فروش انفرادی (تک‌شخص)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setSaleMode('pro_rata'); setError(''); }}
+                className={`p-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  saleMode === 'pro_rata'
+                    ? 'bg-amber-400 text-amber-950 shadow-xs font-black ring-1 ring-amber-500'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <PieChart className="w-4 h-4 text-amber-950" />
+                <span>فروش بورسی (تسهیم بین همه)</span>
+              </button>
             </div>
           </div>
 
-          {/* Current Stock & Cost Preview */}
-          {selectedPersonSummary && (
+          {/* Pro-Rata Explanation Banner */}
+          {saleMode === 'pro_rata' ? (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-xl p-3 text-xs space-y-2 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-amber-950 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <PieChart className="w-4 h-4 text-amber-600" />
+                  فرمول سهامداری بورس مس (تسهیم متناسب)
+                </span>
+                <span className="bg-amber-200/90 text-amber-950 text-[11px] px-2 py-0.5 rounded-full font-mono font-black">
+                  مجموع مس انبار: {formatWeight(totalCustomerCopperPool)}
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                با فروش مس در مدل بورسی، مقدار مس فروخته‌شده و پول واریزی <strong>دقیقاً به نسبت درصد سهم مس هر شخص</strong> از کل انبار کسر و تسویه می‌گردد تا هیچ سهامداری (با موجودی زیاد یا کم) متضرر نشود.
+              </p>
+            </div>
+          ) : (
+            /* Person Selection (Single Sale Mode) */
+            <div>
+              <label htmlFor="sell-person" className="block text-xs font-bold text-stone-700 mb-1.5">
+                نام فرد / طرف حساب فروشنده <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-stone-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                <select
+                  id="sell-person"
+                  value={personId}
+                  onChange={(e) => {
+                    setPersonId(e.target.value);
+                    setError('');
+                  }}
+                  required={saleMode === 'single'}
+                  className="w-full pl-3 pr-9 py-2 text-sm bg-white border border-stone-300 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all cursor-pointer"
+                >
+                  <option value="" disabled>-- انتخاب کنید --</option>
+                  {people.map((p) => {
+                    const pSummary = summaries.find((s) => s.person.id === p.id);
+                    const stock = pSummary?.copperStockKg || 0;
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {stock > 0 ? `(موجودی مس: ${formatNumber(stock)} کیلو)` : '(بدون موجودی مس)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Current Stock & Cost Preview for Single Mode */}
+          {saleMode === 'single' && selectedPersonSummary && (
             <div className="grid grid-cols-2 gap-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-xs">
               <div className="flex items-center gap-1.5">
                 <Boxes className="w-4 h-4 text-amber-700" />
@@ -592,6 +797,44 @@ export const SellCopperModal: React.FC<SellCopperModalProps> = ({
                 }`}>
                   {estimatedProfit > 0 ? '+' : ''}{formatToman(estimatedProfit)}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Pro-Rata Breakdown Live Preview Table */}
+          {saleMode === 'pro_rata' && weightKg > 0 && proRataAllocations.length > 0 && (
+            <div className="p-3 bg-amber-50/70 border border-amber-300 rounded-xl space-y-2 text-xs animate-in fade-in duration-150">
+              <div className="flex items-center justify-between text-amber-950 font-bold">
+                <span className="flex items-center gap-1.5">
+                  <PieChart className="w-4 h-4 text-amber-600" />
+                  پیش‌نمایش کسر مس و تسویه ریالی سهامداران بورس:
+                </span>
+                <span className="text-[11px] text-amber-900 font-mono">
+                  {proRataAllocations.length} سهامدار
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white">
+                <table className="w-full text-right text-[11px]">
+                  <thead className="bg-amber-100/80 text-amber-950 font-bold border-b border-amber-200">
+                    <tr>
+                      <th className="p-2">نام سهامدار</th>
+                      <th className="p-2 text-center">درصد سهم</th>
+                      <th className="p-2 text-center">کسر مس (کیلو)</th>
+                      <th className="p-2 text-left">واریز ریالی (تومان)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-100 font-mono">
+                    {proRataAllocations.map((alloc) => (
+                      <tr key={alloc.personId} className="hover:bg-amber-50/50">
+                        <td className="p-2 font-sans font-bold text-stone-900">{alloc.personName}</td>
+                        <td className="p-2 text-center text-amber-950 font-black">{alloc.sharePercent.toFixed(1)}٪</td>
+                        <td className="p-2 text-center text-rose-700 font-extrabold">-{formatWeight(alloc.weightKg, false)}</td>
+                        <td className="p-2 text-left text-emerald-700 font-extrabold">+{formatNumber(alloc.totalPrice)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
