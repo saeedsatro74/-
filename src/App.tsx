@@ -50,7 +50,8 @@ import {
   DEFAULT_MARKET_SELL_PRICE,
   getStoredDeletedPersonIds,
   saveStoredDeletedPersonId,
-  isPersonDeleted
+  isPersonDeleted,
+  STORAGE_KEYS
 } from './utils/storage';
 import { 
   fetchAllFromSupabase, 
@@ -366,34 +367,33 @@ export default function App() {
         });
         const allPeople = Array.from(peopleMap.values());
 
-        // Load live data from Supabase directly & merge local pending/approved states correctly
-        const storedTxs = getStoredTransactions().filter((t) => t && t.personId && !deletedIds.has(t.personId));
+        // Load live transactions from Supabase directly (Supabase is authoritative across all devices)
         const cloudTxs = cloudResult.transactions.filter((t) => t && t.personId && !deletedIds.has(t.personId));
-        const mergedTxs = cloudTxs.map((mTx) => {
-          const localMatch = storedTxs.find((p) => p.id === mTx.id);
-          if (!localMatch) return mTx;
-          if (mTx.approvalStatus === 'approved' || mTx.approvalStatus === 'rejected') {
-            return mTx;
-          }
-          // If locally approved or rejected by CEO, keep local approval status over stale cloud pending status
-          if (localMatch.approvalStatus === 'approved' || localMatch.approvalStatus === 'rejected') {
-            return { ...mTx, ...localMatch };
-          }
-          return { ...localMatch, ...mTx };
-        });
+        const storedTxs = getStoredTransactions().filter((t) => t && t.personId && !deletedIds.has(t.personId));
+        
+        // Merge any locally pending transactions created completely offline that haven't hit cloud yet
         const remoteTxIds = new Set(cloudTxs.map((m) => m.id));
-        const localOnlyTxs = storedTxs.filter((p) => !remoteTxIds.has(p.id));
-        const combinedMap = new Map<string, Transaction>();
-        mergedTxs.forEach((t) => combinedMap.set(t.id, t));
-        localOnlyTxs.forEach((t) => {
-          if (!combinedMap.has(t.id)) combinedMap.set(t.id, t);
+        const pendingOfflineTxs = storedTxs.filter((p) => !remoteTxIds.has(p.id) && p.id.startsWith('tx-custom-'));
+        
+        // Push any local offline transactions to cloud
+        pendingOfflineTxs.forEach((offlineTx) => {
+          dbUpsertTransaction(offlineTx).catch(() => {});
         });
-        const combined = Array.from(combinedMap.values());
 
+        const combined = [...cloudTxs, ...pendingOfflineTxs];
         const replayed = replayAllTransactions(allPeople, combined);
         setPeople(allPeople);
         setTransactions(replayed);
         checkNewIncomingRequestsForAdmin(replayed, allPeople);
+
+        // Synchronize warehouse live inventory across devices
+        if (cloudResult.warehouseItems && Array.isArray(cloudResult.warehouseItems)) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(cloudResult.warehouseItems));
+            window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: cloudResult.warehouseItems }));
+          } catch (e) {}
+        }
+
         if (!isMarketPriceOpenRef.current) {
           setMarketPrices(cloudResult.marketPrices);
           saveMarketPrices(cloudResult.marketPrices);
@@ -571,7 +571,28 @@ export default function App() {
                   return updated;
                 });
               }
+            } else if (key === 'warehouse_inventory_data' || key === 'warehouse_inventory_json') {
+              try {
+                const rawVal = payload.new.value;
+                const parsed = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
+                if (Array.isArray(parsed)) {
+                  localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(parsed));
+                  window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: parsed }));
+                }
+              } catch (e) {}
             }
+          }
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'warehouse_stock_live_sync' },
+        (payload: any) => {
+          if (payload && payload.payload && Array.isArray(payload.payload.items)) {
+            try {
+              localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(payload.payload.items));
+              window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: payload.payload.items }));
+            } catch (e) {}
           }
         }
       )
@@ -1651,6 +1672,51 @@ export default function App() {
     showToast('ردیف انبار با موفقیت حذف شد.');
   };
 
+  // --- Warehouse Direct Sale Integration ---
+  const handleExecuteWarehouseDirectSale = async (saleData: {
+    personId?: string;
+    isBourseOrExternal: boolean;
+    externalPartyName?: string;
+    externalPhone?: string;
+    weightKg: number;
+    unitPrice: number;
+    totalAmount: number;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+    chequeNumber?: string;
+    chequeDueDate?: string;
+  }) => {
+    // Refresh live items
+    setWarehouseItems(getStoredWarehouseItems());
+
+    // If sold to registered customer, record transaction
+    if (!saleData.isBourseOrExternal && saleData.personId) {
+      const newTx: Transaction = {
+        id: `tx-wh-sale-${Date.now()}`,
+        personId: saleData.personId,
+        type: 'sell',
+        date: getTodayJalaliString(),
+        weightKg: saleData.weightKg,
+        unitPrice: saleData.unitPrice,
+        amount: saleData.totalAmount,
+        notes: saleData.notes ? `فروش مستقیم از انبار | ${saleData.notes}` : 'فروش مستقیم از انبار سلفچگان',
+        approvalStatus: 'approved',
+        approvedBy: authSession?.username || 'انبار مس واته',
+        approvedAt: getPersianDateTimeString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedTxs = [newTx, ...transactions];
+      const replayed = await updateTransactions(updatedTxs);
+      await syncPersonLedgerToCloud(saleData.personId, replayed);
+      await dbUpsertTransaction(newTx);
+    } else {
+      // Bourse / External cash sale: reduce company copper stock balance
+      const newStock = Math.max(0, companyCopperStockKg - saleData.weightKg);
+      await handleSaveCompanyCopperStock(newStock, true);
+    }
+  };
+
   if (!isAuthenticated) {
     return <LoginScreen people={people} onLoginSuccess={handleLoginSuccess} />;
   }
@@ -1673,12 +1739,17 @@ export default function App() {
       <div className="min-h-screen bg-stone-100 text-stone-900 relative flex flex-col selection:bg-blue-600 selection:text-white">
         <WarehousePortalView
           items={warehouseItems}
+          people={people}
+          marketPrices={marketPrices}
           onAddItem={handleAddWarehouseItem}
           onUpdateItem={handleUpdateWarehouseItem}
           onDeleteItem={handleDeleteWarehouseItem}
           onLogout={handleLogout}
           onChangePassword={() => setIsChangePassModalOpen(true)}
           userRole="warehouse"
+          onExecuteDirectSale={handleExecuteWarehouseDirectSale}
+          onOpenBuyCopper={() => handleOpenBuyCopper()}
+          onOpenSellCopper={() => handleOpenSellCopper()}
         />
 
         {/* Change Password Modal for Warehouse Keeper */}
@@ -1858,6 +1929,8 @@ export default function App() {
         ) : activeView === 'warehouse' ? (
           <WarehousePortalView
             items={warehouseItems}
+            people={people}
+            marketPrices={marketPrices}
             onAddItem={handleAddWarehouseItem}
             onUpdateItem={handleUpdateWarehouseItem}
             onDeleteItem={handleDeleteWarehouseItem}
@@ -1865,6 +1938,9 @@ export default function App() {
             onLogout={handleLogout}
             onChangePassword={() => setIsChangePassModalOpen(true)}
             userRole={(authSession?.role as 'admin' | 'warehouse') || 'admin'}
+            onExecuteDirectSale={handleExecuteWarehouseDirectSale}
+            onOpenBuyCopper={() => handleOpenBuyCopper()}
+            onOpenSellCopper={() => handleOpenSellCopper()}
           />
         ) : selectedPerson ? (
           <PersonDetailView

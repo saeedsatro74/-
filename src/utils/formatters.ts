@@ -163,3 +163,6 @@ export function numberToTomanWords(amount: number): string {
   if (parts.length === 0) return '';
   return `معادل ${parts.join(' و ')} تومان`;
 }
+
+export const numToWordsFa = numberToTomanWords;
+

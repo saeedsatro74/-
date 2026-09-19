@@ -620,14 +620,36 @@ export const PersonDetailView: React.FC<PersonDetailViewProps> = ({
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onViewReceipt && onViewReceipt(tx)}
-                          className="p-1 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded cursor-pointer transition-colors"
-                          title="مشاهده رسید معامله"
-                        >
-                          <FileText className="w-4 h-4 text-stone-600" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onViewReceipt && onViewReceipt(tx)}
+                            className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg cursor-pointer transition-colors"
+                            title="مشاهده و چاپ رسید معامله"
+                          >
+                            <FileText className="w-4 h-4 text-stone-600" />
+                          </button>
+                          {onEditTransaction && (
+                            <button
+                              type="button"
+                              onClick={() => onEditTransaction(tx)}
+                              className="p-1.5 text-stone-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                              title="ویرایش اطلاعات تراکنش"
+                            >
+                              <Edit3 className="w-4 h-4 text-amber-600" />
+                            </button>
+                          )}
+                          {onDeleteTransaction && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteTransaction(tx.id)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              title="حذف تراکنش"
+                            >
+                              <Trash2 className="w-4 h-4 text-rose-600" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

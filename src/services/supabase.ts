@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Person, Transaction, MarketPrices } from '../types';
+import { Person, Transaction, MarketPrices, WarehouseItem } from '../types';
 import { 
   DEFAULT_MARKET_BUY_PRICE, 
   DEFAULT_MARKET_SELL_PRICE, 
@@ -7,7 +7,9 @@ import {
   getClientPassword,
   getStoredDeletedPersonIds,
   saveStoredDeletedPersonId,
-  isPersonDeleted
+  isPersonDeleted,
+  getStoredWarehouseItems,
+  saveWarehouseItems
 } from '../utils/storage';
 
 // Supabase URL & Public Anon Key
@@ -320,6 +322,7 @@ function isSchemaColumnError(error: any): boolean {
 export async function fetchAllFromSupabase(): Promise<{
   people: Person[];
   transactions: Transaction[];
+  warehouseItems?: WarehouseItem[];
   marketPrice: number;
   marketPrices: MarketPrices;
   companyCopperStock?: number;
@@ -405,9 +408,24 @@ export async function fetchAllFromSupabase(): Promise<{
       companyCopperStock = Number(rawStock);
     }
 
+    // Extract warehouse inventory items from Supabase if available
+    let parsedWarehouseItems: WarehouseItem[] | undefined;
+    const rawWhJson = getSettingVal('warehouse_inventory_data') ?? getSettingVal('warehouse_inventory_json');
+    if (rawWhJson) {
+      try {
+        const parsed = typeof rawWhJson === 'string' ? JSON.parse(rawWhJson) : rawWhJson;
+        if (Array.isArray(parsed)) {
+          parsedWarehouseItems = parsed;
+        }
+      } catch (e) {
+        console.warn('Failed to parse warehouse JSON from Supabase:', e);
+      }
+    }
+
     return {
       people,
       transactions,
+      warehouseItems: parsedWarehouseItems,
       marketPrice: buyPrice,
       marketPrices: { buyPrice, sellPrice },
       companyCopperStock,
@@ -730,3 +748,47 @@ export async function seedSupabaseIfEmpty(
     return false;
   }
 }
+
+/**
+ * Save warehouse inventory items to Supabase and broadcast
+ */
+export async function dbSaveWarehouseItems(items: WarehouseItem[]): Promise<boolean> {
+  if (!items) return false;
+  try {
+    const jsonStr = JSON.stringify(items);
+    // 1. Save to Supabase app_settings
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert([
+        { key: 'warehouse_inventory_data', value: jsonStr as any },
+        { key: 'warehouse_inventory_count', value: items.length }
+      ], { onConflict: 'key' });
+
+    if (error) {
+      console.warn('Notice saving warehouse items to Supabase app_settings:', error.message || error);
+    }
+
+    // 2. Broadcast via Supabase channel for sub-second sync across all open browser windows / devices
+    try {
+      const liveChannel = supabase.channel('schema-db-changes');
+      liveChannel.send({
+        type: 'broadcast',
+        event: 'warehouse_stock_live_sync',
+        payload: { items }
+      });
+    } catch (bcErr) {
+      // ignore broadcast err
+    }
+
+    // 3. Also sync to backend API in background
+    try {
+      import('../utils/cloudSync').then((m) => m.syncWithCloudDatabase()).catch(() => {});
+    } catch (e) {}
+
+    return true;
+  } catch (err: any) {
+    console.warn('Supabase dbSaveWarehouseItems notice:', err?.message || err);
+    return false;
+  }
+}
+

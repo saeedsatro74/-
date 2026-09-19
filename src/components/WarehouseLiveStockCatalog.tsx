@@ -28,14 +28,19 @@ import {
   Tag,
   Download,
   Printer,
-  FileText
+  FileText,
+  ShoppingBag,
+  UserCheck,
+  Trash2
 } from 'lucide-react';
 import { 
   WarehouseItem, 
   WarehouseInventorySummary, 
   CopperPackagingType,
   SpoolPackagingType,
-  WarehouseCargoItem
+  WarehouseCargoItem,
+  Person,
+  MarketPrices
 } from '../types';
 import { 
   COPPER_BRANDS, 
@@ -43,16 +48,24 @@ import {
   COPPER_THICKNESSES,
   updateWarehouseItem,
   addWarehouseItem,
-  getStoredWarehouseItems
+  getStoredWarehouseItems,
+  getStoredPeople,
+  getStoredMarketPrices
 } from '../utils/storage';
 import { formatNumber, formatWeight, toFaDigits } from '../utils/formatters';
 import {
   dismantlePalletIntoLooseSpools,
   openSpoolToRetailFromPallet,
+  openMultipleSpoolsToRetailFromPallet,
   openLooseSpoolToRetail,
-  restoreLooseSpoolToPallet,
-  restoreRetailToSpoolOrPallet
+  hasPalletSplitHistory,
+  undoLastPalletSplit,
+  executeDirectSaleStockDeduction
 } from '../utils/warehousePalletManager';
+import { 
+  WarehouseDirectSaleModal, 
+  SelectedWarehouseStockForSale 
+} from './WarehouseDirectSaleModal';
 
 // Realistic Product Assets
 const COPPER_PALLET_IMG = '/src/assets/images/copper_pallet_5spools_1789803849566.jpg';
@@ -60,7 +73,7 @@ const COPPER_SPOOL_IMG = '/src/assets/images/copper_loose_spool_1789803863290.jp
 const COPPER_COIL_IMG = '/src/assets/images/copper_pipe_coils_1789803878022.jpg';
 const COPPER_STRAIGHT_IMG = '/src/assets/images/copper_straight_pipes_1789803890842.jpg';
 
-interface PalletStockCard {
+export interface PalletStockCard {
   id: string;
   palletIndex: number;
   consignmentId: string;
@@ -83,7 +96,7 @@ interface PalletStockCard {
   isCustomBadge?: string;
 }
 
-interface LooseSpoolItem {
+export interface LooseSpoolItem {
   id: string;
   consignmentId: string;
   cargoItemId: string;
@@ -100,7 +113,20 @@ interface LooseSpoolItem {
   notes?: string;
 }
 
-interface CoilsStockGroup {
+export interface RetailCopperItem {
+  id: string;
+  consignmentId: string;
+  cargoItemId: string;
+  referenceDocNumber: string;
+  date: string;
+  brand: string;
+  diameterInch?: string;
+  thicknessMm?: number;
+  totalWeightKg: number;
+  notes?: string;
+}
+
+export interface CoilsStockGroup {
   key: string;
   brand: string;
   diameterInch: string;
@@ -114,7 +140,7 @@ interface CoilsStockGroup {
   standardName?: string;
 }
 
-interface StraightsStockGroup {
+export interface StraightsStockGroup {
   key: string;
   brand: string;
   diameterInch: string;
@@ -126,39 +152,32 @@ interface StraightsStockGroup {
   isHard?: boolean;
 }
 
-interface RetailCopperItem {
-  id: string;
-  consignmentId: string;
-  cargoItemId: string;
-  referenceDocNumber: string;
-  date: string;
-  brand: string;
-  diameterInch: string;
-  thicknessMm: number;
-  totalWeightKg: number;
-  notes?: string;
-}
-
 interface WarehouseLiveStockCatalogProps {
   items: WarehouseItem[];
   inventorySummary: WarehouseInventorySummary;
+  people?: Person[];
+  marketPrices?: MarketPrices;
   externalSearchQuery?: string;
   categoryFilter?: 'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights';
   onOpenAdd?: (type: 'inbound' | 'outbound') => void;
   onViewReceipt?: (item: WarehouseItem) => void;
   onUpdateItem?: (item: WarehouseItem) => void;
   onAddItem?: (item: WarehouseItem) => void;
+  onExecuteDirectSale?: (saleData: any) => Promise<void> | void;
 }
 
 export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps> = ({
   items,
   inventorySummary,
+  people,
+  marketPrices,
   externalSearchQuery = '',
   categoryFilter,
   onOpenAdd,
   onViewReceipt,
   onUpdateItem,
   onAddItem,
+  onExecuteDirectSale,
 }) => {
   // Navigation & Category Filters
   const [stockCategoryFilter, setStockCategoryFilter] = useState<'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights'>('all');
@@ -171,20 +190,26 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
   const [thicknessFilter, setThicknessFilter] = useState<string>('all');
   const [palletStatusFilter, setPalletStatusFilter] = useState<'all' | 'full_5' | 'split'>('all');
 
-  // Selected Spool in Pallet Cards (allows clean selection without instant destructive action)
-  const [selectedSpoolByPallet, setSelectedSpoolByPallet] = useState<Record<string, number | null>>({});
+  // Multi-Selection State for Spools inside Pallets: palletId -> array of selected spool indices e.g. [0, 2]
+  const [selectedSpoolsByPallet, setSelectedSpoolsByPallet] = useState<Record<string, number[]>>({});
+  // Multi-Selection State for Loose Spools: Set of loose item IDs
+  const [selectedLooseSpoolIds, setSelectedLooseSpoolIds] = useState<Set<string>>(new Set());
+  // Multi-Selection State for Retail Items: Set of retail item IDs
+  const [selectedRetailIds, setSelectedRetailIds] = useState<Set<string>>(new Set());
 
-  // Confirmation Modal State (so user cannot accidentally split or move to retail)
+  // Direct Sale Modal State
+  const [isDirectSaleModalOpen, setIsDirectSaleModalOpen] = useState(false);
+
+  // Confirmation Modal State (for explicit dismantle or retail split)
   const [confirmModalData, setConfirmModalData] = useState<{
     type: 'retail_from_pallet' | 'dismantle_pallet' | 'retail_from_loose';
     pallet?: PalletStockCard;
     looseSpool?: LooseSpoolItem;
-    spoolIndex?: number;
+    spoolIndices?: number[];
     weightKg?: number;
   } | null>(null);
 
-  // Undo Snapshot (stores the previous warehouse items so user can revert any action!)
-  const [undoSnapshot, setUndoSnapshot] = useState<WarehouseItem[] | null>(null);
+  // Toast with undo
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; showUndo?: boolean } | null>(null);
 
   // Synchronized live items with instant event listener
@@ -202,12 +227,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     return () => window.removeEventListener('warehouse-stock-updated', handleStockUpdated);
   }, []);
 
-  // Active combined search query
-  const activeQuery = useMemo(() => {
-    return (externalSearchQuery || searchQuery).trim().toLowerCase();
-  }, [externalSearchQuery, searchQuery]);
-
-  // Show transient toast with optional Undo button
+  // Show transient toast
   const triggerToast = (message: string, showUndo: boolean = false) => {
     setFeedbackToast({ message, showUndo });
     setTimeout(() => {
@@ -215,58 +235,19 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     }, 6000);
   };
 
-  const handleUndo = () => {
-    if (undoSnapshot) {
-      setLiveItems(undoSnapshot);
-      localStorage.setItem('warehouse_inventory_items', JSON.stringify(undoSnapshot));
+  // Undo Last Pallet Split Handler
+  const handleUndoLastPalletSplit = () => {
+    const restored = undoLastPalletSplit();
+    if (restored) {
+      setLiveItems(restored);
       window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
-      setUndoSnapshot(null);
-      triggerToast('عملیات لغو شد و اطلاعات به حالت قبل بازگشت.');
+      triggerToast('آخرین تفکیک پالت با موفقیت لغو شد و پالت به حالت اولیه بازگشت.');
+    } else {
+      triggerToast('تاریخچه‌ای برای بازگردانی تفکیک پالت یافت نشد.');
     }
   };
 
-  const handleRestoreLooseSpool = (loose: LooseSpoolItem) => {
-    setUndoSnapshot([...liveItems]);
-    const updated = restoreLooseSpoolToPallet(loose.cargoItemId || loose.id);
-    setLiveItems(updated);
-    triggerToast(`قرقره (${toFaDigits(loose.totalWeightKg.toFixed(1))} kg) به پالت اصلی بازگردانده شد.`, true);
-  };
-
-  const handleRestoreRetailItem = (r: RetailCopperItem) => {
-    setUndoSnapshot([...liveItems]);
-    const updated = restoreRetailToSpoolOrPallet(r.cargoItemId || r.id);
-    setLiveItems(updated);
-    triggerToast(`مس باز شده (${toFaDigits(r.totalWeightKg.toFixed(1))} kg) به قرقره/پالت بازگردانده شد.`, true);
-  };
-
-  const handleExecuteConfirmedAction = () => {
-    if (!confirmModalData) return;
-
-    setUndoSnapshot([...liveItems]);
-
-    if (confirmModalData.type === 'retail_from_pallet' && confirmModalData.pallet && confirmModalData.spoolIndex !== undefined) {
-      const p = confirmModalData.pallet;
-      const idx = confirmModalData.spoolIndex;
-      const updated = openSpoolToRetailFromPallet(p, idx);
-      setLiveItems(updated);
-      setSelectedSpoolByPallet(prev => ({ ...prev, [p.id]: null }));
-      triggerToast(`قرقره ق${toFaDigits(idx + 1)} (${toFaDigits((confirmModalData.weightKg || 0).toFixed(1))} kg) به بخش خورده‌ها منتقل گردید.`, true);
-    } else if (confirmModalData.type === 'dismantle_pallet' && confirmModalData.pallet) {
-      const p = confirmModalData.pallet;
-      const updated = dismantlePalletIntoLooseSpools(p);
-      setLiveItems(updated);
-      setSelectedSpoolByPallet(prev => ({ ...prev, [p.id]: null }));
-      triggerToast(`پالت #${toFaDigits(p.palletIndex)} تفکیک شد و تمام قرقره‌های آن به بخش غیرپالتی منتقل گردیدند.`, true);
-    } else if (confirmModalData.type === 'retail_from_loose' && confirmModalData.looseSpool) {
-      const updated = openLooseSpoolToRetail(confirmModalData.looseSpool);
-      setLiveItems(updated);
-      triggerToast(`قرقره آزاد (${toFaDigits(confirmModalData.looseSpool.totalWeightKg.toFixed(1))} kg) به بخش خورده‌ها منتقل گردید.`, true);
-    }
-
-    setConfirmModalData(null);
-  };
-
-  // Extract or generate default demo inventory matching Image 1 & 2
+  // Extract inventory items from liveItems
   const { palletCards, looseSpools, retailItems, coilsGroups, straightsGroups } = useMemo(() => {
     const pallets: PalletStockCard[] = [];
     const loose: LooseSpoolItem[] = [];
@@ -299,278 +280,122 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             }
           ];
 
-      for (const item of cargoItems) {
-        if (item.packagingType === 'spool') {
-          const isPallet = item.spoolType !== 'non_pallet';
-          const weights = item.spoolWeights && item.spoolWeights.length > 0
-            ? item.spoolWeights.map(Number).filter(n => !isNaN(n) && n > 0)
-            : [Number(item.totalWeightKg) || 0];
+      for (const cargo of cargoItems) {
+        // 1. Spool / Pallets vs Loose Spools
+        if (cargo.packagingType === 'spool') {
+          const weights = cargo.spoolWeights && cargo.spoolWeights.length > 0
+            ? cargo.spoolWeights
+            : [cargo.totalWeightKg || (cargo as any).unitWeightKg || 220];
 
-          const totalWt = weights.reduce((a, b) => a + b, 0) || Number(item.totalWeightKg) || 0;
-          const count = weights.length || Number(item.quantity) || 1;
-          const avgWt = count > 0 ? totalWt / count : 0;
-
-          if (isPallet) {
+          if (cargo.spoolType === 'pallet') {
+            const isFull = weights.length >= 5;
+            const totalW = weights.reduce((a, b) => a + b, 0);
             pallets.push({
-              id: `${consignment.id}-${item.id}-pallet-${palletGlobalCounter}`,
-              palletIndex: palletGlobalCounter++,
+              id: cargo.id || `pallet-${consignment.id}`,
+              palletIndex: (cargo as any).palletIndex || palletGlobalCounter++,
               consignmentId: consignment.id,
-              cargoItemId: item.id,
-              referenceDocNumber: consignment.referenceDocNumber || consignment.id,
+              cargoItemId: cargo.id,
+              referenceDocNumber: consignment.referenceDocNumber,
               date: consignment.date,
               targetPartyName: consignment.targetPartyName,
               driverName: consignment.driverName,
               vehiclePlate: consignment.vehiclePlate,
-              brand: item.brand || 'باهنر',
-              diameterInch: item.diameterInch || '5/8',
-              thicknessMm: Number(item.thicknessMm) || 0.75,
-              spoolsCount: count,
+              brand: cargo.brand || 'باهنر',
+              diameterInch: cargo.diameterInch || '5/8',
+              thicknessMm: cargo.thicknessMm || 0.75,
+              spoolsCount: weights.length,
               spoolWeights: weights,
-              totalWeightKg: totalWt,
-              avgWeightKg: avgWt,
-              isFullStandardPallet: count >= 5,
+              totalWeightKg: totalW,
+              avgWeightKg: totalW / (weights.length || 1),
+              isFullStandardPallet: isFull,
+              purityPercent: '۹۹.۹۶٪ مس خالص',
             });
           } else {
+            // Non-pallet loose spool
             loose.push({
-              id: `${consignment.id}-${item.id}`,
+              id: cargo.id || `loose-${consignment.id}`,
               consignmentId: consignment.id,
-              cargoItemId: item.id,
-              referenceDocNumber: consignment.referenceDocNumber || consignment.id,
+              cargoItemId: cargo.id,
+              referenceDocNumber: consignment.referenceDocNumber,
               date: consignment.date,
-              brand: item.brand || 'باهنر',
-              diameterInch: item.diameterInch || '5/8',
-              thicknessMm: Number(item.thicknessMm) || 0.75,
-              quantity: count,
+              brand: cargo.brand || 'باهنر',
+              diameterInch: cargo.diameterInch || '5/8',
+              thicknessMm: cargo.thicknessMm || 0.75,
+              quantity: cargo.quantity || 1,
               spoolWeights: weights,
-              totalWeightKg: totalWt,
-              spoolCondition: item.spoolCondition || 'sealed',
-              sourcePalletInfo: item.sourcePalletInfo,
-              notes: item.notes,
+              totalWeightKg: cargo.totalWeightKg || weights.reduce((a, b) => a + b, 0),
+              spoolCondition: cargo.spoolCondition || 'sealed',
+              sourcePalletInfo: cargo.sourcePalletInfo,
+              notes: cargo.notes,
             });
           }
-        } else if (item.packagingType === 'retail') {
+        } else if (cargo.packagingType === 'retail') {
+          // Retail copper (خورده‌ها)
           retail.push({
-            id: `${consignment.id}-${item.id}`,
+            id: cargo.id || `retail-${consignment.id}`,
             consignmentId: consignment.id,
-            cargoItemId: item.id,
-            referenceDocNumber: consignment.referenceDocNumber || consignment.id,
+            cargoItemId: cargo.id,
+            referenceDocNumber: consignment.referenceDocNumber,
             date: consignment.date,
-            brand: item.brand || 'مس متفرقه',
-            diameterInch: item.diameterInch || 'سفارشی',
-            thicknessMm: Number(item.thicknessMm) || 0.75,
-            totalWeightKg: Number(item.totalWeightKg) || 0,
-            notes: item.notes || 'مس باز شده / خورده',
+            brand: cargo.brand || 'باهنر',
+            diameterInch: cargo.diameterInch,
+            thicknessMm: cargo.thicknessMm,
+            totalWeightKg: cargo.totalWeightKg || (cargo as any).unitWeightKg || 0,
+            notes: cargo.notes,
           });
-        } else if (item.packagingType === 'coil') {
-          const groupKey = `${item.brand || 'باهنر'}_${item.diameterInch || '5/8'}_${item.thicknessMm || 0.75}`;
-          if (!coilsMap[groupKey]) {
-            coilsMap[groupKey] = {
-              key: groupKey,
-              brand: item.brand || 'باهنر',
-              diameterInch: item.diameterInch || '5/8',
-              thicknessMm: Number(item.thicknessMm) || 0.75,
+        } else if (cargo.packagingType === 'coil') {
+          const key = `${cargo.brand}_${cargo.diameterInch}_${cargo.thicknessMm}`;
+          const is15m = cargo.coilLength === '15m' || !cargo.coilLength;
+          const count = cargo.quantity || 1;
+          const weight = cargo.totalWeightKg || 0;
+
+          if (!coilsMap[key]) {
+            coilsMap[key] = {
+              key,
+              brand: cargo.brand || 'باهنر',
+              diameterInch: cargo.diameterInch || '3/8',
+              thicknessMm: cargo.thicknessMm || 0.7,
               length15mCount: 0,
               length15mWeightKg: 0,
               length50mCount: 0,
               length50mWeightKg: 0,
               totalCount: 0,
               totalWeightKg: 0,
+              standardName: 'استاندارد برودتی ASTM B280',
             };
           }
-          const qty = Number(item.quantity) || 0;
-          const wt = Number(item.totalWeightKg) || 0;
-          if (item.coilLength === '50m') {
-            coilsMap[groupKey].length50mCount += qty;
-            coilsMap[groupKey].length50mWeightKg += wt;
+
+          if (is15m) {
+            coilsMap[key].length15mCount += count;
+            coilsMap[key].length15mWeightKg += weight;
           } else {
-            coilsMap[groupKey].length15mCount += qty;
-            coilsMap[groupKey].length15mWeightKg += wt;
+            coilsMap[key].length50mCount += count;
+            coilsMap[key].length50mWeightKg += weight;
           }
-          coilsMap[groupKey].totalCount += qty;
-          coilsMap[groupKey].totalWeightKg += wt;
-        } else if (item.packagingType === 'straight') {
-          const groupKey = `${item.brand || 'باهنر'}_${item.diameterInch || '5/8'}_${item.thicknessMm || 0.75}`;
-          if (!straightsMap[groupKey]) {
-            straightsMap[groupKey] = {
-              key: groupKey,
-              brand: item.brand || 'باهنر',
-              diameterInch: item.diameterInch || '5/8',
-              thicknessMm: Number(item.thicknessMm) || 0.75,
+          coilsMap[key].totalCount += count;
+          coilsMap[key].totalWeightKg += weight;
+        } else if (cargo.packagingType === 'straight') {
+          const key = `${cargo.brand}_${cargo.diameterInch}_${cargo.thicknessMm}`;
+          const count = cargo.quantity || 1;
+          const weight = cargo.totalWeightKg || 0;
+
+          if (!straightsMap[key]) {
+            straightsMap[key] = {
+              key,
+              brand: cargo.brand || 'مهراصل',
+              diameterInch: cargo.diameterInch || '7/8',
+              thicknessMm: cargo.thicknessMm || 1.0,
               totalCount: 0,
               totalWeightKg: 0,
+              shelfCode: 'SH-01',
+              badgeTag: 'شاخه ۶ متری استاندارد',
+              isHard: true,
             };
           }
-          const qty = Number(item.quantity) || 0;
-          const wt = Number(item.totalWeightKg) || 0;
-          straightsMap[groupKey].totalCount += qty;
-          straightsMap[groupKey].totalWeightKg += wt;
+          straightsMap[key].totalCount += count;
+          straightsMap[key].totalWeightKg += weight;
         }
       }
-    }
-
-    // Default fallback inventory matching Image 1 & 2 ONLY if empty and no consignments exist
-    if (pallets.length === 0 && (!items || items.length === 0)) {
-      pallets.push(
-        {
-          id: 'demo-pallet-1',
-          palletIndex: 1,
-          consignmentId: 'wh-in-101',
-          cargoItemId: 'cargo-101',
-          referenceDocNumber: 'BAR-1403-9101',
-          date: '1403/12/10',
-          brand: 'باهنر',
-          diameterInch: '5/8',
-          thicknessMm: 0.75,
-          spoolsCount: 5,
-          spoolWeights: [225.5, 230.2, 228.0, 234.8, 239.5],
-          totalWeightKg: 1158,
-          avgWeightKg: 231.6,
-          isFullStandardPallet: true,
-          purityPercent: '99/96',
-        },
-        {
-          id: 'demo-pallet-2',
-          palletIndex: 2,
-          consignmentId: 'wh-in-102',
-          cargoItemId: 'cargo-102',
-          referenceDocNumber: 'BAR-1403-9101',
-          date: '1403/12/10',
-          brand: 'باهنر',
-          diameterInch: '3/4',
-          thicknessMm: 0.8,
-          spoolsCount: 5,
-          spoolWeights: [239.0, 231.5, 227.4, 233.0, 236.1],
-          totalWeightKg: 1157,
-          avgWeightKg: 231.4,
-          isFullStandardPallet: true,
-          purityPercent: '99/96',
-        },
-        {
-          id: 'demo-pallet-3',
-          palletIndex: 3,
-          consignmentId: 'wh-in-103',
-          cargoItemId: 'cargo-103',
-          referenceDocNumber: 'BAR-1403-9102',
-          date: '1403/12/11',
-          brand: 'مهراصل',
-          diameterInch: '1/2',
-          thicknessMm: 0.75,
-          spoolsCount: 5,
-          spoolWeights: [224.0, 226.5, 228.2, 230.1, 232.0],
-          totalWeightKg: 1140.8,
-          avgWeightKg: 228.16,
-          isFullStandardPallet: true,
-          purityPercent: '99/99',
-          isCustomBadge: '۲ رده',
-        },
-        {
-          id: 'demo-pallet-4',
-          palletIndex: 4,
-          consignmentId: 'wh-in-104',
-          cargoItemId: 'cargo-104',
-          referenceDocNumber: 'BAR-1403-9102',
-          date: '1403/12/11',
-          brand: 'مهراصل',
-          diameterInch: '5/8',
-          thicknessMm: 0.8,
-          spoolsCount: 5,
-          spoolWeights: [238.0, 241.2, 239.5, 242.3, 240.0],
-          totalWeightKg: 1201,
-          avgWeightKg: 240.2,
-          isFullStandardPallet: true,
-          purityPercent: '99/99',
-        },
-        {
-          id: 'demo-pallet-5',
-          palletIndex: 5,
-          consignmentId: 'wh-in-105',
-          cargoItemId: 'cargo-105',
-          referenceDocNumber: 'BAR-1403-9103',
-          date: '1403/12/12',
-          brand: 'قائم',
-          diameterInch: '1/4',
-          thicknessMm: 0.65,
-          spoolsCount: 4,
-          spoolWeights: [219.0, 222.5, 224.5, 223.0],
-          totalWeightKg: 889,
-          avgWeightKg: 222.3,
-          isFullStandardPallet: false,
-          purityPercent: '99/95',
-        }
-      );
-    }
-
-    if (loose.length === 0 && (!items || items.length === 0)) {
-      loose.push({
-        id: 'demo-loose-1',
-        consignmentId: 'wh-in-106',
-        cargoItemId: 'cargo-106',
-        referenceDocNumber: 'BAR-1403-9103',
-        date: '1403/12/12',
-        brand: 'قائم',
-        diameterInch: '1/4',
-        thicknessMm: 0.65,
-        quantity: 1,
-        spoolWeights: [220],
-        totalWeightKg: 220,
-        spoolCondition: 'opened',
-        sourcePalletInfo: 'باز شده از پالت ۵#',
-        notes: 'شناسه: REEL-Q-882 • موقعیت دیپو: ردیف B-12 سالن فرعی',
-      });
-    }
-
-    if (Object.keys(coilsMap).length === 0 && (!items || items.length === 0)) {
-      coilsMap['bahaner_38'] = {
-        key: 'bahaner_38',
-        brand: 'باهنر',
-        diameterInch: '3/8',
-        thicknessMm: 0.7,
-        length15mCount: 20,
-        length15mWeightKg: 68,
-        length50mCount: 0,
-        length50mWeightKg: 0,
-        totalCount: 20,
-        totalWeightKg: 68,
-        standardName: 'استاندارد برودتی CU-DHP',
-      };
-      coilsMap['mehrasl_12'] = {
-        key: 'mehrasl_12',
-        brand: 'مهراصل',
-        diameterInch: '1/2',
-        thicknessMm: 0.75,
-        length15mCount: 0,
-        length15mWeightKg: 0,
-        length50mCount: 8,
-        length50mWeightKg: 112,
-        totalCount: 8,
-        totalWeightKg: 112,
-        standardName: 'کلاف آنیل نرم صنعتی',
-      };
-    }
-
-    if (Object.keys(straightsMap).length === 0 && (!items || items.length === 0)) {
-      straightsMap['mehrasl_78'] = {
-        key: 'mehrasl_78',
-        brand: 'مهراصل',
-        diameterInch: '7/8',
-        thicknessMm: 1.0,
-        totalCount: 25,
-        totalWeightKg: 75,
-        shelfCode: 'SH-04',
-        badgeTag: 'بک شرینک‌شده',
-        isHard: true,
-      };
-      straightsMap['ghaem_118'] = {
-        key: 'ghaem_118',
-        brand: 'قائم',
-        diameterInch: '1"1/8',
-        thicknessMm: 1.2,
-        totalCount: 30,
-        totalWeightKg: 150,
-        shelfCode: 'SH-05',
-        badgeTag: 'کپ محافظ دو سر',
-        isHard: false,
-      };
     }
 
     return {
@@ -582,24 +407,215 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     };
   }, [liveItems]);
 
+  // Compute Selection Summary
+  const selectionSummary = useMemo(() => {
+    let totalCount = 0;
+    let totalWeight = 0;
+    const itemsDetails: Array<{ title: string; weightKg: number; brand: string; specs: string }> = [];
+    const selectedPalletSpoolsMap = new Map<string, { pallet: PalletStockCard; selectedIndices: number[] }>();
+    const selectedLooseList: LooseSpoolItem[] = [];
+    const selectedRetailList: RetailCopperItem[] = [];
+
+    // 1. Selected Spools from Pallets
+    for (const pallet of palletCards) {
+      const indices = selectedSpoolsByPallet[pallet.id] || [];
+      if (indices.length > 0) {
+        selectedPalletSpoolsMap.set(pallet.id, { pallet, selectedIndices: indices });
+        totalCount += indices.length;
+        indices.forEach((idx) => {
+          const w = pallet.spoolWeights[idx] || pallet.avgWeightKg;
+          totalWeight += w;
+          itemsDetails.push({
+            title: `پالت #${pallet.palletIndex} (قرقره ق${idx + 1})`,
+            weightKg: w,
+            brand: pallet.brand,
+            specs: `سایز "${pallet.diameterInch} (${pallet.thicknessMm}mm)`,
+          });
+        });
+      }
+    }
+
+    // 2. Selected Loose Spools
+    for (const loose of looseSpools) {
+      if (selectedLooseSpoolIds.has(loose.id)) {
+        totalCount += loose.quantity || 1;
+        totalWeight += loose.totalWeightKg;
+        selectedLooseList.push(loose);
+        itemsDetails.push({
+          title: `قرقره تکی ${loose.brand} (${loose.sourcePalletInfo || 'غیرپالتی'})`,
+          weightKg: loose.totalWeightKg,
+          brand: loose.brand,
+          specs: `سایز "${loose.diameterInch} (${loose.thicknessMm}mm)`,
+        });
+      }
+    }
+
+    // 3. Selected Retail Items
+    for (const r of retailItems) {
+      if (selectedRetailIds.has(r.id)) {
+        totalCount += 1;
+        totalWeight += r.totalWeightKg;
+        selectedRetailList.push(r);
+        itemsDetails.push({
+          title: `خورده مس ${r.brand}`,
+          weightKg: r.totalWeightKg,
+          brand: r.brand,
+          specs: r.diameterInch ? `سایز "${r.diameterInch}` : 'خورده مس',
+        });
+      }
+    }
+
+    const hasAnySelection = totalCount > 0;
+    const summaryLabel = hasAnySelection
+      ? `${toFaDigits(totalCount)} قلم مس به وزن کل ${toFaDigits(totalWeight.toFixed(1))} کیلوگرم`
+      : '';
+
+    return {
+      hasAnySelection,
+      totalCount,
+      totalWeight,
+      summaryLabel,
+      itemsDetails,
+      selectedPalletSpoolsMap,
+      selectedLooseList,
+      selectedRetailList,
+    };
+  }, [palletCards, looseSpools, retailItems, selectedSpoolsByPallet, selectedLooseSpoolIds, selectedRetailIds]);
+
+  // Toggle single spool selection inside a pallet
+  const handleTogglePalletSpool = (palletId: string, spoolIdx: number) => {
+    setSelectedSpoolsByPallet((prev) => {
+      const current = prev[palletId] || [];
+      const isSelected = current.includes(spoolIdx);
+      const next = isSelected ? current.filter((i) => i !== spoolIdx) : [...current, spoolIdx];
+      return {
+        ...prev,
+        [palletId]: next,
+      };
+    });
+  };
+
+  // Toggle ALL spools inside a pallet
+  const handleToggleEntirePallet = (pallet: PalletStockCard) => {
+    setSelectedSpoolsByPallet((prev) => {
+      const current = prev[pallet.id] || [];
+      const allSelected = current.length === pallet.spoolWeights.length;
+      return {
+        ...prev,
+        [pallet.id]: allSelected ? [] : pallet.spoolWeights.map((_, i) => i),
+      };
+    });
+  };
+
+  // Toggle single loose spool selection
+  const handleToggleLooseSpool = (looseId: string) => {
+    setSelectedLooseSpoolIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(looseId)) next.delete(looseId);
+      else next.add(looseId);
+      return next;
+    });
+  };
+
+  // Toggle retail item selection
+  const handleToggleRetailItem = (retailId: string) => {
+    setSelectedRetailIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(retailId)) next.delete(retailId);
+      else next.add(retailId);
+      return next;
+    });
+  };
+
+  // Clear all selections
+  const handleClearAllSelections = () => {
+    setSelectedSpoolsByPallet({});
+    setSelectedLooseSpoolIds(new Set());
+    setSelectedRetailIds(new Set());
+  };
+
+  // Move selected pallet spools to retail
+  const handleMoveSelectedToRetail = () => {
+    const selectedEntries = Array.from(selectionSummary.selectedPalletSpoolsMap.entries());
+    if (selectedEntries.length === 0) {
+      triggerToast('لطفاً حداقل یک قرقره از پالت‌ها را برای انتقال به خورده‌ها انتخاب کنید.');
+      return;
+    }
+
+    let updated = liveItems;
+    for (const [_, { pallet, selectedIndices }] of selectedEntries) {
+      updated = openMultipleSpoolsToRetailFromPallet(pallet as any, selectedIndices);
+    }
+    setLiveItems(updated);
+    handleClearAllSelections();
+    window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
+    triggerToast('قرقره‌های انتخاب‌شده به بخش خورده‌ها منتقل شدند و باقیمانده به قرقره‌های غیرپالتی اضافه گردید.', true);
+  };
+
+  // Dismantle entire selected pallets to loose spools
+  const handleDismantleSelectedPallets = () => {
+    const selectedEntries = Array.from(selectionSummary.selectedPalletSpoolsMap.entries());
+    if (selectedEntries.length === 0) {
+      triggerToast('لطفاً پالت‌های مورد نظر را انتخاب کنید.');
+      return;
+    }
+
+    let updated = liveItems;
+    for (const [_, { pallet }] of selectedEntries) {
+      updated = dismantlePalletIntoLooseSpools(pallet as any);
+    }
+    setLiveItems(updated);
+    handleClearAllSelections();
+    window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
+    triggerToast('پالت‌های انتخاب‌شده تفکیک شده و تمام قرقره‌های آن‌ها به بخش غیرپالتی منتقل شدند.', true);
+  };
+
+  // Handle direct sale submission from modal
+  const handleConfirmDirectSale = async (saleData: any) => {
+    // 1. Perform stock deduction in warehouse
+    const deductionPayload = {
+      selectedPalletSpools: selectionSummary.selectedPalletSpoolsMap as any,
+      selectedLooseSpools: selectionSummary.selectedLooseList as any,
+      selectedRetailItems: selectionSummary.selectedRetailList as any,
+      notes: saleData.notes,
+    };
+
+    const updated = executeDirectSaleStockDeduction(deductionPayload);
+    setLiveItems(updated);
+    window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
+
+    // 2. Call outer sale handler if available
+    if (onExecuteDirectSale) {
+      await onExecuteDirectSale({
+        ...saleData,
+        rawPayload: deductionPayload,
+      });
+    }
+
+    handleClearAllSelections();
+    triggerToast(`فروش مستقیم ${formatWeight(saleData.weightKg)} مس با موفقیت انجام و از انبار کسر گردید.`);
+  };
+
+  // Open Direct Sale Modal with current selections
+  const handleOpenSaleModalWithSelection = () => {
+    if (!selectionSummary.hasAnySelection) {
+      triggerToast('لطفاً ابتدا حداقل یک قرقره، پالت یا کالا را از لیست انبار تیک بزنید.');
+      return;
+    }
+    setIsDirectSaleModalOpen(true);
+  };
+
+  const availablePeople = people || getStoredPeople();
+  const availablePrices = marketPrices || getStoredMarketPrices();
+
   return (
-    <div className="space-y-5 font-sans text-stone-800">
+    <div className="space-y-5 font-sans text-stone-800 pb-20">
       
       {/* Toast Notification with Undo */}
       {feedbackToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-stone-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200 text-xs font-bold border border-stone-700">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{feedbackToast.message}</span>
-          {feedbackToast.showUndo && undoSnapshot && (
-            <button
-              type="button"
-              onClick={handleUndo}
-              className="mr-2 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-black flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>بازگردانی (Undo)</span>
-            </button>
-          )}
         </div>
       )}
 
@@ -616,6 +632,9 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                 {toFaDigits(palletCards.length)} پالت در محل
               </span>
             </h2>
+            <span className="text-[11px] text-stone-500 font-bold">
+              جهت انتخاب و فروش، روی هر تعداد قرقره که می‌خواهید کلیک کنید
+            </span>
           </div>
 
           {/* Pallet Cards Grid */}
@@ -627,14 +646,15 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
               
               {palletCards.map((pallet) => {
-                const selectedSpoolIdx = selectedSpoolByPallet[pallet.id];
-                const hasSelectedSpool = selectedSpoolIdx !== null && selectedSpoolIdx !== undefined;
+                const selectedIndices = selectedSpoolsByPallet[pallet.id] || [];
+                const hasSelectedSpools = selectedIndices.length > 0;
+                const isEntirePalletSelected = selectedIndices.length === pallet.spoolWeights.length;
 
                 return (
                   <div
                     key={pallet.id}
                     className={`bg-white rounded-2xl border p-3.5 shadow-2xs transition-all flex flex-col justify-between space-y-3 ${
-                      hasSelectedSpool ? 'border-amber-500 ring-1 ring-amber-400/50' : 'border-stone-200 hover:border-amber-300'
+                      hasSelectedSpools ? 'border-amber-600 ring-2 ring-amber-500/40 bg-amber-50/20' : 'border-stone-200 hover:border-amber-300'
                     }`}
                   >
                     {/* Card Header with Large Centered Real Pallet Image */}
@@ -647,11 +667,26 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                           referrerPolicy="no-referrer"
                         />
                         
-                        {/* Top Badges (Pallet Number & Full/Incomplete status) */}
+                        {/* Top Right Pallet Number & Select All Button */}
                         <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2.5 py-1 rounded-lg bg-amber-900/90 backdrop-blur-md text-white font-black text-xs font-mono shadow-xs border border-amber-700/50">
-                            پالت {toFaDigits(pallet.palletIndex)}#
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleEntirePallet(pallet)}
+                            className={`px-2.5 py-1 rounded-lg font-black text-xs font-mono shadow-xs border cursor-pointer flex items-center gap-1.5 transition-all ${
+                              isEntirePalletSelected
+                                ? 'bg-amber-600 text-white border-amber-700 ring-2 ring-white'
+                                : 'bg-amber-900/90 hover:bg-amber-800 backdrop-blur-md text-white border-amber-700/50'
+                            }`}
+                            title="انتخاب تمام قرقره‌های این پالت"
+                          >
+                            <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                              isEntirePalletSelected ? 'bg-white text-amber-900' : 'border-stone-300 bg-stone-800'
+                            }`}>
+                              {isEntirePalletSelected && <Check className="w-2.5 h-2.5 text-amber-900" />}
+                            </span>
+                            <span>پالت {toFaDigits(pallet.palletIndex)}#</span>
+                          </button>
+
                           {pallet.isFullStandardPallet ? (
                             <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-100/95 backdrop-blur-md text-amber-950 border border-amber-300/80 shadow-xs">
                               {toFaDigits(5)} تایی فابریک
@@ -688,32 +723,29 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                       </div>
                     </div>
 
-                    {/* Sub-reels breakdown grid */}
+                    {/* Sub-reels breakdown grid (Multi-Selectable) */}
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[11px] text-stone-500 font-bold">
-                        <span>قرقره‌ها (جهت انتخاب کلیک کنید):</span>
-                        <span className="font-mono text-stone-600">
-                          میانگین: {toFaDigits(pallet.avgWeightKg.toFixed(1))} kg
-                        </span>
+                      <div className="flex items-center justify-between text-[11px] text-stone-600 font-bold">
+                        <span>انتخاب قرقره‌ها جهت فروش یا تفکیک:</span>
+                        {selectedIndices.length > 0 && (
+                          <span className="text-amber-900 font-black bg-amber-100 px-2 py-0.5 rounded-md text-[10px]">
+                            {toFaDigits(selectedIndices.length)} قرقره انتخاب شد
+                          </span>
+                        )}
                       </div>
 
-                      {/* Sub-reels boxes (Clean selection without accidental click triggers) */}
+                      {/* Sub-reels boxes */}
                       <div className="grid grid-cols-3 gap-1.5">
                         {pallet.spoolWeights.map((w, idx) => {
-                          const isSelected = selectedSpoolIdx === idx;
+                          const isSelected = selectedIndices.includes(idx);
                           return (
                             <div
                               key={idx}
-                              onClick={() => {
-                                setSelectedSpoolByPallet((prev) => ({
-                                  ...prev,
-                                  [pallet.id]: isSelected ? null : idx,
-                                }));
-                              }}
+                              onClick={() => handleTogglePalletSpool(pallet.id, idx)}
                               className={`p-2 rounded-xl text-center cursor-pointer transition-all shadow-2xs flex flex-col justify-between border ${
                                 isSelected
-                                  ? 'bg-amber-800 text-white border-amber-900 ring-2 ring-amber-500'
-                                  : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-800'
+                                  ? 'bg-amber-800 text-white border-amber-950 ring-2 ring-amber-500 shadow-sm'
+                                  : 'bg-stone-50 hover:bg-stone-100/90 border-stone-200 text-stone-800'
                               }`}
                             >
                               <div className="flex items-center justify-between text-[10px] font-bold">
@@ -733,7 +765,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                                   isSelected ? 'text-white' : 'text-stone-900'
                                 }`}
                               >
-                                kg {toFaDigits(w.toFixed(1))}
+                                {toFaDigits(w.toFixed(1))} kg
                               </span>
                             </div>
                           );
@@ -747,63 +779,6 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                         )}
                       </div>
                     </div>
-
-                    {/* Active Action Toolbar (Shown only when a spool is selected) */}
-                    {hasSelectedSpool ? (
-                      <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 flex flex-col gap-2 animate-in fade-in duration-150">
-                        <div className="flex items-center justify-between text-xs font-bold text-amber-950">
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                            <span>
-                              قرقره {toFaDigits(selectedSpoolIdx + 1)} انتخاب شد (
-                              {toFaDigits((pallet.spoolWeights[selectedSpoolIdx] || pallet.avgWeightKg).toFixed(1))} kg)
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedSpoolByPallet((prev) => ({ ...prev, [pallet.id]: null }))
-                            }
-                            className="text-[11px] text-stone-500 hover:text-stone-800 underline cursor-pointer"
-                          >
-                            لغو انتخاب
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-amber-200/80">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmModalData({
-                                type: 'retail_from_pallet',
-                                pallet,
-                                spoolIndex: selectedSpoolIdx,
-                                weightKg: pallet.spoolWeights[selectedSpoolIdx] || pallet.avgWeightKg,
-                              })
-                            }
-                            className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                          >
-                            <Scissors className="w-3.5 h-3.5" />
-                            <span>انتقال به خورده‌ها</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmModalData({
-                                type: 'dismantle_pallet',
-                                pallet,
-                              })
-                            }
-                            className="py-1.5 px-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                            title="تفکیک کل این پالت به قرقره‌های غیرپالتی"
-                          >
-                            <Boxes className="w-3.5 h-3.5 text-amber-800" />
-                            <span>تفکیک کل پالت</span>
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
 
                     {/* Card Footer */}
                     <div className="pt-2 border-t border-stone-100 text-[10px] text-stone-600 flex items-center justify-between font-mono">
@@ -820,10 +795,10 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
         </div>
       )}
 
-      {/* SECTION 2: LOOSE SPOOLS */}
+      {/* SECTION 2: LOOSE SPOOLS (قرقره‌های غیرپالتی و تکی) */}
       {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'loose_spools') && (
         <div className="space-y-3 pt-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-sm font-black text-amber-950 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-xs bg-amber-800"></span>
               <span>قرقره‌های غیرپالتی و تکی</span>
@@ -831,9 +806,17 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                 {toFaDigits(looseSpools.length)} قلم موجود
               </span>
             </h2>
-            <span className="text-[11px] font-bold text-stone-600 font-mono">
-              کل غیرپالتی: {toFaDigits(looseSpools.reduce((acc, l) => acc + l.quantity, 0))} عدد | مجموع وزن: kg {toFaDigits(looseSpools.reduce((acc, l) => acc + l.totalWeightKg, 0).toFixed(1))}
-            </span>
+
+            {/* Smart Undo Last Pallet Split Button */}
+            <button
+              type="button"
+              onClick={handleUndoLastPalletSplit}
+              className="px-3 py-1.5 bg-stone-100 hover:bg-amber-100 text-stone-800 hover:text-amber-950 border border-stone-300 hover:border-amber-400 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+              title="بازگرداندن آخرین پالت تفکیک‌شده به حالت اولیه ۵ تایی"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-800" />
+              <span>بازگشت آخرین تفکیک پالت</span>
+            </button>
           </div>
 
           {looseSpools.length === 0 ? (
@@ -842,79 +825,70 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {looseSpools.map((loose) => (
-                <div
-                  key={loose.id}
-                  className="bg-white rounded-2xl border border-stone-200 p-3.5 shadow-2xs hover:border-amber-400 transition-all flex flex-col justify-between space-y-3"
-                >
-                  {/* Large Centered Spool Image Hero */}
-                  <div className="relative w-full h-40 sm:h-44 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 group">
-                    <img
-                      src={COPPER_SPOOL_IMG}
-                      alt="قرقره مس تکی"
-                      className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute top-2.5 right-2.5">
-                      <span className="px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-amber-300 font-bold text-[11px] border border-stone-700 shadow-xs">
-                        {loose.sourcePalletInfo || (loose.spoolCondition === 'opened' ? 'قرقره باز شده' : 'قرقره تکی / آزاد')}
-                      </span>
-                    </div>
-                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-white border border-stone-700 shadow-xs text-left font-mono">
-                      <span className="text-[9px] text-stone-300 block font-bold leading-none">وزن صافی</span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-sm font-black text-amber-300">
-                          {toFaDigits(loose.totalWeightKg.toFixed(1))}
+              {looseSpools.map((loose) => {
+                const isSelected = selectedLooseSpoolIds.has(loose.id);
+
+                return (
+                  <div
+                    key={loose.id}
+                    onClick={() => handleToggleLooseSpool(loose.id)}
+                    className={`bg-white rounded-2xl border p-3.5 shadow-2xs transition-all flex flex-col justify-between space-y-3 cursor-pointer ${
+                      isSelected ? 'border-amber-600 ring-2 ring-amber-500/40 bg-amber-50/20' : 'border-stone-200 hover:border-amber-400'
+                    }`}
+                  >
+                    {/* Large Centered Spool Image Hero */}
+                    <div className="relative w-full h-40 sm:h-44 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 group">
+                      <img
+                        src={COPPER_SPOOL_IMG}
+                        alt="قرقره مس تکی"
+                        className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center border shadow-xs ${
+                          isSelected ? 'bg-amber-800 border-amber-900 text-white' : 'bg-white/90 border-stone-300'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
                         </span>
-                        <span className="text-[10px] text-stone-300">kg</span>
+                        <span className="px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-amber-300 font-bold text-[11px] border border-stone-700 shadow-xs">
+                          {loose.sourcePalletInfo || (loose.spoolCondition === 'opened' ? 'قرقره باز شده' : 'قرقره تکی / آزاد')}
+                        </span>
+                      </div>
+
+                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-white border border-stone-700 shadow-xs text-left font-mono">
+                        <span className="text-[9px] text-stone-300 block font-bold leading-none">وزن صافی</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-sm font-black text-amber-300">
+                            {toFaDigits(loose.totalWeightKg.toFixed(1))}
+                          </span>
+                          <span className="text-[10px] text-stone-300">kg</span>
+                        </div>
+                      </div>
+
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950/90 via-stone-950/50 to-transparent p-2.5 pt-6 flex items-center justify-between text-white">
+                        <div className="text-[11px] font-bold flex items-center gap-1.5">
+                          <span className="text-amber-300 font-black">برند {loose.brand}</span>
+                          <span className="text-stone-400">•</span>
+                          <span className="text-stone-200">سایز "{loose.diameterInch} ({loose.thicknessMm}mm)</span>
+                        </div>
+                        <span className="text-[10px] text-stone-300 font-mono bg-stone-900/60 px-1.5 py-0.5 rounded border border-stone-700">
+                          تعداد: {toFaDigits(loose.quantity)} عدد
+                        </span>
                       </div>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950/90 via-stone-950/50 to-transparent p-2.5 pt-6 flex items-center justify-between text-white">
-                      <div className="text-[11px] font-bold flex items-center gap-1.5">
-                        <span className="text-amber-300 font-black">برند {loose.brand}</span>
-                        <span className="text-stone-400">•</span>
-                        <span className="text-stone-200">سایز "{loose.diameterInch} ({loose.thicknessMm}mm)</span>
-                      </div>
-                      <span className="text-[10px] text-stone-300 font-mono bg-stone-900/60 px-1.5 py-0.5 rounded border border-stone-700">
-                        تعداد: {toFaDigits(loose.quantity)} عدد
+
+                    {/* Footer Info */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-100 text-[11px]">
+                      <span className="text-stone-500 font-mono truncate max-w-[150px]" title={loose.notes || loose.referenceDocNumber}>
+                        {loose.notes || `بارنامه: ${loose.referenceDocNumber}`}
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-800">
+                        {isSelected ? '✓ انتخاب شده' : 'جهت انتخاب کلیک کنید'}
                       </span>
                     </div>
                   </div>
-
-                  {/* Footer Info & Action buttons */}
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-100 text-[11px]">
-                    <span className="text-stone-500 font-mono truncate max-w-[130px]" title={loose.notes || loose.referenceDocNumber}>
-                      {loose.notes || `بارنامه: ${loose.referenceDocNumber}`}
-                    </span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleRestoreLooseSpool(loose)}
-                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg text-xs font-bold border border-emerald-300 flex items-center gap-1 cursor-pointer transition-colors"
-                        title="بازگرداندن این قرقره به پالت اصلی"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>بازگشت به پالت</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfirmModalData({
-                            type: 'retail_from_loose',
-                            looseSpool: loose,
-                          })
-                        }
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-lg text-xs font-bold border border-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
-                        title="باز کردن این قرقره و انتقال مستقیم به بخش خورده‌ها"
-                      >
-                        <Scissors className="w-3.5 h-3.5 text-rose-600" />
-                        <span>به خورده‌ها</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -942,58 +916,64 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {retailItems.map((r) => (
-                <div
-                  key={r.id}
-                  className="bg-white rounded-2xl border border-rose-200/90 p-3.5 shadow-2xs space-y-3 flex flex-col justify-between"
-                >
-                  {/* Centered Large Spool Image */}
-                  <div className="relative w-full h-36 rounded-xl overflow-hidden bg-stone-100 border border-rose-200 group">
-                    <img
-                      src={COPPER_SPOOL_IMG}
-                      alt="خورده مس باز شده"
-                      className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute top-2.5 right-2.5">
-                      <span className="px-2.5 py-0.5 rounded-md bg-rose-700 text-white font-bold text-xs shadow-xs">
-                        خورده مس
+              {retailItems.map((r) => {
+                const isSelected = selectedRetailIds.has(r.id);
+
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => handleToggleRetailItem(r.id)}
+                    className={`bg-white rounded-2xl border p-3.5 shadow-2xs space-y-3 flex flex-col justify-between cursor-pointer transition-all ${
+                      isSelected ? 'border-rose-500 ring-2 ring-rose-400/50 bg-rose-50/20' : 'border-rose-200/90 hover:border-rose-300'
+                    }`}
+                  >
+                    {/* Centered Large Spool Image */}
+                    <div className="relative w-full h-36 rounded-xl overflow-hidden bg-stone-100 border border-rose-200 group">
+                      <img
+                        src={COPPER_SPOOL_IMG}
+                        alt="خورده مس باز شده"
+                        className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center border shadow-xs ${
+                          isSelected ? 'bg-rose-700 border-rose-800 text-white' : 'bg-white/90 border-stone-300'
+                        }`}>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-md bg-rose-700 text-white font-bold text-xs shadow-xs">
+                          خورده مس
+                        </span>
+                      </div>
+                      <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-white border border-stone-700 shadow-xs text-left font-mono">
+                        <span className="text-[9px] text-stone-300 block font-bold leading-none">وزن موجود</span>
+                        <div className="flex items-baseline gap-1 mt-0.5">
+                          <span className="text-sm font-black text-rose-300">
+                            {toFaDigits(r.totalWeightKg.toFixed(1))}
+                          </span>
+                          <span className="text-[10px] text-stone-300">kg</span>
+                        </div>
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950/90 via-stone-950/50 to-transparent p-2.5 pt-6 text-white">
+                        <div className="text-[11px] font-bold flex items-center gap-1.5">
+                          <span className="text-amber-300 font-black">برند {r.brand}</span>
+                          <span className="text-stone-400">•</span>
+                          <span className="text-stone-200">{r.diameterInch ? `"${r.diameterInch}` : ''} ({r.thicknessMm}mm)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-100">
+                      <span className="text-stone-500 font-bold text-[11px] truncate max-w-[150px]">
+                        {r.notes || `بارنامه: ${toFaDigits(r.referenceDocNumber)}`}
+                      </span>
+                      <span className="text-[10px] font-bold text-rose-800">
+                        {isSelected ? '✓ انتخاب شده' : 'جهت انتخاب کلیک کنید'}
                       </span>
                     </div>
-                    <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-stone-900/90 backdrop-blur-md text-white border border-stone-700 shadow-xs text-left font-mono">
-                      <span className="text-[9px] text-stone-300 block font-bold leading-none">وزن موجود</span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-sm font-black text-rose-300">
-                          {toFaDigits(r.totalWeightKg.toFixed(1))}
-                        </span>
-                        <span className="text-[10px] text-stone-300">kg</span>
-                      </div>
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950/90 via-stone-950/50 to-transparent p-2.5 pt-6 text-white">
-                      <div className="text-[11px] font-bold flex items-center gap-1.5">
-                        <span className="text-amber-300 font-black">برند {r.brand}</span>
-                        <span className="text-stone-400">•</span>
-                        <span className="text-stone-200">{r.diameterInch ? `"${r.diameterInch}` : ''} ({r.thicknessMm}mm)</span>
-                      </div>
-                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-stone-100">
-                    <span className="text-stone-500 font-bold text-[11px] truncate max-w-[130px]">
-                      {r.notes || `بارنامه: ${toFaDigits(r.referenceDocNumber)}`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRestoreRetailItem(r)}
-                      className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg text-xs font-bold border border-emerald-300 flex items-center gap-1 cursor-pointer transition-colors shrink-0"
-                      title="بازگرداندن این خورده به قرقره یا پالت اصلی"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>بازگشت به قرقره / پالت</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1123,79 +1103,104 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
         </div>
       )}
 
-      {/* CONFIRMATION MODAL TO PREVENT ACCIDENTAL CLICKS */}
-      {confirmModalData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-stone-900/50 backdrop-blur-xs">
-          <div className="bg-white border border-stone-200 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl relative my-auto text-stone-800 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between border-b border-stone-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-amber-700" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-stone-900">
-                    {confirmModalData.type === 'retail_from_pallet' && 'تأیید انتقال قرقره به خورده‌ها'}
-                    {confirmModalData.type === 'dismantle_pallet' && 'تأیید تفکیک کامل پالت'}
-                    {confirmModalData.type === 'retail_from_loose' && 'تأیید باز کردن قرقره آزاد به خورده‌ها'}
-                  </h3>
-                  <p className="text-[11px] text-stone-500 font-bold">
-                    جلوگیری از تغییر تصادفی وضعیت اقلام
-                  </p>
-                </div>
+      {/* FLOATING ACTION TOOLBAR WHEN ITEMS/SPOOLS ARE SELECTED */}
+      {selectionSummary.hasAnySelection && (
+        <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-8 sm:left-8 z-40 bg-stone-950/95 text-white border border-stone-700/80 shadow-2xl rounded-2xl p-3 sm:p-4 backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 flex flex-col md:flex-row items-center justify-between gap-3">
+          
+          {/* Left / Info info */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <div className="w-10 h-10 rounded-xl bg-amber-800 flex items-center justify-center text-amber-200 shrink-0">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+                <span>{toFaDigits(selectionSummary.totalCount)} قلم انتخاب شده</span>
+                <span className="text-amber-400 font-mono font-black">
+                  • مجموع صافی: {toFaDigits(selectionSummary.totalWeight.toFixed(1))} kg
+                </span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setConfirmModalData(null)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-700 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-[11px] text-stone-400 truncate max-w-sm">
+                آماده فروش مستقیم به مشتری/بورس یا تفکیک اقلام
+              </p>
             </div>
 
-            <div className="text-xs text-stone-700 leading-relaxed bg-stone-50 p-3 rounded-xl border border-stone-200">
-              {confirmModalData.type === 'retail_from_pallet' && (
-                <p>
-                  آیا مطمئن هستید که می‌خواهید <span className="font-black text-rose-700">قرقره ق{toFaDigits((confirmModalData.spoolIndex ?? 0) + 1)}</span> به وزن <span className="font-black font-mono text-stone-900">kg {toFaDigits((confirmModalData.weightKg || 0).toFixed(1))}</span> از پالت #{toFaDigits(confirmModalData.pallet?.palletIndex || 1)} به بخش خورده‌ها منتقل گردد؟
-                  <br />
-                  <span className="text-[11px] text-stone-500 mt-1 block">
-                    (در صورت اشتباه، امکان بازگردانی سریع با دکمه Undo و بازگشت به پالت وجود دارد).
-                  </span>
-                </p>
-              )}
-
-              {confirmModalData.type === 'dismantle_pallet' && (
-                <p>
-                  آیا از تفکیک کامل <span className="font-black text-amber-800">پالت #{toFaDigits(confirmModalData.pallet?.palletIndex || 1)}</span> و انتقال تمام {toFaDigits(confirmModalData.pallet?.spoolsCount || 0)} قرقره آن به بخش غیرپالتی اطمینان دارید؟
-                </p>
-              )}
-
-              {confirmModalData.type === 'retail_from_loose' && (
-                <p>
-                  آیا از باز کردن این قرقره آزاد به وزن <span className="font-black font-mono text-stone-900">kg {toFaDigits((confirmModalData.looseSpool?.totalWeightKg || 0).toFixed(1))}</span> و انتقال آن به بخش خورده‌ها اطمینان دارید؟
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
-              <button
-                type="button"
-                onClick={() => setConfirmModalData(null)}
-                className="px-4 py-2 text-xs text-stone-700 hover:bg-stone-100 rounded-xl cursor-pointer font-bold transition-colors"
-              >
-                انصراف
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteConfirmedAction}
-                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-xs font-black rounded-xl cursor-pointer transition-colors shadow-xs"
-              >
-                تأیید و انجام
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleClearAllSelections}
+              className="text-[11px] text-stone-400 hover:text-white underline cursor-pointer md:hidden"
+            >
+              لغو انتخاب
+            </button>
           </div>
+
+          {/* Right / Buttons */}
+          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
+            
+            <button
+              type="button"
+              onClick={handleClearAllSelections}
+              className="hidden md:inline-flex px-3 py-2 text-stone-400 hover:text-white text-xs font-bold cursor-pointer transition-colors"
+            >
+              لغو انتخاب
+            </button>
+
+            {selectionSummary.selectedPalletSpoolsMap.size > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleMoveSelectedToRetail}
+                  className="px-3 py-2 bg-rose-900/90 hover:bg-rose-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-rose-700/50"
+                  title="انتقال قرقره‌های پالتی انتخاب‌شده به خورده‌ها و ارسال باقیمانده به قرقره‌های آزاد"
+                >
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span>انتقال به خورده‌ها</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDismantleSelectedPallets}
+                  className="px-3 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-stone-600"
+                  title="تفکیک کامل پالت‌های انتخاب‌شده"
+                >
+                  <Boxes className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تفکیک پالت</span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={handleOpenSaleModalWithSelection}
+              className="flex-1 md:flex-initial px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm ring-2 ring-amber-500/50"
+            >
+              <UserCheck className="w-4 h-4 text-amber-200" />
+              <span>ثبت فروش مستقیم (مشتری / بورس)</span>
+            </button>
+
+          </div>
+
         </div>
       )}
+
+      {/* DIRECT SALE MODAL */}
+      <WarehouseDirectSaleModal
+        isOpen={isDirectSaleModalOpen}
+        onClose={() => setIsDirectSaleModalOpen(false)}
+        selectedStock={{
+          totalWeightKg: selectionSummary.totalWeight,
+          itemsCount: selectionSummary.totalCount,
+          summaryLabel: selectionSummary.summaryLabel,
+          itemsDetails: selectionSummary.itemsDetails,
+          rawPayload: {
+            selectedPalletSpools: selectionSummary.selectedPalletSpoolsMap,
+            selectedLooseSpools: selectionSummary.selectedLooseList,
+            selectedRetailItems: selectionSummary.selectedRetailList,
+          },
+        }}
+        people={availablePeople}
+        marketPrices={availablePrices}
+        onSubmitSale={handleConfirmDirectSale}
+      />
 
     </div>
   );

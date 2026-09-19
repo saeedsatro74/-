@@ -1,5 +1,6 @@
 import { WarehouseItem, WarehouseCargoItem } from '../types';
 import { getStoredWarehouseItems, saveWarehouseItems } from './storage';
+import { toFaDigits } from './formatters';
 
 export interface PalletCardRef {
   id: string;
@@ -517,62 +518,245 @@ export function restoreLooseSpoolToPallet(
 /**
  * Restores a retail item back to a loose spool or pallet.
  */
-export function restoreRetailToSpoolOrPallet(
-  retailItemId: string
+const PALLET_SPLIT_HISTORY_KEY = 'waateh_pallet_split_history_v1';
+
+export function savePalletSplitSnapshot(snapshot: WarehouseItem[]): void {
+  try {
+    const raw = localStorage.getItem(PALLET_SPLIT_HISTORY_KEY);
+    const list: WarehouseItem[][] = raw ? JSON.parse(raw) : [];
+    list.push(snapshot);
+    // Keep up to 10 latest snapshots
+    if (list.length > 10) list.shift();
+    localStorage.setItem(PALLET_SPLIT_HISTORY_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+
+export function hasPalletSplitHistory(): boolean {
+  try {
+    const raw = localStorage.getItem(PALLET_SPLIT_HISTORY_KEY);
+    const list: WarehouseItem[][] = raw ? JSON.parse(raw) : [];
+    return list.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export function undoLastPalletSplit(): WarehouseItem[] | null {
+  try {
+    const raw = localStorage.getItem(PALLET_SPLIT_HISTORY_KEY);
+    const list: WarehouseItem[][] = raw ? JSON.parse(raw) : [];
+    if (list.length === 0) return null;
+    const lastState = list.pop();
+    localStorage.setItem(PALLET_SPLIT_HISTORY_KEY, JSON.stringify(list));
+    if (lastState && Array.isArray(lastState)) {
+      saveWarehouseItems(lastState);
+      return lastState;
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Opens multiple specified spools from a pallet to retail copper (خورده‌ها),
+ * and moves any unselected remaining spools to loose non-pallet spools.
+ */
+export function openMultipleSpoolsToRetailFromPallet(
+  pallet: PalletCardRef,
+  spoolIndices: number[]
 ): WarehouseItem[] {
   const allItems = getStoredWarehouseItems();
-  let retailFound: WarehouseCargoItem | null = null;
-  let parentConsignmentId: string | null = null;
+  savePalletSplitSnapshot(allItems);
 
-  for (const consignment of allItems) {
-    for (const item of consignment.items || []) {
-      if (item.id === retailItemId) {
-        retailFound = item;
-        parentConsignmentId = consignment.id;
-        break;
-      }
-    }
-    if (retailFound) break;
-  }
+  const selectedWeights = spoolIndices.map((idx) => pallet.spoolWeights[idx] || 0);
+  const remainingWeights = pallet.spoolWeights.filter((_, idx) => !spoolIndices.includes(idx));
 
-  if (!retailFound || !parentConsignmentId) return allItems;
+  let updated = false;
 
-  const restoredWeight = retailFound.totalWeightKg || retailFound.unitWeightKg || 0;
+  const newItems = allItems.map((consignment) => {
+    if (consignment.id !== pallet.consignmentId) return consignment;
 
-  // Convert the retail item back into a loose spool (or return to pallet)
-  const updatedItems = allItems.map((consignment) => {
-    if (consignment.id !== parentConsignmentId) return consignment;
+    const updatedCargoItems: WarehouseCargoItem[] = [];
 
-    const newCargo: WarehouseCargoItem[] = [];
-    for (const c of consignment.items || []) {
-      if (c.id === retailItemId) {
-        // Recreate as a non-pallet loose spool
-        newCargo.push({
-          id: `restored-spool-${Date.now()}`,
+    for (const cargoItem of consignment.items || []) {
+      if (cargoItem.id === pallet.cargoItemId) {
+        updated = true;
+
+        // 1. Remaining spools become loose spools
+        const looseItems: WarehouseCargoItem[] = remainingWeights.map((w, idx) => ({
+          id: `${cargoItem.id}-loose-${idx + 1}-${Date.now()}`,
           packagingType: 'spool',
           spoolType: 'non_pallet',
-          brand: retailFound!.brand,
-          diameterInch: retailFound!.diameterInch,
-          thicknessMm: retailFound!.thicknessMm,
+          brand: pallet.brand,
+          diameterInch: pallet.diameterInch,
+          thicknessMm: pallet.thicknessMm,
           quantity: 1,
-          unitWeightKg: restoredWeight,
-          totalWeightKg: restoredWeight,
-          spoolWeights: [restoredWeight],
+          unitWeightKg: w,
+          totalWeightKg: w,
+          spoolWeights: [w],
           spoolCondition: 'sealed',
-          sourcePalletInfo: 'بازگردانی شده از خورده‌ها',
-          notes: `قرقره بازگردانی شده از بخش خورده‌ها (${retailFound!.brand})`,
-        });
+          sourcePalletInfo: `باقی‌مانده تفکیک پالت #${pallet.palletIndex}`,
+          notes: `قرقره غیرپالتی باقی‌مانده از پالت #${pallet.palletIndex}`,
+        }));
+
+        // 2. The selected spools become retail (خورده‌ها) items
+        const retailItems: WarehouseCargoItem[] = selectedWeights.map((w, idx) => ({
+          id: `${cargoItem.id}-retail-${spoolIndices[idx] + 1}-${Date.now() + idx}`,
+          packagingType: 'retail',
+          brand: pallet.brand,
+          diameterInch: pallet.diameterInch,
+          thicknessMm: pallet.thicknessMm,
+          quantity: 1,
+          unitWeightKg: w,
+          totalWeightKg: w,
+          notes: `مس باز شده / خورده (باز شده از قرقره ق${spoolIndices[idx] + 1} پالت #${pallet.palletIndex})`,
+        }));
+
+        updatedCargoItems.push(...looseItems, ...retailItems);
       } else {
-        newCargo.push(c);
+        updatedCargoItems.push(cargoItem);
       }
     }
 
     return {
       ...consignment,
-      items: newCargo,
+      items: updatedCargoItems,
     };
   });
 
-  saveWarehouseItems(updatedItems);
-  return updatedItems;
+  if (!updated) {
+    const looseItems: WarehouseCargoItem[] = remainingWeights.map((w, idx) => ({
+      id: `loose-${pallet.id}-${idx + 1}-${Date.now()}`,
+      packagingType: 'spool',
+      spoolType: 'non_pallet',
+      brand: pallet.brand,
+      diameterInch: pallet.diameterInch,
+      thicknessMm: pallet.thicknessMm,
+      quantity: 1,
+      unitWeightKg: w,
+      totalWeightKg: w,
+      spoolWeights: [w],
+      spoolCondition: 'sealed',
+      sourcePalletInfo: `باقی‌مانده تفکیک پالت #${pallet.palletIndex}`,
+      notes: `قرقره غیرپالتی باقی‌مانده از پالت #${pallet.palletIndex}`,
+    }));
+
+    const retailItems: WarehouseCargoItem[] = selectedWeights.map((w, idx) => ({
+      id: `retail-${pallet.id}-${spoolIndices[idx] + 1}-${Date.now() + idx}`,
+      packagingType: 'retail',
+      brand: pallet.brand,
+      diameterInch: pallet.diameterInch,
+      thicknessMm: pallet.thicknessMm,
+      quantity: 1,
+      unitWeightKg: w,
+      totalWeightKg: w,
+      notes: `مس باز شده / خورده (باز شده از قرقره ق${spoolIndices[idx] + 1} پالت #${pallet.palletIndex})`,
+    }));
+
+    const newDoc: WarehouseItem = {
+      id: `wh-opened-${pallet.id}-${Date.now()}`,
+      entryType: 'inbound',
+      referenceDocNumber: `OPEN-P#${pallet.palletIndex}`,
+      date: new Date().toLocaleDateString('fa-IR'),
+      targetPartyName: `تفکیک قرقره‌ها از پالت #${pallet.palletIndex}`,
+      registeredBy: 'انباردار مس واته',
+      notes: `تفکیک ${toFaDigits(spoolIndices.length)} قرقره از پالت #${pallet.palletIndex}`,
+      createdAt: new Date().toISOString(),
+      items: [...looseItems, ...retailItems],
+      totalWeightKg: pallet.totalWeightKg,
+      totalItemsCount: looseItems.length + retailItems.length,
+    };
+
+    const finalItems = [newDoc, ...allItems];
+    saveWarehouseItems(finalItems);
+    return finalItems;
+  }
+
+  saveWarehouseItems(newItems);
+  return newItems;
+}
+
+/**
+ * Deducts selected items sold directly from warehouse stock:
+ * 1. If full pallets sold: remove the pallets.
+ * 2. If partial spools in pallet sold: remove selected spools, move remaining unselected spools to loose spools.
+ * 3. If loose spools sold: remove sold loose spools.
+ * 4. If retail sold: reduce or remove retail item.
+ */
+export function executeDirectSaleStockDeduction(params: {
+  selectedPalletSpools?: Map<string, { pallet: PalletCardRef; selectedIndices: number[] }>;
+  selectedLooseSpools?: LooseSpoolRef[];
+  selectedRetailItems?: RetailItemRef[];
+  notes?: string;
+}): WarehouseItem[] {
+  let items = getStoredWarehouseItems();
+  savePalletSplitSnapshot(items);
+
+  // 1. Process Pallets & Partial Spools
+  if (params.selectedPalletSpools && params.selectedPalletSpools.size > 0) {
+    for (const [_, { pallet, selectedIndices }] of params.selectedPalletSpools.entries()) {
+      const isFullPalletSold = selectedIndices.length === pallet.spoolWeights.length;
+
+      if (isFullPalletSold) {
+        // Remove entire pallet cargo item
+        items = items.map((c) => {
+          if (c.id !== pallet.consignmentId) return c;
+          return {
+            ...c,
+            items: (c.items || []).filter((item) => item.id !== pallet.cargoItemId),
+          };
+        });
+      } else {
+        // Partial sale: Remaining unselected spools become loose spools
+        const remainingWeights = pallet.spoolWeights.filter((_, idx) => !selectedIndices.includes(idx));
+        
+        const remainingLoose: WarehouseCargoItem[] = remainingWeights.map((w, idx) => ({
+          id: `${pallet.cargoItemId}-rem-loose-${idx + 1}-${Date.now()}`,
+          packagingType: 'spool',
+          spoolType: 'non_pallet',
+          brand: pallet.brand,
+          diameterInch: pallet.diameterInch,
+          thicknessMm: pallet.thicknessMm,
+          quantity: 1,
+          unitWeightKg: w,
+          totalWeightKg: w,
+          spoolWeights: [w],
+          spoolCondition: 'sealed',
+          sourcePalletInfo: `باقی‌مانده فروش پالت #${pallet.palletIndex}`,
+          notes: `قرقره آزاد باقی‌مانده پس از فروش پالت #${pallet.palletIndex}`,
+        }));
+
+        items = items.map((c) => {
+          if (c.id !== pallet.consignmentId) return c;
+          const otherCargo = (c.items || []).filter((item) => item.id !== pallet.cargoItemId);
+          return {
+            ...c,
+            items: [...otherCargo, ...remainingLoose],
+          };
+        });
+      }
+    }
+  }
+
+  // 2. Process Loose Spools sold
+  if (params.selectedLooseSpools && params.selectedLooseSpools.length > 0) {
+    const looseCargoIds = new Set(params.selectedLooseSpools.map((l) => l.cargoItemId || l.id));
+    items = items.map((c) => ({
+      ...c,
+      items: (c.items || []).filter((item) => !looseCargoIds.has(item.id)),
+    }));
+  }
+
+  // 3. Process Retail Items sold
+  if (params.selectedRetailItems && params.selectedRetailItems.length > 0) {
+    const retailCargoIds = new Set(params.selectedRetailItems.map((r) => r.cargoItemId || r.id));
+    items = items.map((c) => ({
+      ...c,
+      items: (c.items || []).filter((item) => !retailCargoIds.has(item.id)),
+    }));
+  }
+
+  // Clean empty consignments if any
+  const cleanedItems = items.filter((c) => (c.items && c.items.length > 0) || c.entryType === 'outbound');
+  saveWarehouseItems(cleanedItems);
+  return cleanedItems;
 }

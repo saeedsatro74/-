@@ -14,7 +14,7 @@ import {
   SpoolPackagingType
 } from '../types';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   PEOPLE: 'copper_wallet_people_v2',
   TRANSACTIONS: 'copper_wallet_transactions_v2',
   MARKET_PRICE: 'copper_wallet_market_price_v2',
@@ -270,219 +270,8 @@ export const DEFAULT_MARKET_COPPER_PRICE = DEFAULT_MARKET_BUY_PRICE;
 // Realistic Seed People (Default empty so live data comes directly from Supabase cloud)
 const INITIAL_PEOPLE: Person[] = [];
 
-// Initial Transactions showcasing real wallet workflow
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  // --- علی رضایی (Exact example from user prompt) ---
-  // مرحله ۱: واریز ۱۰۰ میلیون تومان
-  {
-    id: 'tx-ali-1',
-    personId: 'p-ali',
-    date: '1403/11/01',
-    type: 'deposit',
-    amount: 100000000,
-    cashBalanceAfter: 100000000,
-    copperStockAfter: 0,
-    notes: 'واریز اولیه سرمایه به حساب',
-    createdAt: '1403-11-01T08:00:00.000Z',
-  },
-  // مرحله ۲: خرید مس به مبلغ ۵۰ میلیون تومان (۱۰۰ کیلو با نرخ ۵۰۰ هزار تومان)
-  {
-    id: 'tx-ali-2',
-    personId: 'p-ali',
-    date: '1403/11/05',
-    type: 'buy',
-    amount: 50000000,
-    weightKg: 100,
-    unitPrice: 500000,
-    cashBalanceAfter: 50000000,
-    copperStockAfter: 100,
-    notes: 'خرید ۱۰۰ کیلو لوله مسی',
-    createdAt: '1403-11-05T09:30:00.000Z',
-  },
-  // مرحله ۳: فروش ۴۰ کیلو مس به مبلغ ۲۴ میلیون تومان (با نرخ ۶۰۰ هزار تومان)
-  // بهای تمام شده = ۴۰ * ۵۰۰,۰۰۰ = ۲۰,۰۰۰,۰۰۰ تومان => سود = ۴,۰۰۰,۰۰۰ تومان
-  {
-    id: 'tx-ali-3',
-    personId: 'p-ali',
-    date: '1403/11/12',
-    type: 'sell',
-    amount: 24000000,
-    weightKg: 40,
-    unitPrice: 600000,
-    cogs: 20000000,
-    profit: 4000000,
-    profitPercentage: 20,
-    cashBalanceAfter: 74000000,
-    copperStockAfter: 60,
-    notes: 'فروش ۴۰ کیلو مس به پروژه',
-    createdAt: '1403-11-12T11:00:00.000Z',
-  },
-
-  // --- حاج رضا احمدی ---
-  {
-    id: 'tx-reza-1',
-    personId: 'p-reza',
-    date: '1403/11/05',
-    type: 'deposit',
-    amount: 350000000,
-    cashBalanceAfter: 350000000,
-    copperStockAfter: 0,
-    notes: 'واریز نقدی وجه سرمایه‌گذاری مس',
-    createdAt: '1403-11-05T10:00:00.000Z',
-  },
-  {
-    id: 'tx-reza-2',
-    personId: 'p-reza',
-    date: '1403/11/08',
-    type: 'buy',
-    amount: 130000000,
-    weightKg: 200,
-    unitPrice: 650000,
-    cashBalanceAfter: 220000000,
-    copperStockAfter: 200,
-    notes: 'خرید پارت اول لوله مهراصل',
-    createdAt: '1403-11-08T11:00:00.000Z',
-  },
-  {
-    id: 'tx-reza-3',
-    personId: 'p-reza',
-    date: '1403/11/15',
-    type: 'buy',
-    amount: 102000000,
-    weightKg: 150,
-    unitPrice: 680000,
-    cashBalanceAfter: 118000000,
-    copperStockAfter: 350,
-    notes: 'خرید پارت دوم کلاف مسی',
-    createdAt: '1403-11-15T14:00:00.000Z',
-  },
-  {
-    id: 'tx-reza-4',
-    personId: 'p-reza',
-    date: '1403/11/22',
-    type: 'sell',
-    amount: 136800000,
-    weightKg: 180,
-    unitPrice: 760000,
-    cogs: 119314285,
-    profit: 17485715,
-    profitPercentage: 14.65,
-    cashBalanceAfter: 254800000,
-    copperStockAfter: 170,
-    notes: 'فروش به پروژه سپید فاز ۱',
-    createdAt: '1403-11-22T16:00:00.000Z',
-  },
-
-  // --- مهندس حسینی ---
-  {
-    id: 'tx-hos-1',
-    personId: 'p-hoseini',
-    date: '1403/11/10',
-    type: 'deposit',
-    amount: 500000000,
-    cashBalanceAfter: 500000000,
-    copperStockAfter: 0,
-    notes: 'شارژ کیف پول جهت خرید لوله چیلر',
-    createdAt: '1403-11-10T09:00:00.000Z',
-  },
-  {
-    id: 'tx-hos-2',
-    personId: 'p-hoseini',
-    date: '1403/11/14',
-    type: 'buy',
-    amount: 268000000,
-    weightKg: 400,
-    unitPrice: 670000,
-    cashBalanceAfter: 232000000,
-    copperStockAfter: 400,
-    notes: 'خرید لوله باهنر سایز ۵/۸',
-    createdAt: '1403-11-14T12:00:00.000Z',
-  },
-  {
-    id: 'tx-hos-3',
-    personId: 'p-hoseini',
-    date: '1403/11/28',
-    type: 'sell',
-    amount: 187500000,
-    weightKg: 250,
-    unitPrice: 750000,
-    cogs: 167500000,
-    profit: 20000000,
-    profitPercentage: 11.94,
-    cashBalanceAfter: 419500000,
-    copperStockAfter: 150,
-    notes: 'فروش پارت اول لوله چیلر',
-    createdAt: '1403-11-28T15:00:00.000Z',
-  },
-
-  // --- علی کریمی ---
-  {
-    id: 'tx-kar-1',
-    personId: 'p-karimi',
-    date: '1403/11/15',
-    type: 'deposit',
-    amount: 150000000,
-    cashBalanceAfter: 150000000,
-    copperStockAfter: 0,
-    notes: 'واریز وجه خرید و فروش',
-    createdAt: '1403-11-15T10:00:00.000Z',
-  },
-  {
-    id: 'tx-kar-2',
-    personId: 'p-karimi',
-    date: '1403/11/16',
-    type: 'buy',
-    amount: 115200000,
-    weightKg: 180,
-    unitPrice: 640000,
-    cashBalanceAfter: 34800000,
-    copperStockAfter: 180,
-    notes: 'خرید ۱۸۰ کیلو مس',
-    createdAt: '1403-11-16T11:00:00.000Z',
-  },
-  {
-    id: 'tx-kar-3',
-    personId: 'p-karimi',
-    date: '1403/11/26',
-    type: 'sell',
-    amount: 133200000,
-    weightKg: 180,
-    unitPrice: 740000,
-    cogs: 115200000,
-    profit: 18000000,
-    profitPercentage: 15.62,
-    cashBalanceAfter: 168000000,
-    copperStockAfter: 0,
-    notes: 'فروش کل موجودی و تسویه مس',
-    createdAt: '1403-11-26T17:00:00.000Z',
-  },
-
-  // --- شرکت سرمایش البرز (Large numbers: 1 Billion Toman) ---
-  {
-    id: 'tx-alb-1',
-    personId: 'p-alborz',
-    date: '1403/11/20',
-    type: 'deposit',
-    amount: 1000000000, // ۱ میلیارد تومان
-    cashBalanceAfter: 1000000000,
-    copperStockAfter: 0,
-    notes: 'سرمایه‌گذاری ۱ میلیارد تومانی شرکت',
-    createdAt: '1403-11-20T09:00:00.000Z',
-  },
-  {
-    id: 'tx-alb-2',
-    personId: 'p-alborz',
-    date: '1403/11/25',
-    type: 'buy',
-    amount: 408000000, // ۴۰۸ میلیون تومان
-    weightKg: 600,
-    unitPrice: 680000,
-    cashBalanceAfter: 592000000,
-    copperStockAfter: 600,
-    notes: 'خرید ۶۰۰ کیلوگرم مس ضخامت بالا',
-    createdAt: '1403-11-25T13:00:00.000Z',
-  },
-];
+// Initial Transactions (Default empty so live data comes directly from Supabase cloud)
+const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 // --- Storage API ---
 
@@ -1163,6 +952,7 @@ export function saveWarehouseItems(items: WarehouseItem[]): void {
     localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(items));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: items }));
+      import('../services/supabase').then((m) => m.dbSaveWarehouseItems(items)).catch(() => {});
       import('./cloudSync').then((m) => m.syncWithCloudDatabase()).catch(() => {});
     }
   } catch (err) {

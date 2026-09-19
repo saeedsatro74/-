@@ -59,9 +59,12 @@ import { WarehouseEntryModal } from './WarehouseEntryModal';
 import { WarehouseReceiptModal } from './WarehouseReceiptModal';
 import { WarehouseLiveStockCatalog } from './WarehouseLiveStockCatalog';
 import { WarehouseStockPickerModal, SelectedStockItemsResult } from './WarehouseStockPickerModal';
+import { Person, MarketPrices } from '../types';
 
 interface WarehousePortalViewProps {
   items: WarehouseItem[];
+  people?: Person[];
+  marketPrices?: MarketPrices;
   onAddItem?: (item: WarehouseItem) => void;
   onUpdateItem?: (item: WarehouseItem) => void;
   onDeleteItem?: (id: string) => void;
@@ -69,10 +72,15 @@ interface WarehousePortalViewProps {
   onLogout?: () => void;
   onChangePassword?: () => void;
   userRole?: 'admin' | 'warehouse';
+  onExecuteDirectSale?: (saleData: any) => Promise<void> | void;
+  onOpenBuyCopper?: () => void;
+  onOpenSellCopper?: () => void;
 }
 
 export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
   items,
+  people,
+  marketPrices,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -80,6 +88,9 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
   onLogout,
   onChangePassword,
   userRole = 'warehouse',
+  onExecuteDirectSale,
+  onOpenBuyCopper,
+  onOpenSellCopper,
 }) => {
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -441,6 +452,8 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
       <WarehouseLiveStockCatalog
         items={items}
         inventorySummary={inventorySummary}
+        people={people}
+        marketPrices={marketPrices}
         externalSearchQuery={searchQuery}
         onOpenAdd={handleOpenAdd}
         onViewReceipt={(item) => setViewingReceiptItem(item)}
@@ -452,6 +465,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
           if (onAddItem) onAddItem(item);
           else addWarehouseItem(item);
         }}
+        onExecuteDirectSale={onExecuteDirectSale}
       />
 
       {/* Modals */}

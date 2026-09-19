@@ -46,15 +46,25 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize GoogleGenAI SDK server-side
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Lazy initialization for GoogleGenAI SDK server-side
+let aiClient: GoogleGenAI | null = null;
+function getAIClient(): GoogleGenAI | null {
+  if (!aiClient && process.env.GEMINI_API_KEY) {
+    try {
+      aiClient = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Could not initialize GoogleGenAI client:', e);
     }
   }
-});
+  return aiClient;
+}
 
 // Cache for live prices
 let cachedPrices: any = null;
@@ -85,6 +95,11 @@ async function fetchPricesWithGemini(bypassCache = false) {
   const now = Date.now();
   if (!bypassCache && cachedPrices && (now - lastFetchTime < CACHE_TTL)) {
     return cachedPrices;
+  }
+
+  const ai = getAIClient();
+  if (!ai) {
+    return DEFAULT_PRICES;
   }
 
   try {
@@ -224,6 +239,11 @@ CRITICAL INSTUCTIONS:
       const modelsToTry = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"];
       let responseText = "";
       let groundingSources: { title: string, url: string }[] = [];
+
+      const ai = getAIClient();
+      if (!ai) {
+        throw new Error('Gemini API is not configured. Utilizing standard calculations.');
+      }
 
       for (const model of modelsToTry) {
         try {
@@ -390,6 +410,11 @@ Return strictly a valid JSON object matching the requested schema.`;
         "gemini-3.1-pro-preview"
       ];
       let extractedData: any = null;
+
+      const ai = getAIClient();
+      if (!ai) {
+        return res.status(400).json({ error: 'قابلیت اسکن تصویر نیاز به کلید Gemini دارد یا می‌توانید مشخصات را دستی وارد نمایید.' });
+      }
 
       for (const model of modelsToTry) {
         try {
