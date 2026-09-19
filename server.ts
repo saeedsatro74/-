@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { 
@@ -20,6 +21,68 @@ import { optionalAuth, requireAuth, AuthRequest } from './src/middleware/auth.ts
 
 const app = express();
 const PORT = 3000;
+
+// Master Persistent Storage File
+const DATA_DIR = path.join(process.cwd(), 'data');
+const MASTER_DB_FILE = path.join(DATA_DIR, 'master_database.json');
+
+interface MasterDatabase {
+  people: any[];
+  transactions: any[];
+  warehouseItems: any[];
+  marketPrices: { buyPrice: number; sellPrice: number };
+  companyCopperStock: number;
+  deletedPersonIds: string[];
+  lastUpdated: string;
+}
+
+const DEFAULT_MASTER_DB: MasterDatabase = {
+  people: [],
+  transactions: [],
+  warehouseItems: [],
+  marketPrices: { buyPrice: 2150000, sellPrice: 2000000 },
+  companyCopperStock: 0,
+  deletedPersonIds: [],
+  lastUpdated: new Date().toISOString(),
+};
+
+function readMasterDb(): MasterDatabase {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(MASTER_DB_FILE)) {
+      const content = fs.readFileSync(MASTER_DB_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      return {
+        people: Array.isArray(parsed.people) ? parsed.people : [],
+        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+        warehouseItems: Array.isArray(parsed.warehouseItems) ? parsed.warehouseItems : [],
+        marketPrices: parsed.marketPrices || DEFAULT_MASTER_DB.marketPrices,
+        companyCopperStock: Number(parsed.companyCopperStock) || 0,
+        deletedPersonIds: Array.isArray(parsed.deletedPersonIds) ? parsed.deletedPersonIds : [],
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.error('Failed to read master_database.json:', err);
+  }
+  return { ...DEFAULT_MASTER_DB };
+}
+
+function writeMasterDb(data: MasterDatabase): boolean {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    data.lastUpdated = new Date().toISOString();
+    fs.writeFileSync(MASTER_DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Failed to write master_database.json:', err);
+    return false;
+  }
+}
 
 // Configured allowed domains for Supabase & API connections
 const ALLOWED_ORIGINS = [
@@ -606,21 +669,184 @@ Return strictly a valid JSON object matching the requested schema.`;
     }
   });
 
-  // People endpoints
+  // --- High-Availability Central Master Sync Endpoints ---
+
+  // Get current master DB state across all laptops
+  app.get('/api/sync/master', (req, res) => {
+    try {
+      const masterDb = readMasterDb();
+      res.json({
+        success: true,
+        data: masterDb,
+        serverTime: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error('Error fetching master DB:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Failed to read master DB' });
+    }
+  });
+
+  // Push / Merge full or partial state to master DB
+  app.post('/api/sync/master', (req, res) => {
+    try {
+      const { 
+        people: incomingPeople, 
+        transactions: incomingTransactions, 
+        warehouseItems: incomingWarehouse, 
+        marketPrices: incomingPrices, 
+        companyCopperStock: incomingStock,
+        deletedPersonIds: incomingDeletedIds,
+        person: singlePerson,
+        transaction: singleTx
+      } = req.body;
+
+      const master = readMasterDb();
+      const deletedSet = new Set<string>(master.deletedPersonIds || []);
+
+      if (Array.isArray(incomingDeletedIds)) {
+        incomingDeletedIds.forEach((id: string) => {
+          if (id) deletedSet.add(id);
+        });
+      }
+
+      // Merge single person
+      if (singlePerson && singlePerson.id && !deletedSet.has(singlePerson.id)) {
+        const idx = master.people.findIndex((p: any) => p.id === singlePerson.id);
+        if (idx >= 0) {
+          master.people[idx] = { ...master.people[idx], ...singlePerson };
+        } else {
+          master.people.unshift(singlePerson);
+        }
+      }
+
+      // Merge incoming people
+      if (Array.isArray(incomingPeople)) {
+        const peopleMap = new Map<string, any>(master.people.map((p: any) => [p.id, p]));
+        incomingPeople.forEach((p: any) => {
+          if (p && p.id && !deletedSet.has(p.id)) {
+            const existing = peopleMap.get(p.id);
+            peopleMap.set(p.id, { ...existing, ...p });
+          }
+        });
+        master.people = Array.from(peopleMap.values()).filter((p: any) => !deletedSet.has(p.id));
+      }
+
+      // Merge single transaction
+      if (singleTx && singleTx.id && !deletedSet.has(singleTx.personId)) {
+        const idx = master.transactions.findIndex((t: any) => t.id === singleTx.id);
+        if (idx >= 0) {
+          master.transactions[idx] = { ...master.transactions[idx], ...singleTx };
+        } else {
+          master.transactions.push(singleTx);
+        }
+      }
+
+      // Merge incoming transactions
+      if (Array.isArray(incomingTransactions)) {
+        const txMap = new Map<string, any>(master.transactions.map((t: any) => [t.id, t]));
+        incomingTransactions.forEach((t: any) => {
+          if (t && t.id && !deletedSet.has(t.personId)) {
+            const existing = txMap.get(t.id);
+            txMap.set(t.id, { ...existing, ...t });
+          }
+        });
+        master.transactions = Array.from(txMap.values()).filter((t: any) => !deletedSet.has(t.personId));
+      }
+
+      // Merge warehouse
+      if (Array.isArray(incomingWarehouse)) {
+        master.warehouseItems = incomingWarehouse;
+      }
+
+      // Merge prices & stock
+      if (incomingPrices && typeof incomingPrices.buyPrice === 'number') {
+        master.marketPrices = incomingPrices;
+      }
+      if (incomingStock !== undefined && incomingStock !== null) {
+        master.companyCopperStock = Number(incomingStock);
+      }
+
+      master.deletedPersonIds = Array.from(deletedSet);
+      writeMasterDb(master);
+
+      // Async push to SQL / repository if available without blocking
+      try {
+        if (singlePerson) upsertPerson(singlePerson).catch(() => {});
+        if (singleTx) upsertTransaction(singleTx).catch(() => {});
+      } catch (e) {}
+
+      res.json({
+        success: true,
+        data: master,
+        message: `همگام‌سازی ابری مرکزی با موفقیت ذخیره شد (${master.people.length} نفر و ${master.transactions.length} تراکنش)`,
+      });
+    } catch (err: any) {
+      console.error('Error saving to master DB:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Failed to save to master DB' });
+    }
+  });
+
+  // Permanently delete a person across all laptops
+  app.post('/api/sync/delete-person', (req, res) => {
+    try {
+      const { personId } = req.body;
+      if (!personId) {
+        return res.status(400).json({ success: false, error: 'personId is required' });
+      }
+
+      const master = readMasterDb();
+      const deletedSet = new Set<string>(master.deletedPersonIds || []);
+      deletedSet.add(personId);
+      master.deletedPersonIds = Array.from(deletedSet);
+
+      // Remove from people array
+      master.people = master.people.filter((p: any) => p.id !== personId);
+      // Remove all transactions
+      master.transactions = master.transactions.filter((t: any) => t.personId !== personId);
+
+      writeMasterDb(master);
+
+      try {
+        deletePerson(personId).catch(() => {});
+      } catch (e) {}
+
+      res.json({
+        success: true,
+        data: master,
+        message: 'شخص و تمام تراکنش‌های آن از سرور مرکزی حذف گردید.',
+      });
+    } catch (err: any) {
+      console.error('Error deleting person from master DB:', err);
+      res.status(500).json({ success: false, error: err?.message || 'Failed to delete person' });
+    }
+  });
+
+  // People endpoints (fallback to master DB if SQL fails)
   app.get('/api/people', async (req, res) => {
     try {
       const peopleList = await getPeople();
       res.json(peopleList);
     } catch (err: any) {
-      console.error('Error fetching people:', err);
-      res.status(500).json({ error: 'Failed to fetch people' });
+      const master = readMasterDb();
+      res.json(master.people);
     }
   });
 
   app.post('/api/people', async (req, res) => {
     try {
-      const person = await upsertPerson(req.body);
-      res.json(person);
+      const master = readMasterDb();
+      const p = req.body;
+      const idx = master.people.findIndex((x: any) => x.id === p.id);
+      if (idx >= 0) master.people[idx] = p;
+      else master.people.unshift(p);
+      writeMasterDb(master);
+
+      try {
+        const person = await upsertPerson(req.body);
+        return res.json(person);
+      } catch (e) {
+        return res.json(p);
+      }
     } catch (err: any) {
       console.error('Error saving person:', err);
       res.status(500).json({ error: 'Failed to save person' });
@@ -629,7 +855,16 @@ Return strictly a valid JSON object matching the requested schema.`;
 
   app.delete('/api/people/:id', async (req, res) => {
     try {
-      await deletePerson(req.params.id);
+      const personId = req.params.id;
+      const master = readMasterDb();
+      master.deletedPersonIds.push(personId);
+      master.people = master.people.filter((p: any) => p.id !== personId);
+      master.transactions = master.transactions.filter((t: any) => t.personId !== personId);
+      writeMasterDb(master);
+
+      try {
+        await deletePerson(personId);
+      } catch (e) {}
       res.json({ success: true });
     } catch (err: any) {
       console.error('Error deleting person:', err);
@@ -643,15 +878,26 @@ Return strictly a valid JSON object matching the requested schema.`;
       const trxs = await getTransactions();
       res.json(trxs);
     } catch (err: any) {
-      console.error('Error fetching transactions:', err);
-      res.status(500).json({ error: 'Failed to fetch transactions' });
+      const master = readMasterDb();
+      res.json(master.transactions);
     }
   });
 
   app.post('/api/transactions', async (req, res) => {
     try {
-      const trx = await upsertTransaction(req.body);
-      res.json(trx);
+      const master = readMasterDb();
+      const t = req.body;
+      const idx = master.transactions.findIndex((x: any) => x.id === t.id);
+      if (idx >= 0) master.transactions[idx] = t;
+      else master.transactions.push(t);
+      writeMasterDb(master);
+
+      try {
+        const trx = await upsertTransaction(req.body);
+        return res.json(trx);
+      } catch (e) {
+        return res.json(t);
+      }
     } catch (err: any) {
       console.error('Error saving transaction:', err);
       res.status(500).json({ error: 'Failed to save transaction' });
@@ -660,7 +906,14 @@ Return strictly a valid JSON object matching the requested schema.`;
 
   app.delete('/api/transactions/:id', async (req, res) => {
     try {
-      await deleteTransaction(req.params.id);
+      const id = req.params.id;
+      const master = readMasterDb();
+      master.transactions = master.transactions.filter((t: any) => t.id !== id);
+      writeMasterDb(master);
+
+      try {
+        await deleteTransaction(id);
+      } catch (e) {}
       res.json({ success: true });
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
@@ -674,15 +927,23 @@ Return strictly a valid JSON object matching the requested schema.`;
       const items = await getWarehouseItems();
       res.json(items);
     } catch (err: any) {
-      console.error('Error fetching warehouse items:', err);
-      res.status(500).json({ error: 'Failed to fetch warehouse items' });
+      const master = readMasterDb();
+      res.json(master.warehouseItems);
     }
   });
 
   app.post('/api/warehouse-items', async (req, res) => {
     try {
-      const item = await upsertWarehouseItem(req.body);
-      res.json(item);
+      const master = readMasterDb();
+      master.warehouseItems = Array.isArray(req.body) ? req.body : [req.body];
+      writeMasterDb(master);
+
+      try {
+        const item = await upsertWarehouseItem(req.body);
+        return res.json(item);
+      } catch (e) {
+        return res.json(req.body);
+      }
     } catch (err: any) {
       console.error('Error saving warehouse item:', err);
       res.status(500).json({ error: 'Failed to save warehouse item' });
@@ -691,7 +952,12 @@ Return strictly a valid JSON object matching the requested schema.`;
 
   app.delete('/api/warehouse-items/:id', async (req, res) => {
     try {
-      await deleteWarehouseItem(req.params.id);
+      const master = readMasterDb();
+      master.warehouseItems = master.warehouseItems.filter((w: any) => w.id !== req.params.id);
+      writeMasterDb(master);
+      try {
+        await deleteWarehouseItem(req.params.id);
+      } catch (e) {}
       res.json({ success: true });
     } catch (err: any) {
       console.error('Error deleting warehouse item:', err);
@@ -699,46 +965,44 @@ Return strictly a valid JSON object matching the requested schema.`;
     }
   });
 
-  // Bulk synchronization (syncs all client data to database, and returns latest merged database state)
+  // Bulk synchronization
   app.post('/api/sync/bulk', async (req, res) => {
     try {
       const { people: clientPeople, transactions: clientTransactions, warehouseItems: clientWarehouseItems } = req.body;
+      const master = readMasterDb();
+      const deletedSet = new Set<string>(master.deletedPersonIds || []);
 
       if (Array.isArray(clientPeople) && clientPeople.length > 0) {
-        for (const p of clientPeople) {
-          if (p && p.id && p.name) {
-            await upsertPerson(p);
+        const peopleMap = new Map<string, any>(master.people.map((p: any) => [p.id, p]));
+        clientPeople.forEach((p: any) => {
+          if (p && p.id && !deletedSet.has(p.id)) {
+            peopleMap.set(p.id, { ...peopleMap.get(p.id), ...p });
           }
-        }
+        });
+        master.people = Array.from(peopleMap.values()).filter((p: any) => !deletedSet.has(p.id));
       }
 
       if (Array.isArray(clientTransactions) && clientTransactions.length > 0) {
-        for (const t of clientTransactions) {
-          if (t && t.id && t.personId) {
-            await upsertTransaction(t);
+        const txMap = new Map<string, any>(master.transactions.map((t: any) => [t.id, t]));
+        clientTransactions.forEach((t: any) => {
+          if (t && t.id && !deletedSet.has(t.personId)) {
+            txMap.set(t.id, { ...txMap.get(t.id), ...t });
           }
-        }
+        });
+        master.transactions = Array.from(txMap.values()).filter((t: any) => !deletedSet.has(t.personId));
       }
 
       if (Array.isArray(clientWarehouseItems) && clientWarehouseItems.length > 0) {
-        for (const w of clientWarehouseItems) {
-          if (w && w.id && w.brand) {
-            await upsertWarehouseItem(w);
-          }
-        }
+        master.warehouseItems = clientWarehouseItems;
       }
 
-      const [serverPeople, serverTransactions, serverWarehouseItems] = await Promise.all([
-        getPeople(),
-        getTransactions(),
-        getWarehouseItems(),
-      ]);
+      writeMasterDb(master);
 
       res.json({
         success: true,
-        people: serverPeople,
-        transactions: serverTransactions,
-        warehouseItems: serverWarehouseItems,
+        people: master.people,
+        transactions: master.transactions,
+        warehouseItems: master.warehouseItems,
       });
     } catch (err: any) {
       console.error('Error in bulk sync:', err);

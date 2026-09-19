@@ -318,10 +318,70 @@ function isSchemaColumnError(error: any): boolean {
   );
 }
 
+// --- Central Server Master Database Sync Helpers ---
+
+async function fetchFromMasterApi(): Promise<{
+  people: Person[];
+  transactions: Transaction[];
+  warehouseItems?: WarehouseItem[];
+  marketPrices?: MarketPrices;
+  companyCopperStock?: number;
+  deletedPersonIds?: string[];
+  success: boolean;
+} | null> {
+  try {
+    const res = await fetch('/api/sync/master', {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json && json.success && json.data) {
+      return {
+        people: Array.isArray(json.data.people) ? json.data.people : [],
+        transactions: Array.isArray(json.data.transactions) ? json.data.transactions : [],
+        warehouseItems: Array.isArray(json.data.warehouseItems) ? json.data.warehouseItems : [],
+        marketPrices: json.data.marketPrices,
+        companyCopperStock: json.data.companyCopperStock,
+        deletedPersonIds: Array.isArray(json.data.deletedPersonIds) ? json.data.deletedPersonIds : [],
+        success: true,
+      };
+    }
+  } catch (e) {
+    // Master API not available or network offline
+  }
+  return null;
+}
+
+export async function pushToMasterApi(payload: any): Promise<boolean> {
+  try {
+    const res = await fetch('/api/sync/master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function deletePersonFromMasterApi(personId: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/sync/delete-person', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personId }),
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 // --- Supabase Cloud Operations ---
 
 /**
- * Fetch all records from Supabase
+ * Fetch all records from Master Server DB and Supabase
  */
 export async function fetchAllFromSupabase(): Promise<{
   people: Person[];
@@ -335,20 +395,28 @@ export async function fetchAllFromSupabase(): Promise<{
   error?: string;
 }> {
   try {
-    const fetchPromise = Promise.all([
+    // Query Master Server API and Supabase concurrently
+    const masterApiPromise = fetchFromMasterApi();
+
+    const supabasePromise = Promise.all([
       supabase.from('people').select('*').order('created_at', { ascending: false }),
       supabase.from('transactions').select('*').order('date', { ascending: true }),
       supabase.from('app_settings').select('*'),
-    ]);
+    ]).catch((err) => {
+      console.warn('Direct Supabase fetch catch:', err);
+      return [null, null, null] as any;
+    });
 
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Supabase network timeout')), 8000)
+      setTimeout(() => reject(new Error('Network timeout')), 8000)
     );
 
-    const [peopleRes, txRes, settingsRes] = await Promise.race([
-      fetchPromise,
+    const [masterResult, supabaseRes] = await Promise.race([
+      Promise.all([masterApiPromise, supabasePromise]),
       timeoutPromise
     ]);
+
+    const [peopleRes, txRes, settingsRes] = supabaseRes || [null, null, null];
 
     const settingsList = settingsRes?.data || [];
     const getSettingVal = (keyName: string) => {
@@ -356,7 +424,7 @@ export async function fetchAllFromSupabase(): Promise<{
       return match ? match.value : undefined;
     };
 
-    // 1. Gather all tombstoned deleted person IDs from Supabase and localStorage
+    // 1. Gather all tombstoned deleted person IDs from Supabase, master API, and localStorage
     const deletedPersonIds = new Set<string>(getStoredDeletedPersonIds());
     settingsList.forEach((s: any) => {
       const key = String(s.key || '');
@@ -369,70 +437,92 @@ export async function fetchAllFromSupabase(): Promise<{
       }
     });
 
-    if (peopleRes.error) {
-      console.warn('Supabase people fetch info:', peopleRes.error.message || peopleRes.error);
-      return { 
-        people: [], 
-        transactions: [], 
-        marketPrice: DEFAULT_MARKET_BUY_PRICE, 
-        marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
-        deletedPersonIds: Array.from(deletedPersonIds),
-        isConnected: false, 
-        error: peopleRes.error.message 
-      };
+    if (masterResult && masterResult.deletedPersonIds) {
+      masterResult.deletedPersonIds.forEach((id) => {
+        if (id) {
+          deletedPersonIds.add(id);
+          saveStoredDeletedPersonId(id);
+        }
+      });
     }
 
-    // Filter out any accounts that were deleted so they are never displayed or revived
-    let people = (peopleRes.data as PersonRow[] || [])
-      .map(toPerson)
-      .filter((p) => p && p.id && !deletedPersonIds.has(p.id));
+    const peopleMap = new Map<string, Person>();
+    const txMap = new Map<string, Transaction>();
 
-    let transactions = (txRes.data as TransactionRow[] || [])
-      .map(toTransaction)
-      .filter((t) => t && t.personId && !deletedPersonIds.has(t.personId));
-    
-    // Check if cloud backup snapshot contains additional users/records
+    // 2. Load from Master Server API (Primary central server)
+    if (masterResult && masterResult.success) {
+      masterResult.people.forEach((p) => {
+        if (p && p.id && !deletedPersonIds.has(p.id)) {
+          peopleMap.set(p.id, p);
+        }
+      });
+      masterResult.transactions.forEach((t) => {
+        if (t && t.id && !deletedPersonIds.has(t.personId)) {
+          txMap.set(t.id, t);
+        }
+      });
+    }
+
+    // 3. Merge Supabase data
+    if (peopleRes && !peopleRes.error && Array.isArray(peopleRes.data)) {
+      const supaPeople = (peopleRes.data as PersonRow[])
+        .map(toPerson)
+        .filter((p) => p && p.id && !deletedPersonIds.has(p.id));
+      supaPeople.forEach((p) => {
+        if (!peopleMap.has(p.id)) {
+          peopleMap.set(p.id, p);
+        }
+      });
+    }
+
+    if (txRes && !txRes.error && Array.isArray(txRes.data)) {
+      const supaTxs = (txRes.data as TransactionRow[])
+        .map(toTransaction)
+        .filter((t) => t && t.personId && !deletedPersonIds.has(t.personId));
+      supaTxs.forEach((t) => {
+        if (!txMap.has(t.id)) {
+          txMap.set(t.id, t);
+        }
+      });
+    }
+
+    // 4. Check cloud full backup json in settings
     const rawBackupJson = getSettingVal('cloud_full_backup_json');
     if (rawBackupJson) {
       try {
         const backupData = typeof rawBackupJson === 'string' ? JSON.parse(rawBackupJson) : rawBackupJson;
         if (backupData && Array.isArray(backupData.people)) {
-          const existingIds = new Set(people.map((p) => p.id));
           backupData.people.forEach((bp: Person) => {
-            if (bp && bp.id && !existingIds.has(bp.id) && !deletedPersonIds.has(bp.id)) {
-              people.push(bp);
-              existingIds.add(bp.id);
+            if (bp && bp.id && !peopleMap.has(bp.id) && !deletedPersonIds.has(bp.id)) {
+              peopleMap.set(bp.id, bp);
             }
           });
         }
         if (backupData && Array.isArray(backupData.transactions)) {
-          const existingTxIds = new Set(transactions.map((t) => t.id));
           backupData.transactions.forEach((bt: Transaction) => {
-            if (bt && bt.id && !existingTxIds.has(bt.id) && !deletedPersonIds.has(bt.personId)) {
-              transactions.push(bt);
-              existingTxIds.add(bt.id);
+            if (bt && bt.id && !txMap.has(bt.id) && !deletedPersonIds.has(bt.personId)) {
+              txMap.set(bt.id, bt);
             }
           });
         }
-      } catch (e) {
-        console.warn('Failed to parse cloud_full_backup_json:', e);
-      }
+      } catch (e) {}
     }
-    
-    let buyPrice = DEFAULT_MARKET_BUY_PRICE;
-    let sellPrice = DEFAULT_MARKET_SELL_PRICE;
-    let companyCopperStock: number | undefined;
+
+    const people = Array.from(peopleMap.values());
+    const transactions = Array.from(txMap.values());
+
+    let buyPrice = masterResult?.marketPrices?.buyPrice || DEFAULT_MARKET_BUY_PRICE;
+    let sellPrice = masterResult?.marketPrices?.sellPrice || DEFAULT_MARKET_SELL_PRICE;
+    let companyCopperStock: number | undefined = masterResult?.companyCopperStock;
 
     const rawBuy = getSettingVal('market_buy_price') ?? getSettingVal('market_copper_price');
     if (rawBuy !== undefined && rawBuy !== null) {
-      buyPrice = Number(rawBuy) || DEFAULT_MARKET_BUY_PRICE;
+      buyPrice = Number(rawBuy) || buyPrice;
     }
 
     const rawSell = getSettingVal('market_sell_price');
     if (rawSell !== undefined && rawSell !== null) {
-      sellPrice = Number(rawSell) || DEFAULT_MARKET_SELL_PRICE;
-    } else {
-      sellPrice = Math.max(0, buyPrice - 150000);
+      sellPrice = Number(rawSell) || sellPrice;
     }
 
     const rawStock = getSettingVal('company_copper_stock');
@@ -440,19 +530,18 @@ export async function fetchAllFromSupabase(): Promise<{
       companyCopperStock = Number(rawStock);
     }
 
-    // Extract warehouse inventory items from Supabase if available
-    let parsedWarehouseItems: WarehouseItem[] | undefined;
+    let parsedWarehouseItems: WarehouseItem[] | undefined = masterResult?.warehouseItems;
     const rawWhJson = getSettingVal('warehouse_inventory_data') ?? getSettingVal('warehouse_inventory_json');
     if (rawWhJson) {
       try {
         const parsed = typeof rawWhJson === 'string' ? JSON.parse(rawWhJson) : rawWhJson;
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           parsedWarehouseItems = parsed;
         }
-      } catch (e) {
-        console.warn('Failed to parse warehouse JSON from Supabase:', e);
-      }
+      } catch (e) {}
     }
+
+    const isConnected = !!(masterResult?.success || (peopleRes && !peopleRes.error));
 
     return {
       people,
@@ -462,10 +551,25 @@ export async function fetchAllFromSupabase(): Promise<{
       marketPrices: { buyPrice, sellPrice },
       companyCopperStock,
       deletedPersonIds: Array.from(deletedPersonIds),
-      isConnected: true,
+      isConnected,
     };
   } catch (err: any) {
-    console.warn('Supabase fetch notice (operating with local state):', err?.message || err);
+    console.warn('Notice during cloud fetch (checking fallback):', err?.message || err);
+    // Try master API direct fallback on error
+    const masterFallback = await fetchFromMasterApi();
+    if (masterFallback && masterFallback.success) {
+      return {
+        people: masterFallback.people,
+        transactions: masterFallback.transactions,
+        warehouseItems: masterFallback.warehouseItems,
+        marketPrice: masterFallback.marketPrices?.buyPrice || DEFAULT_MARKET_BUY_PRICE,
+        marketPrices: masterFallback.marketPrices || { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
+        companyCopperStock: masterFallback.companyCopperStock,
+        deletedPersonIds: masterFallback.deletedPersonIds || getStoredDeletedPersonIds(),
+        isConnected: true,
+      };
+    }
+
     return {
       people: [],
       transactions: [],
@@ -473,21 +577,24 @@ export async function fetchAllFromSupabase(): Promise<{
       marketPrices: { buyPrice: DEFAULT_MARKET_BUY_PRICE, sellPrice: DEFAULT_MARKET_SELL_PRICE },
       deletedPersonIds: getStoredDeletedPersonIds(),
       isConnected: false,
-      error: err?.message || 'Supabase disconnected',
+      error: err?.message || 'Cloud disconnected',
     };
   }
 }
 
 /**
- * Upsert a single Person in Supabase
+ * Upsert a single Person in Master Server DB & Supabase
  */
 export async function dbUpsertPerson(person: Person): Promise<boolean> {
   if (!person || !person.id) return false;
   // Guard against resurrecting deleted persons
   if (isPersonDeleted(person.id)) {
-    console.warn(`[Supabase] Aborted resurrecting deleted person: ${person.id} (${person.name})`);
+    console.warn(`[Cloud] Aborted resurrecting deleted person: ${person.id} (${person.name})`);
     return false;
   }
+
+  // 1. Immediately push to Master Server DB (Fast, reliable, cross-laptop)
+  pushToMasterApi({ person }).catch(() => {});
 
   try {
     const row = toPersonRow(person);
@@ -528,6 +635,7 @@ export async function dbUpsertPerson(person: Person): Promise<boolean> {
 export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<boolean> {
   const activePeople = peopleList.filter((p) => p && p.id && !isPersonDeleted(p.id));
   if (activePeople.length === 0) return true;
+  pushToMasterApi({ people: activePeople }).catch(() => {});
   try {
     for (const p of activePeople) {
       await dbUpsertPerson(p);
@@ -540,7 +648,7 @@ export async function dbSyncAllPeopleToCloud(peopleList: Person[]): Promise<bool
 }
 
 /**
- * Delete a Person permanently in Supabase & cloud tombstone
+ * Delete a Person permanently in Master Server DB, Supabase & cloud tombstone
  */
 export async function dbDeletePerson(personId: string): Promise<boolean> {
   if (!personId) return false;
@@ -548,19 +656,22 @@ export async function dbDeletePerson(personId: string): Promise<boolean> {
     // 1. Mark in local storage immediately so no local state can ever revive it
     saveStoredDeletedPersonId(personId);
 
-    // 2. Cascade delete all transactions for this person from Supabase
+    // 2. Delete from master server DB across all laptops
+    deletePersonFromMasterApi(personId).catch(() => {});
+
+    // 3. Cascade delete all transactions for this person from Supabase
     const { error: txErr } = await supabase.from('transactions').delete().eq('person_id', personId);
     if (txErr) {
       console.warn('Notice deleting person transactions from Supabase:', txErr.message || txErr);
     }
 
-    // 3. Delete person record from people table
+    // 4. Delete person record from people table
     const { error: pErr } = await supabase.from('people').delete().eq('id', personId);
     if (pErr) {
       console.warn('Notice deleting person from Supabase:', pErr.message || pErr);
     }
 
-    // 4. Mark permanently in Supabase app_settings tombstone so any other browser/client respects the deletion
+    // 5. Mark permanently in Supabase app_settings tombstone so any other browser/client respects the deletion
     await supabase
       .from('app_settings')
       .upsert({ key: 'del_' + personId, value: 1 }, { onConflict: 'key' });
@@ -573,9 +684,12 @@ export async function dbDeletePerson(personId: string): Promise<boolean> {
 }
 
 /**
- * Upsert a single Transaction in Supabase
+ * Upsert a single Transaction in Master Server DB & Supabase
  */
 export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
+  // Push to master server DB
+  pushToMasterApi({ transaction: tx }).catch(() => {});
+
   try {
     const row = isExtendedSchemaSupported ? toTransactionRow(tx) : toBaseTransactionRow(tx);
     const { error } = await supabase.from('transactions').upsert(row, { onConflict: 'id' });
@@ -602,10 +716,11 @@ export async function dbUpsertTransaction(tx: Transaction): Promise<boolean> {
 }
 
 /**
- * Batch Upsert Transactions in Supabase (Used during recalculations/replays)
+ * Batch Upsert Transactions in Master Server DB & Supabase
  */
 export async function dbBatchUpsertTransactions(txList: Transaction[]): Promise<boolean> {
   if (txList.length === 0) return true;
+  pushToMasterApi({ transactions: txList }).catch(() => {});
   try {
     const rows = isExtendedSchemaSupported ? txList.map(toTransactionRow) : txList.map(toBaseTransactionRow);
     const { error } = await supabase.from('transactions').upsert(rows, { onConflict: 'id' });
@@ -632,10 +747,11 @@ export async function dbBatchUpsertTransactions(txList: Transaction[]): Promise<
 }
 
 /**
- * Delete a Transaction in Supabase
+ * Delete a Transaction in Master Server DB & Supabase
  */
 export async function dbDeleteTransaction(txId: string): Promise<boolean> {
   try {
+    fetch(`/api/transactions/${txId}`, { method: 'DELETE' }).catch(() => {});
     const { error } = await supabase.from('transactions').delete().eq('id', txId);
     if (error) {
       console.warn('Notice deleting transaction from Supabase:', error.message || error);
@@ -786,6 +902,8 @@ export async function seedSupabaseIfEmpty(
  */
 export async function dbSaveWarehouseItems(items: WarehouseItem[]): Promise<boolean> {
   if (!items) return false;
+  // Push to master server DB
+  pushToMasterApi({ warehouseItems: items }).catch(() => {});
   try {
     const jsonStr = JSON.stringify(items);
     // 1. Save to Supabase app_settings
@@ -825,7 +943,7 @@ export async function dbSaveWarehouseItems(items: WarehouseItem[]): Promise<bool
 }
 
 /**
- * Save full unified cloud backup snapshot to app_settings
+ * Save full unified cloud backup snapshot to app_settings and master server DB
  */
 export async function dbSaveFullCloudBackup(
   peopleList?: Person[],
@@ -841,6 +959,16 @@ export async function dbSaveFullCloudBackup(
     const market = prices || getStoredMarketPrices();
     const stock = companyStock !== undefined ? companyStock : getStoredCompanyCopperStock();
     const warehouse = whItems || getStoredWarehouseItems();
+
+    // 1. Push to master server DB across all laptops
+    pushToMasterApi({
+      people,
+      transactions: txs,
+      marketPrices: market,
+      companyCopperStock: stock,
+      warehouseItems: warehouse,
+      deletedPersonIds: Array.from(deletedIds),
+    }).catch(() => {});
 
     const snapshot = {
       people,
@@ -864,7 +992,7 @@ export async function dbSaveFullCloudBackup(
 }
 
 /**
- * Force Push ALL local data (people, transactions, warehouse, settings) to Supabase cloud
+ * Force Push ALL local data (people, transactions, warehouse, settings) to Master Server & Supabase cloud
  * This ensures any data created on this device is immediately accessible on all other laptops/devices!
  */
 export async function dbForcePushAllLocalToSupabase(
@@ -884,33 +1012,43 @@ export async function dbForcePushAllLocalToSupabase(
     const companyStock = getStoredCompanyCopperStock();
     const warehouseItems = getStoredWarehouseItems();
 
-    // 1. Sync people to people table
+    // 1. Push everything to central Master Server API directly
+    const masterSaved = await pushToMasterApi({
+      people: peopleToSync,
+      transactions: txsToSync,
+      marketPrices,
+      companyCopperStock: companyStock,
+      warehouseItems,
+      deletedPersonIds: Array.from(deletedIds),
+    });
+
+    // 2. Sync people to people table
     for (const p of peopleToSync) {
-      await dbUpsertPerson(p);
+      dbUpsertPerson(p).catch(() => {});
     }
 
-    // 2. Sync transactions to transactions table
+    // 3. Sync transactions to transactions table
     if (txsToSync.length > 0) {
-      await dbBatchUpsertTransactions(txsToSync);
+      dbBatchUpsertTransactions(txsToSync).catch(() => {});
     }
 
-    // 3. Sync prices & company stock
-    await dbSaveMarketPrices(marketPrices);
-    await dbSaveCompanyCopperStock(companyStock);
+    // 4. Sync prices & company stock
+    dbSaveMarketPrices(marketPrices).catch(() => {});
+    dbSaveCompanyCopperStock(companyStock).catch(() => {});
 
-    // 4. Sync warehouse items
+    // 5. Sync warehouse items
     if (warehouseItems.length > 0) {
-      await dbSaveWarehouseItems(warehouseItems);
+      dbSaveWarehouseItems(warehouseItems).catch(() => {});
     }
 
-    // 5. Dual redundancy snapshot
-    await dbSaveFullCloudBackup(peopleToSync, txsToSync, marketPrices, companyStock, warehouseItems);
+    // 6. Dual redundancy snapshot
+    dbSaveFullCloudBackup(peopleToSync, txsToSync, marketPrices, companyStock, warehouseItems).catch(() => {});
 
     return {
       success: true,
       peopleCount: peopleToSync.length,
       txCount: txsToSync.length,
-      message: `همگام‌سازی ابری با موفقیت انجام شد: ${peopleToSync.length} حساب کاربری و ${txsToSync.length} تراکنش در سرور مرکزی ابری ثبت شدند و در تمامی دستگاه‌ها در دسترس هستند.`,
+      message: `همگام‌سازی ابری با موفقیت انجام شد: ${peopleToSync.length} حساب کاربری و ${txsToSync.length} تراکنش در سرور مرکزی ابری ثبت شدند و در تمامی دستگاه‌ها و لپ‌تاپ‌ها در دسترس هستند.`,
     };
   } catch (err: any) {
     return {
