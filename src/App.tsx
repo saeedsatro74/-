@@ -1842,7 +1842,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-2 sm:px-4 py-3 flex-1 w-full space-y-3">
+      <main className="w-full px-3 sm:px-6 lg:px-8 py-3 flex-1 space-y-4">
         
         {activeView === 'copper-chart' ? (
           <CopperChartView onBack={() => setActiveView('dashboard')} userRole={authSession?.role || 'admin'} />
@@ -1919,7 +1919,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-500 no-print mt-auto">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-stone-800">سامانه معاملات مس واته (Waateh)</span>
             <span className="text-stone-300">•</span>

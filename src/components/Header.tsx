@@ -24,7 +24,9 @@ import {
   VolumeX,
   FileSpreadsheet,
   BookOpen,
-  Clock
+  Clock,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { soundManager } from '../utils/soundNotifications';
 import { useLivePersianClock } from '../utils/persianDate';
@@ -122,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs no-print dir-rtl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
           
           {/* Right Section: Logo, Cathode Rate, Navigation Tabs, Header Search */}
@@ -253,8 +255,8 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Action Tools (Logout & Refresh) */}
-            <div className="flex items-center gap-1">
+            {/* Action Tools (Refresh & Logout) */}
+            <div className="flex items-center gap-1.5">
               {onRefreshData && (
                 <button
                   type="button"

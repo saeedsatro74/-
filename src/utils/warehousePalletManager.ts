@@ -408,3 +408,171 @@ export function processPalletDismantlingOnSale(
   saveWarehouseItems(items);
   return items;
 }
+
+/**
+ * Restores a loose spool back into its parent pallet (or recreates the pallet).
+ */
+export function restoreLooseSpoolToPallet(
+  looseItemId: string,
+  targetPalletIndex?: number
+): WarehouseItem[] {
+  const allItems = getStoredWarehouseItems();
+  let looseItemFound: WarehouseCargoItem | null = null;
+  let parentConsignmentId: string | null = null;
+
+  // 1. Locate the loose item
+  for (const consignment of allItems) {
+    for (const item of consignment.items || []) {
+      if (item.id === looseItemId) {
+        looseItemFound = item;
+        parentConsignmentId = consignment.id;
+        break;
+      }
+    }
+    if (looseItemFound) break;
+  }
+
+  if (!looseItemFound || !parentConsignmentId) return allItems;
+
+  const spoolWeight = looseItemFound.unitWeightKg || looseItemFound.totalWeightKg || 0;
+  let palletIndex = targetPalletIndex;
+  if (!palletIndex && looseItemFound.sourcePalletInfo) {
+    const match = looseItemFound.sourcePalletInfo.match(/#(\d+)/);
+    if (match) palletIndex = parseInt(match[1], 10);
+  }
+  if (!palletIndex) palletIndex = 1;
+
+  // 2. Look for existing pallet with matching brand, diameter, thickness & palletIndex
+  let palletRestored = false;
+  const updatedItems = allItems.map((consignment) => {
+    // Remove the loose item
+    const remainingCargo = (consignment.items || []).filter((c) => c.id !== looseItemId);
+
+    // Check if an existing pallet exists here to absorb the spool
+    const modifiedCargo = remainingCargo.map((c) => {
+      if (
+        c.packagingType === 'spool' &&
+        c.spoolType === 'pallet' &&
+        c.palletIndex === palletIndex &&
+        c.brand === looseItemFound!.brand
+      ) {
+        palletRestored = true;
+        const currentWeights = c.spoolWeights || [];
+        const newWeights = [...currentWeights, spoolWeight];
+        return {
+          ...c,
+          quantity: newWeights.length,
+          spoolsCount: newWeights.length,
+          spoolWeights: newWeights,
+          totalWeightKg: newWeights.reduce((a, b) => a + b, 0),
+          isFullStandardPallet: newWeights.length >= 5,
+        };
+      }
+      return c;
+    });
+
+    return {
+      ...consignment,
+      items: modifiedCargo,
+    };
+  });
+
+  // 3. If no existing pallet was found to absorb it, recreate the pallet in the consignment
+  if (!palletRestored) {
+    const finalItems = updatedItems.map((consignment) => {
+      if (consignment.id === parentConsignmentId) {
+        const newPalletItem: WarehouseCargoItem = {
+          id: `restored-pallet-${palletIndex}-${Date.now()}`,
+          packagingType: 'spool',
+          spoolType: 'pallet',
+          palletIndex: palletIndex!,
+          brand: looseItemFound!.brand,
+          diameterInch: looseItemFound!.diameterInch,
+          thicknessMm: looseItemFound!.thicknessMm,
+          quantity: 1,
+          spoolsCount: 1,
+          unitWeightKg: spoolWeight,
+          totalWeightKg: spoolWeight,
+          spoolWeights: [spoolWeight],
+          isFullStandardPallet: false,
+          notes: `پالت بازگردانی شده شماره #${palletIndex}`,
+        };
+
+        return {
+          ...consignment,
+          items: [newPalletItem, ...(consignment.items || [])],
+        };
+      }
+      return consignment;
+    });
+
+    saveWarehouseItems(finalItems);
+    return finalItems;
+  }
+
+  saveWarehouseItems(updatedItems);
+  return updatedItems;
+}
+
+/**
+ * Restores a retail item back to a loose spool or pallet.
+ */
+export function restoreRetailToSpoolOrPallet(
+  retailItemId: string
+): WarehouseItem[] {
+  const allItems = getStoredWarehouseItems();
+  let retailFound: WarehouseCargoItem | null = null;
+  let parentConsignmentId: string | null = null;
+
+  for (const consignment of allItems) {
+    for (const item of consignment.items || []) {
+      if (item.id === retailItemId) {
+        retailFound = item;
+        parentConsignmentId = consignment.id;
+        break;
+      }
+    }
+    if (retailFound) break;
+  }
+
+  if (!retailFound || !parentConsignmentId) return allItems;
+
+  const restoredWeight = retailFound.totalWeightKg || retailFound.unitWeightKg || 0;
+
+  // Convert the retail item back into a loose spool (or return to pallet)
+  const updatedItems = allItems.map((consignment) => {
+    if (consignment.id !== parentConsignmentId) return consignment;
+
+    const newCargo: WarehouseCargoItem[] = [];
+    for (const c of consignment.items || []) {
+      if (c.id === retailItemId) {
+        // Recreate as a non-pallet loose spool
+        newCargo.push({
+          id: `restored-spool-${Date.now()}`,
+          packagingType: 'spool',
+          spoolType: 'non_pallet',
+          brand: retailFound!.brand,
+          diameterInch: retailFound!.diameterInch,
+          thicknessMm: retailFound!.thicknessMm,
+          quantity: 1,
+          unitWeightKg: restoredWeight,
+          totalWeightKg: restoredWeight,
+          spoolWeights: [restoredWeight],
+          spoolCondition: 'sealed',
+          sourcePalletInfo: 'بازگردانی شده از خورده‌ها',
+          notes: `قرقره بازگردانی شده از بخش خورده‌ها (${retailFound!.brand})`,
+        });
+      } else {
+        newCargo.push(c);
+      }
+    }
+
+    return {
+      ...consignment,
+      items: newCargo,
+    };
+  });
+
+  saveWarehouseItems(updatedItems);
+  return updatedItems;
+}

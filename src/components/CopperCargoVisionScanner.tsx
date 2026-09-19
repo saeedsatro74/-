@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { 
-  Camera, 
   Upload, 
   Sparkles, 
   CheckCircle2, 
@@ -107,65 +106,8 @@ export const CopperCargoVisionScanner: React.FC<CopperCargoVisionScannerProps> =
   const [lastExtracted, setLastExtracted] = useState<ExtractedCargoVisionData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Camera State
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
   // File Input Ref
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Stop Camera stream
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraOpen(false);
-    setCameraError(null);
-  };
-
-  // Start Camera stream
-  const startCamera = async (mode: 'environment' | 'user' = facingMode) => {
-    stopCamera();
-    setIsCameraOpen(true);
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: mode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err: any) {
-      console.error('Camera access error:', err);
-      setCameraError('دسترسی به دوربین برقرار نشد. لطفاً از دکمه گالری / انتخاب فایل استفاده نمایید.');
-    }
-  };
-
-  // Take Snapshot from video
-  const capturePhoto = async () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-      stopCamera();
-      processImageForOCR(dataUrl);
-    }
-  };
 
   // Handle File Upload from Gallery
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,9 +119,9 @@ export const CopperCargoVisionScanner: React.FC<CopperCargoVisionScannerProps> =
     } catch (err) {
       console.error('Image compression error:', err);
       setErrorMessage('خطا در خواندن فایل تصویر');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-    // reset input
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // Core AI OCR Processor
@@ -324,13 +266,13 @@ export const CopperCargoVisionScanner: React.FC<CopperCargoVisionScannerProps> =
           </div>
           <div>
             <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
-              <span>اسکنر هوشمند و گالری برچسب مس</span>
+              <span>بارگذاری هوشمند تصویر برچسب مس</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">
                 AI Vision
               </span>
             </h4>
             <p className="text-[11px] text-stone-400">
-              آپلود عکس از گالری یا دوربین برای استخراج خودکار کارخانه، قطر، ضخامت، وزن‌ها و تعداد ({getPackagingNameFa(currentPackaging)})
+              انتخاب عکس برچسب از فایل‌ها جهت استخراج خودکار مشخصات کارخانه، قطر، ضخامت، وزن‌ها و تعداد ({getPackagingNameFa(currentPackaging)})
             </p>
           </div>
         </div>
@@ -344,42 +286,26 @@ export const CopperCargoVisionScanner: React.FC<CopperCargoVisionScannerProps> =
         )}
       </div>
 
-      {/* Action Buttons: Gallery + Camera */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        
-        {/* Gallery / File Upload Button */}
-        <div className="relative">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            disabled={isScanning}
-            className="hidden"
-            id="copper-label-file-input"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isScanning}
-            className="w-full py-3 px-4 rounded-xl bg-stone-950 hover:bg-stone-850 active:bg-stone-900 border-2 border-dashed border-amber-500/50 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm group"
-          >
-            <ImageIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span>انتخاب عکس برچسب از گالری / فایل‌ها</span>
-          </button>
-        </div>
-
-        {/* Live Camera Scanner Button */}
+      {/* Gallery / File Upload Button */}
+      <div className="relative">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          disabled={isScanning}
+          className="hidden"
+          id="copper-label-file-input"
+        />
         <button
           type="button"
-          onClick={() => startCamera('environment')}
+          onClick={() => fileInputRef.current?.click()}
           disabled={isScanning}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600/30 to-amber-700/20 hover:from-amber-600/40 hover:to-amber-700/30 border border-amber-500/60 text-amber-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md group"
+          className="w-full py-3.5 px-4 rounded-xl bg-stone-950 hover:bg-stone-850 active:bg-stone-900 border-2 border-dashed border-amber-500/50 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm group"
         >
-          <Camera className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
-          <span>عکس‌برداری مستقیم با دوربین</span>
+          <ImageIcon className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+          <span>انتخاب عکس برچسب کالا از گالری / فایل‌ها</span>
         </button>
-
       </div>
 
       {/* Scanning / Loading Indicator */}
@@ -442,89 +368,6 @@ export const CopperCargoVisionScanner: React.FC<CopperCargoVisionScannerProps> =
                 <span>اعمال مجدد روی فیلدها</span>
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Full-screen Camera Modal Overlay */}
-      {isCameraOpen && (
-        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
-          <div className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden w-full max-w-lg shadow-2xl flex flex-col">
-            
-            {/* Camera Header */}
-            <div className="p-4 border-b border-stone-800 flex items-center justify-between bg-stone-950">
-              <div className="flex items-center gap-2 text-white font-bold text-sm">
-                <Camera className="w-5 h-5 text-amber-400" />
-                <span>اسکن برچسب با دوربین</span>
-              </div>
-              <button
-                type="button"
-                onClick={stopCamera}
-                className="w-8 h-8 rounded-lg bg-stone-800 text-stone-300 hover:text-white flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Video Viewfinder */}
-            <div className="relative bg-black aspect-4/3 flex items-center justify-center overflow-hidden">
-              {cameraError ? (
-                <div className="p-6 text-center text-xs text-red-300 space-y-2">
-                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-                  <p>{cameraError}</p>
-                </div>
-              ) : (
-                <>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Viewfinder Target Frame */}
-                  <div className="absolute inset-8 border-2 border-dashed border-amber-400/70 rounded-2xl pointer-events-none flex items-center justify-center">
-                    <span className="bg-stone-950/70 text-amber-300 text-[11px] px-3 py-1 rounded-full border border-amber-500/30">
-                      برچسب مس را در این کادر قرار دهید
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Camera Controls */}
-            <div className="p-4 bg-stone-950 border-t border-stone-800 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const newMode = facingMode === 'environment' ? 'user' : 'environment';
-                  setFacingMode(newMode);
-                  startCamera(newMode);
-                }}
-                className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold transition-colors cursor-pointer"
-              >
-                تغییر دوربین
-              </button>
-
-              <button
-                type="button"
-                onClick={capturePhoto}
-                disabled={!!cameraError}
-                className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center gap-2 shadow-lg shadow-amber-500/30 cursor-pointer disabled:opacity-50"
-              >
-                <Camera className="w-5 h-5" />
-                <span>ثبت عکس و اسکن هوش مصنوعی</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={stopCamera}
-                className="px-3 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-400 text-xs font-bold transition-colors cursor-pointer"
-              >
-                انصراف
-              </button>
-            </div>
-
           </div>
         </div>
       )}

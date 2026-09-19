@@ -2,9 +2,47 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import { 
+  getPeople, 
+  upsertPerson, 
+  deletePerson, 
+  getTransactions, 
+  upsertTransaction, 
+  deleteTransaction, 
+  getWarehouseItems, 
+  upsertWarehouseItem, 
+  deleteWarehouseItem, 
+  getAppSetting, 
+  setAppSetting, 
+  getOrCreateUser 
+} from './src/db/repository.ts';
+import { optionalAuth, requireAuth, AuthRequest } from './src/middleware/auth.ts';
 
 const app = express();
 const PORT = 3000;
+
+// Configured allowed domains for Supabase & API connections
+const ALLOWED_ORIGINS = [
+  'https://ais-dev-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app',
+  'https://ais-pre-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app',
+];
+
+// CORS Middleware to allow requests from both domains and localhost
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.run.app') || origin.includes('localhost'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey, x-client-info');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -473,6 +511,234 @@ Return strictly a valid JSON object matching the requested schema.`;
         success: false,
         error: err?.message || String(err)
       });
+    }
+  });
+
+  // --- Database API Endpoints (PostgreSQL via Cloud SQL) ---
+
+  // Health check for DB
+  app.get('/api/health/db', async (req, res) => {
+    try {
+      const usersList = await getPeople();
+      res.json({ status: 'ok', database: 'connected', count: usersList.length });
+    } catch (err: any) {
+      console.error('Database health check failed:', err);
+      res.status(500).json({ status: 'error', message: err?.message || String(err) });
+    }
+  });
+
+  // Supabase connection & domain status
+  app.get('/api/supabase/status', async (req, res) => {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://zgymtzwgygycheuwoimu.supabase.co';
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpneW10endneWd5Y2hldXdvaW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5OTExNzgsImV4cCI6MjEwMzU2NzE3OH0.pVAVJGWGLgNQQDI5UIEAVTGB4F5VYsJBYyXRQc35txU';
+    try {
+      const checkRes = await fetch(`${supabaseUrl}/rest/v1/app_settings?select=key&limit=1`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
+      const status = checkRes.status;
+      const body = await checkRes.text();
+      res.json({
+        configured: true,
+        url: supabaseUrl,
+        domains: [
+          'https://ais-dev-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app',
+          'https://ais-pre-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app'
+        ],
+        httpStatus: status,
+        isExceedEgressQuota: status === 402,
+        rawResponse: body
+      });
+    } catch (err: any) {
+      res.json({
+        configured: true,
+        url: supabaseUrl,
+        domains: [
+          'https://ais-dev-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app',
+          'https://ais-pre-piqdbl2n3de2izmd443be4-905748537032.europe-west2.run.app'
+        ],
+        error: err?.message || String(err)
+      });
+    }
+  });
+
+  // User auth profile sync
+  app.post('/api/auth/sync-user', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const { uid, email, displayName, photoUrl } = req.body;
+      const effectiveUid = req.user?.uid || uid;
+      const effectiveEmail = req.user?.email || email;
+      if (!effectiveUid || !effectiveEmail) {
+        return res.status(400).json({ error: 'UID and Email are required' });
+      }
+      const user = await getOrCreateUser(effectiveUid, effectiveEmail, displayName, photoUrl);
+      res.json({ success: true, user });
+    } catch (err: any) {
+      console.error('Error syncing user:', err);
+      res.status(500).json({ error: err?.message || 'Failed to sync user' });
+    }
+  });
+
+  // People endpoints
+  app.get('/api/people', async (req, res) => {
+    try {
+      const peopleList = await getPeople();
+      res.json(peopleList);
+    } catch (err: any) {
+      console.error('Error fetching people:', err);
+      res.status(500).json({ error: 'Failed to fetch people' });
+    }
+  });
+
+  app.post('/api/people', async (req, res) => {
+    try {
+      const person = await upsertPerson(req.body);
+      res.json(person);
+    } catch (err: any) {
+      console.error('Error saving person:', err);
+      res.status(500).json({ error: 'Failed to save person' });
+    }
+  });
+
+  app.delete('/api/people/:id', async (req, res) => {
+    try {
+      await deletePerson(req.params.id);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error deleting person:', err);
+      res.status(500).json({ error: 'Failed to delete person' });
+    }
+  });
+
+  // Transactions endpoints
+  app.get('/api/transactions', async (req, res) => {
+    try {
+      const trxs = await getTransactions();
+      res.json(trxs);
+    } catch (err: any) {
+      console.error('Error fetching transactions:', err);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  app.post('/api/transactions', async (req, res) => {
+    try {
+      const trx = await upsertTransaction(req.body);
+      res.json(trx);
+    } catch (err: any) {
+      console.error('Error saving transaction:', err);
+      res.status(500).json({ error: 'Failed to save transaction' });
+    }
+  });
+
+  app.delete('/api/transactions/:id', async (req, res) => {
+    try {
+      await deleteTransaction(req.params.id);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error deleting transaction:', err);
+      res.status(500).json({ error: 'Failed to delete transaction' });
+    }
+  });
+
+  // Warehouse items endpoints
+  app.get('/api/warehouse-items', async (req, res) => {
+    try {
+      const items = await getWarehouseItems();
+      res.json(items);
+    } catch (err: any) {
+      console.error('Error fetching warehouse items:', err);
+      res.status(500).json({ error: 'Failed to fetch warehouse items' });
+    }
+  });
+
+  app.post('/api/warehouse-items', async (req, res) => {
+    try {
+      const item = await upsertWarehouseItem(req.body);
+      res.json(item);
+    } catch (err: any) {
+      console.error('Error saving warehouse item:', err);
+      res.status(500).json({ error: 'Failed to save warehouse item' });
+    }
+  });
+
+  app.delete('/api/warehouse-items/:id', async (req, res) => {
+    try {
+      await deleteWarehouseItem(req.params.id);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error deleting warehouse item:', err);
+      res.status(500).json({ error: 'Failed to delete warehouse item' });
+    }
+  });
+
+  // Bulk synchronization (syncs all client data to database, and returns latest merged database state)
+  app.post('/api/sync/bulk', async (req, res) => {
+    try {
+      const { people: clientPeople, transactions: clientTransactions, warehouseItems: clientWarehouseItems } = req.body;
+
+      if (Array.isArray(clientPeople) && clientPeople.length > 0) {
+        for (const p of clientPeople) {
+          if (p && p.id && p.name) {
+            await upsertPerson(p);
+          }
+        }
+      }
+
+      if (Array.isArray(clientTransactions) && clientTransactions.length > 0) {
+        for (const t of clientTransactions) {
+          if (t && t.id && t.personId) {
+            await upsertTransaction(t);
+          }
+        }
+      }
+
+      if (Array.isArray(clientWarehouseItems) && clientWarehouseItems.length > 0) {
+        for (const w of clientWarehouseItems) {
+          if (w && w.id && w.brand) {
+            await upsertWarehouseItem(w);
+          }
+        }
+      }
+
+      const [serverPeople, serverTransactions, serverWarehouseItems] = await Promise.all([
+        getPeople(),
+        getTransactions(),
+        getWarehouseItems(),
+      ]);
+
+      res.json({
+        success: true,
+        people: serverPeople,
+        transactions: serverTransactions,
+        warehouseItems: serverWarehouseItems,
+      });
+    } catch (err: any) {
+      console.error('Error in bulk sync:', err);
+      res.status(500).json({ error: 'Bulk sync failed' });
+    }
+  });
+
+  // App settings endpoints
+  app.get('/api/app-settings/:key', async (req, res) => {
+    try {
+      const value = await getAppSetting(req.params.key);
+      res.json({ key: req.params.key, value });
+    } catch (err: any) {
+      console.error('Error getting app setting:', err);
+      res.status(500).json({ error: 'Failed to get app setting' });
+    }
+  });
+
+  app.post('/api/app-settings/:key', async (req, res) => {
+    try {
+      const success = await setAppSetting(req.params.key, String(req.body.value || ''));
+      res.json({ success });
+    } catch (err: any) {
+      console.error('Error setting app setting:', err);
+      res.status(500).json({ error: 'Failed to set app setting' });
     }
   });
 

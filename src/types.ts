@@ -42,6 +42,9 @@ export interface WarehouseCargoItem {
   coilLength?: CoilLengthType; // '15m' | '50m' for coils
   straightMode?: 'total_weight' | 'count_and_weight'; // for straight branches
   spoolType?: SpoolPackagingType; // 'pallet' (پالتی) | 'non_pallet' (غیر پالتی / تکی)
+  palletIndex?: number; // شماره پالت (۱، ۲، ۳...)
+  spoolsCount?: number; // تعداد قرقره‌های پالت
+  isFullStandardPallet?: boolean; // پالت ۵ تایی کامل یا تکمیل‌نشده
   spoolWeights?: number[]; // Individual spool weights in kg (e.g. [210.5, 230, 245.2])
   spoolCondition?: 'sealed' | 'opened'; // وضعیت قرقره تکی: پلمپ / بسته یا باز شده (در حال مصرف)
   sourcePalletInfo?: string; // مشخصات پالت مبدا (مثلاً «پالت ۵ تایی باهنر بارنامه BAR-1403-9101»)
@@ -101,6 +104,9 @@ export interface Person {
   id: string;
   name: string;
   phone?: string;
+  nationalId?: string;
+  initialCopperBalanceKg?: number;
+  role?: string;
   notes?: string;
   createdAt: string;
   password?: string; // Optional client-specific login password (default is last 4 digits of phone or 1234)
@@ -115,6 +121,7 @@ export interface Transaction {
   amount: number; // in Toman (cash amount transferred or total buy/sell price)
   weightKg?: number; // for buy, sell, adjustment (in Kg)
   unitPrice?: number; // for buy, sell (price per Kg in Toman)
+  trackingCode?: string; // کد رهگیری بانکی یا پیگیری معامله
   cogs?: number; // Cost of Goods Sold (for sell transactions)
   profit?: number; // Realized profit on this sale (for sell transactions)
   profitPercentage?: number; // Profit percentage on this sale

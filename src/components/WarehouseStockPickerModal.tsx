@@ -111,11 +111,12 @@ export interface StraightsStockGroup {
   totalWeightKg: number;
 }
 
-interface WarehouseStockPickerModalProps {
+export interface WarehouseStockPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  items: WarehouseItem[];
-  onConfirmSelection: (result: SelectedStockItemsResult) => void;
+  items?: WarehouseItem[];
+  onConfirmSelection?: (result: SelectedStockItemsResult) => void;
+  onConfirm?: (result: SelectedStockItemsResult) => void;
   title?: string;
   isStepOneOfSale?: boolean;
 }
@@ -125,6 +126,7 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
   onClose,
   items: initialItems,
   onConfirmSelection,
+  onConfirm,
   title = 'انتخاب تصویری پالت‌ها و اقلام از انبار جهت فروش / خروج',
   isStepOneOfSale = false,
 }) => {
@@ -656,22 +658,25 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
 
     const totalRetailOutKg = selectedRetailWeightKg + retailWeight;
 
-    onConfirmSelection({
-      selectedPallets: fullySelectedPallets,
-      selectedLooseSpools: outboundLooseSpools,
-      selectedCoilsWeightKg: selectedCoilsWeight,
-      selectedStraightsWeightKg: selectedStraightsWeight,
-      retailWeightKg: totalRetailOutKg,
-      totalWeightKg: totalSelectedWeightKg,
-      summaryText,
-    });
+    const confirmCallback = onConfirmSelection || onConfirm;
+    if (confirmCallback) {
+      confirmCallback({
+        selectedPallets: fullySelectedPallets,
+        selectedLooseSpools: outboundLooseSpools,
+        selectedCoilsWeightKg: selectedCoilsWeight,
+        selectedStraightsWeightKg: selectedStraightsWeight,
+        retailWeightKg: totalRetailOutKg,
+        totalWeightKg: totalSelectedWeightKg,
+        summaryText,
+      });
+    }
 
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[130] overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 py-4 sm:py-6 animate-in fade-in duration-150 dir-rtl font-sans text-stone-900">
-      <div className="bg-white border border-stone-200 rounded-2xl shadow-xl w-full max-w-5xl my-auto max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden relative">
+      <div className="bg-white border border-stone-200 rounded-2xl shadow-2xl w-full max-w-7xl my-auto h-[95vh] max-h-[96vh] flex flex-col overflow-hidden relative">
         
         {/* Step 1 Indicator Banner */}
         {isStepOneOfSale && (
@@ -892,7 +897,8 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
                         {/* Interactive Individual Spools Selection Chips */}
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[10px] text-stone-500 px-0.5">
-                            <span>قرقره‌های داخل پالت (کلیک جهت انتخاب تکی):</span>
+                            <span className="font-bold text-stone-700">قرقره‌های داخل پالت (تیک‌زدن جهت فروش/خروج یا باز کردن به خورده):</span>
+                            <span className="text-amber-800 font-medium">کلیک = تیک انتخاب</span>
                           </div>
 
                           <div className="grid grid-cols-5 gap-1.5 font-mono text-[11px] text-center">
@@ -903,27 +909,31 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
                                 <div
                                   key={idx}
                                   onClick={(e) => handleTogglePalletSpool(e, pallet, idx)}
-                                  className={`p-1.5 rounded-lg border transition-all cursor-pointer relative group flex flex-col items-center justify-between ${
+                                  className={`p-1.5 rounded-xl border transition-all cursor-pointer relative group flex flex-col items-center justify-between ${
                                     isSpoolSelected
-                                      ? 'bg-amber-400 border-amber-600 text-stone-950 font-black shadow-xs ring-1 ring-amber-500'
-                                      : 'bg-stone-50 border-stone-200 text-stone-800 hover:border-amber-400 hover:bg-amber-50/50'
+                                      ? 'bg-amber-400 border-amber-600 text-stone-950 font-black shadow-xs ring-2 ring-amber-500/40'
+                                      : 'bg-stone-50 border-stone-200 text-stone-800 hover:border-amber-400 hover:bg-amber-50/60'
                                   }`}
                                   title={`قرقره شماره ${idx + 1} - وزن ${formatWeight(w)}`}
                                 >
-                                  {/* Top row: spool label & indicator */}
-                                  <div className="w-full flex items-center justify-between gap-0.5">
-                                    <span className="text-[9px] font-bold opacity-80">ق{idx+1}</span>
-                                    {isSpoolSelected && (
-                                      <Check className="w-2.5 h-2.5 stroke-[3] text-stone-950" />
-                                    )}
+                                  {/* Top row: spool label & explicit checkbox */}
+                                  <div className="w-full flex items-center justify-between gap-1">
+                                    <span className="text-[10px] font-black opacity-90">ق{idx+1}</span>
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                      isSpoolSelected
+                                        ? 'bg-stone-950 border-stone-950 text-amber-400'
+                                        : 'bg-white border-stone-300 text-transparent'
+                                    }`}>
+                                      <Check className="w-3 h-3 stroke-[3]" />
+                                    </div>
                                   </div>
 
                                   {/* Weight */}
-                                  <span className="font-bold text-[10px] mt-0.5 block">
-                                    {formatNumber(w, 0)}k
+                                  <span className="font-bold text-[11px] mt-1 block">
+                                    {formatNumber(w, 1)}k
                                   </span>
 
-                                  {/* Scissors Quick Action: Open to Retail */}
+                                  {/* Scissors Quick Action: Always-visible button to Open to Retail */}
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -935,10 +945,11 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
                                         title: `باز کردن قرقره ق${idx + 1} از پالت #${pallet.palletIndex}`,
                                       });
                                     }}
-                                    className="opacity-0 group-hover:opacity-100 hover:scale-115 transition-all text-stone-600 hover:text-red-700 mt-1 cursor-pointer"
-                                    title="باز کردن این قرقره و انتقال به بخش خورده‌ها"
+                                    className="w-full mt-1.5 py-0.5 px-1 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 hover:border-rose-400 rounded-md text-[9px] font-bold flex items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                                    title="باز کردن این قرقره و انتقال مستقیم به بخش خورده‌ها"
                                   >
-                                    <Scissors className="w-3 h-3" />
+                                    <Scissors className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                    <span>خورده</span>
                                   </button>
                                 </div>
                               );
@@ -951,7 +962,7 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
                           <div className="bg-amber-100/90 border border-amber-300 rounded-xl p-2 text-[11px] text-amber-950 flex items-start gap-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
                             <span>
-                              <strong>تفکیک پالت:</strong> {selectedIndices.size} قرقره برای خروج انتخاب شده و {pallet.spoolWeights.length - selectedIndices.size} قرقره باقی‌مانده به بخش قرقره‌های آزاد منتقل می‌شوند.
+                              <strong>تفکیک پالت:</strong> {selectedIndices.size} قرقره برای خروج انتخاب شده و {pallet.spoolWeights.length - selectedIndices.size} قرقره باقی‌مانده به بخش قرقره‌های غیرپالتی (آزاد) منتقل می‌شوند و پالت حذف خواهد شد.
                             </span>
                           </div>
                         )}
@@ -988,10 +999,11 @@ export const WarehouseStockPickerModal: React.FC<WarehouseStockPickerModalProps>
                           <button
                             type="button"
                             onClick={() => setConfirmDismantlePallet(pallet)}
-                            className="p-1.5 rounded-xl border border-stone-200 hover:border-amber-400 bg-stone-50 hover:bg-amber-50 text-stone-600 hover:text-amber-800 transition-colors cursor-pointer"
-                            title="تفکیک این پالت به قرقره‌های آزاد (بدون فروش)"
+                            className="px-2.5 py-1.5 rounded-xl border border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-900 transition-colors cursor-pointer text-xs font-bold flex items-center gap-1 shrink-0"
+                            title="تفکیک این پالت به قرقره‌های آزاد غیرپالتی (بدون فروش)"
                           >
-                            <PackageOpen className="w-4 h-4" />
+                            <PackageOpen className="w-3.5 h-3.5 text-amber-800" />
+                            <span className="hidden sm:inline">تفکیک به غیرپالتی</span>
                           </button>
                         </div>
 

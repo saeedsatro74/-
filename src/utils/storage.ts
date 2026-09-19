@@ -526,6 +526,11 @@ export function savePeople(people: Person[]): void {
       localStorage.setItem(STORAGE_KEYS.CLIENT_PASSWORDS, JSON.stringify(map));
     }
   } catch (e) {}
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('copper-people-updated', { detail: cleanPeople }));
+    import('./cloudSync').then((m) => m.syncWithCloudDatabase()).catch(() => {});
+  }
 }
 
 export function getStoredTransactions(): Transaction[] {
@@ -543,6 +548,10 @@ export function getStoredTransactions(): Transaction[] {
 
 export function saveTransactions(transactions: Transaction[]): void {
   localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('copper-transactions-updated', { detail: transactions }));
+    import('./cloudSync').then((m) => m.syncWithCloudDatabase()).catch(() => {});
+  }
 }
 
 export function getStoredMarketPrices(): MarketPrices {
@@ -1154,6 +1163,7 @@ export function saveWarehouseItems(items: WarehouseItem[]): void {
     localStorage.setItem(STORAGE_KEYS.WAREHOUSE_ITEMS, JSON.stringify(items));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('warehouse-stock-updated', { detail: items }));
+      import('./cloudSync').then((m) => m.syncWithCloudDatabase()).catch(() => {});
     }
   } catch (err) {
     console.error('Failed to save warehouse items:', err);

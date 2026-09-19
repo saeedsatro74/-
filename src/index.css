@@ -1,57 +1,60 @@
 @import "tailwindcss";
 
-/* Import Premium Modern Sans-Serif Vazirmatn Font */
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
+/* Import Premium Modern Persian Vazirmatn Font with native Farsi Digits (FD) */
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-FD-font-face.css');
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
 
 @theme {
-  --font-sans: 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'Vazirmatn', 'Vazir', system-ui, monospace;
+  --font-sans: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, monospace;
 }
 
 :root {
-  font-family: 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-feature-settings: "ss01" 1;
+  font-family: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "ss01" 1, "ss02" 1;
 }
 
 *, ::before, ::after {
-  font-family: 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 @layer base {
   html, body, #root {
-    max-width: 100vw;
+    width: 100%;
+    min-height: 100vh;
+    max-width: 100%;
     overflow-x: hidden;
     scroll-behavior: smooth;
-    font-family: 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    font-feature-settings: "ss01" 1;
+    font-family: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-feature-settings: "ss01" 1, "ss02" 1;
   }
 
   body, html, input, button, select, textarea, span, p, div, label, table, td, th {
-    font-family: 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    font-feature-settings: "ss01" 1;
+    font-family: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-feature-settings: "ss01" 1, "ss02" 1;
   }
 
   .font-mono {
-    font-family: 'Vazirmatn', 'Vazir', monospace !important;
+    font-family: 'Vazirmatn FD', 'Vazirmatn', 'Vazir', monospace !important;
     font-feature-settings: "ss01" 1, "tnum" 1;
     font-variant-numeric: tabular-nums;
   }
 
   /* Custom scrollbar for clean UI */
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: #f8f9fa;
   }
   ::-webkit-scrollbar-thumb {
-    background: #e4e4e7;
-    border-radius: 3px;
+    background: #d4d4d8;
+    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1;
+    background: #a1a1aa;
   }
 }
 

@@ -15,7 +15,7 @@ export const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://zgymtzwgygycheuwoimu.supabase.co';
 
 export const SUPABASE_ANON_KEY = 
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_LMZ6TJDapqRKtP4l4muCCw_K67Qa01W';
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpneW10endneWd5Y2hldXdvaW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5OTExNzgsImV4cCI6MjEwMzU2NzE3OH0.pVAVJGWGLgNQQDI5UIEAVTGB4F5VYsJBYyXRQc35txU';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
