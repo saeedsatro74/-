@@ -66,6 +66,8 @@ import {
   dbSaveCompanyCopperStock,
   dbClearAllCloudData,
   dbSyncAllPeopleToCloud,
+  dbSaveFullCloudBackup,
+  dbForcePushAllLocalToSupabase,
   toTransaction,
   toPerson,
   supabase
@@ -356,13 +358,15 @@ export default function App() {
           }
         });
 
-        // Only include local people if they are genuinely new local-only offline additions (and never deleted!)
+        // Include any valid local people from this device and ensure they are saved to Supabase
         const remoteIds = new Set(cloudResult.people.map((p) => p.id));
         const storedPeople = getStoredPeople();
         storedPeople.forEach((p) => {
-          if (p && p.id && !remoteIds.has(p.id) && !deletedIds.has(p.id) && p.id.startsWith('person-')) {
-            peopleMap.set(p.id, p);
-            dbUpsertPerson(p).catch(() => {});
+          if (p && p.id && !deletedIds.has(p.id)) {
+            if (!remoteIds.has(p.id)) {
+              peopleMap.set(p.id, p);
+              dbUpsertPerson(p).catch(() => {});
+            }
           }
         });
         const allPeople = Array.from(peopleMap.values());
@@ -371,20 +375,33 @@ export default function App() {
         const cloudTxs = cloudResult.transactions.filter((t) => t && t.personId && !deletedIds.has(t.personId));
         const storedTxs = getStoredTransactions().filter((t) => t && t.personId && !deletedIds.has(t.personId));
         
-        // Merge any locally pending transactions created completely offline that haven't hit cloud yet
+        // Merge any locally pending transactions created on this device that haven't hit cloud yet
         const remoteTxIds = new Set(cloudTxs.map((m) => m.id));
-        const pendingOfflineTxs = storedTxs.filter((p) => !remoteTxIds.has(p.id) && p.id.startsWith('tx-custom-'));
+        const pendingOfflineTxs = storedTxs.filter((p) => !remoteTxIds.has(p.id) && !deletedIds.has(p.personId));
         
         // Push any local offline transactions to cloud
-        pendingOfflineTxs.forEach((offlineTx) => {
-          dbUpsertTransaction(offlineTx).catch(() => {});
-        });
+        if (pendingOfflineTxs.length > 0) {
+          dbBatchUpsertTransactions(pendingOfflineTxs).catch(() => {
+            pendingOfflineTxs.forEach((offlineTx) => {
+              dbUpsertTransaction(offlineTx).catch(() => {});
+            });
+          });
+        }
 
         const combined = [...cloudTxs, ...pendingOfflineTxs];
         const replayed = replayAllTransactions(allPeople, combined);
         setPeople(allPeople);
         setTransactions(replayed);
         checkNewIncomingRequestsForAdmin(replayed, allPeople);
+
+        // Keep a full backup snapshot updated in cloud
+        dbSaveFullCloudBackup(
+          allPeople, 
+          replayed, 
+          cloudResult.marketPrices, 
+          cloudResult.companyCopperStock, 
+          cloudResult.warehouseItems
+        ).catch(() => {});
 
         // Synchronize warehouse live inventory across devices
         if (cloudResult.warehouseItems && Array.isArray(cloudResult.warehouseItems)) {
@@ -438,7 +455,24 @@ export default function App() {
       setIsLoaded(true);
       if (!isSilent) setSyncingState(false);
     }
-  }, [showToast]);
+  }, [showToast, checkNewIncomingRequestsForAdmin]);
+
+  const handleForcePushCloudSync = useCallback(async () => {
+    setSyncingState(true);
+    try {
+      const res = await dbForcePushAllLocalToSupabase();
+      if (res.success) {
+        await handleRefreshData(true);
+        showToast(res.message, 'success');
+      } else {
+        showToast(res.message, 'error');
+      }
+    } catch (e: any) {
+      showToast('خطا در همگام‌سازی با سرور ابری', 'error');
+    } finally {
+      setSyncingState(false);
+    }
+  }, [handleRefreshData, showToast]);
 
   // Initial Load from Local & Supabase Auto-Polling Loop
   useEffect(() => {
@@ -676,7 +710,8 @@ export default function App() {
       );
       updatePeople(updated);
       await dbUpsertPerson(updatedPerson);
-      showToast(`اطلاعات «${personData.name}» در سوپابیس ذخیره شد.`);
+      await dbSaveFullCloudBackup(updated, transactions);
+      showToast(`اطلاعات «${personData.name}» در سرور ابری بروزرسانی شد.`);
     } else {
       const newPerson: Person = {
         id: `person-${Date.now()}`,
@@ -688,7 +723,8 @@ export default function App() {
       const updatedPeople = [newPerson, ...people];
       updatePeople(updatedPeople);
       await dbUpsertPerson(newPerson);
-      showToast(`حساب کاربری جدید برای «${personData.name}» در سوپابیس ایجاد شد.`);
+      await dbSaveFullCloudBackup(updatedPeople, transactions);
+      showToast(`حساب کاربری جدید برای «${personData.name}» در سرور مرکزی ابری ایجاد و در تمام دستگاه‌ها همگام شد.`);
     }
     setSyncingState(false);
     setEditingPerson(null);
@@ -1910,6 +1946,7 @@ export default function App() {
           setActiveView('dashboard');
         }}
         onRefreshData={() => handleRefreshData(false)}
+        onForceSyncCloud={handleForcePushCloudSync}
       />
 
       {/* Main Content Area */}

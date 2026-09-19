@@ -66,6 +66,7 @@ interface HeaderProps {
   onOpenEditCompanyStock?: () => void;
   isPersonSelected?: boolean;
   onRefreshData?: () => void;
+  onForceSyncCloud?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -100,6 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEditCompanyStock,
   isPersonSelected = false,
   onRefreshData,
+  onForceSyncCloud,
 }) => {
   const { date: liveDate, time: liveTime } = useLivePersianClock();
   const buyRate = marketBuyPrice || marketPrice;
@@ -255,16 +257,37 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Action Tools (Refresh & Logout) */}
+            {/* Action Tools (Cloud Sync, Refresh & Logout) */}
             <div className="flex items-center gap-1.5">
+              {onForceSyncCloud && (
+                <button
+                  type="button"
+                  onClick={onForceSyncCloud}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-xl font-medium cursor-pointer transition-all ${
+                    isCloudConnected 
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' 
+                      : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                  }`}
+                  title="همگام‌سازی کامل بین تمام لپ‌تاپ‌ها و سرور ابری"
+                >
+                  {isCloudConnected ? (
+                    <Cloud className={`w-3.5 h-3.5 ${isSyncing ? 'animate-bounce text-amber-600' : 'text-emerald-600'}`} />
+                  ) : (
+                    <CloudOff className="w-3.5 h-3.5 text-amber-600" />
+                  )}
+                  <span className="hidden md:inline">
+                    {isSyncing ? 'در حال همگام‌سازی...' : isCloudConnected ? 'ابری متصل' : 'همگام‌سازی مجدد'}
+                  </span>
+                </button>
+              )}
               {onRefreshData && (
                 <button
                   type="button"
                   onClick={onRefreshData}
                   className="p-1.5 text-stone-500 hover:text-stone-900 rounded-lg hover:bg-stone-100 cursor-pointer"
-                  title="بروزرسانی"
+                  title="بروزرسانی داده‌ها"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-700' : ''}`} />
                 </button>
               )}
               {onLogout && (

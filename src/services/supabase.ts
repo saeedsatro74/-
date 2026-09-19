@@ -9,7 +9,11 @@ import {
   saveStoredDeletedPersonId,
   isPersonDeleted,
   getStoredWarehouseItems,
-  saveWarehouseItems
+  saveWarehouseItems,
+  getStoredPeople,
+  getStoredTransactions,
+  getStoredMarketPrices,
+  getStoredCompanyCopperStock
 } from '../utils/storage';
 
 // Supabase URL & Public Anon Key
@@ -379,13 +383,41 @@ export async function fetchAllFromSupabase(): Promise<{
     }
 
     // Filter out any accounts that were deleted so they are never displayed or revived
-    const people = (peopleRes.data as PersonRow[] || [])
+    let people = (peopleRes.data as PersonRow[] || [])
       .map(toPerson)
       .filter((p) => p && p.id && !deletedPersonIds.has(p.id));
 
-    const transactions = (txRes.data as TransactionRow[] || [])
+    let transactions = (txRes.data as TransactionRow[] || [])
       .map(toTransaction)
       .filter((t) => t && t.personId && !deletedPersonIds.has(t.personId));
+    
+    // Check if cloud backup snapshot contains additional users/records
+    const rawBackupJson = getSettingVal('cloud_full_backup_json');
+    if (rawBackupJson) {
+      try {
+        const backupData = typeof rawBackupJson === 'string' ? JSON.parse(rawBackupJson) : rawBackupJson;
+        if (backupData && Array.isArray(backupData.people)) {
+          const existingIds = new Set(people.map((p) => p.id));
+          backupData.people.forEach((bp: Person) => {
+            if (bp && bp.id && !existingIds.has(bp.id) && !deletedPersonIds.has(bp.id)) {
+              people.push(bp);
+              existingIds.add(bp.id);
+            }
+          });
+        }
+        if (backupData && Array.isArray(backupData.transactions)) {
+          const existingTxIds = new Set(transactions.map((t) => t.id));
+          backupData.transactions.forEach((bt: Transaction) => {
+            if (bt && bt.id && !existingTxIds.has(bt.id) && !deletedPersonIds.has(bt.personId)) {
+              transactions.push(bt);
+              existingTxIds.add(bt.id);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to parse cloud_full_backup_json:', e);
+      }
+    }
     
     let buyPrice = DEFAULT_MARKET_BUY_PRICE;
     let sellPrice = DEFAULT_MARKET_SELL_PRICE;
@@ -791,4 +823,103 @@ export async function dbSaveWarehouseItems(items: WarehouseItem[]): Promise<bool
     return false;
   }
 }
+
+/**
+ * Save full unified cloud backup snapshot to app_settings
+ */
+export async function dbSaveFullCloudBackup(
+  peopleList?: Person[],
+  txList?: Transaction[],
+  prices?: MarketPrices,
+  companyStock?: number,
+  whItems?: WarehouseItem[]
+): Promise<boolean> {
+  try {
+    const deletedIds = new Set(getStoredDeletedPersonIds());
+    const people = (peopleList || getStoredPeople()).filter((p) => p && p.id && !deletedIds.has(p.id));
+    const txs = (txList || getStoredTransactions()).filter((t) => t && t.personId && !deletedIds.has(t.personId));
+    const market = prices || getStoredMarketPrices();
+    const stock = companyStock !== undefined ? companyStock : getStoredCompanyCopperStock();
+    const warehouse = whItems || getStoredWarehouseItems();
+
+    const snapshot = {
+      people,
+      transactions: txs,
+      marketPrices: market,
+      companyCopperStock: stock,
+      warehouseItems: warehouse,
+      syncedAt: new Date().toISOString(),
+    };
+
+    await supabase.from('app_settings').upsert([
+      { key: 'cloud_full_backup_json', value: JSON.stringify(snapshot) as any },
+      { key: 'cloud_backup_timestamp', value: Date.now() as any },
+    ], { onConflict: 'key' });
+
+    return true;
+  } catch (e) {
+    console.warn('Notice saving full cloud backup snapshot:', e);
+    return false;
+  }
+}
+
+/**
+ * Force Push ALL local data (people, transactions, warehouse, settings) to Supabase cloud
+ * This ensures any data created on this device is immediately accessible on all other laptops/devices!
+ */
+export async function dbForcePushAllLocalToSupabase(
+  customPeople?: Person[],
+  customTxs?: Transaction[]
+): Promise<{
+  success: boolean;
+  peopleCount: number;
+  txCount: number;
+  message: string;
+}> {
+  try {
+    const deletedIds = new Set(getStoredDeletedPersonIds());
+    const peopleToSync = (customPeople || getStoredPeople()).filter((p) => p && p.id && !deletedIds.has(p.id));
+    const txsToSync = (customTxs || getStoredTransactions()).filter((t) => t && t.personId && !deletedIds.has(t.personId));
+    const marketPrices = getStoredMarketPrices();
+    const companyStock = getStoredCompanyCopperStock();
+    const warehouseItems = getStoredWarehouseItems();
+
+    // 1. Sync people to people table
+    for (const p of peopleToSync) {
+      await dbUpsertPerson(p);
+    }
+
+    // 2. Sync transactions to transactions table
+    if (txsToSync.length > 0) {
+      await dbBatchUpsertTransactions(txsToSync);
+    }
+
+    // 3. Sync prices & company stock
+    await dbSaveMarketPrices(marketPrices);
+    await dbSaveCompanyCopperStock(companyStock);
+
+    // 4. Sync warehouse items
+    if (warehouseItems.length > 0) {
+      await dbSaveWarehouseItems(warehouseItems);
+    }
+
+    // 5. Dual redundancy snapshot
+    await dbSaveFullCloudBackup(peopleToSync, txsToSync, marketPrices, companyStock, warehouseItems);
+
+    return {
+      success: true,
+      peopleCount: peopleToSync.length,
+      txCount: txsToSync.length,
+      message: `همگام‌سازی ابری با موفقیت انجام شد: ${peopleToSync.length} حساب کاربری و ${txsToSync.length} تراکنش در سرور مرکزی ابری ثبت شدند و در تمامی دستگاه‌ها در دسترس هستند.`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      peopleCount: 0,
+      txCount: 0,
+      message: err?.message || 'خطا در ارسال اطلاعات به سرور ابری',
+    };
+  }
+}
+
 
