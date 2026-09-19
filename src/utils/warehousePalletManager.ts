@@ -760,3 +760,182 @@ export function executeDirectSaleStockDeduction(params: {
   saveWarehouseItems(cleanedItems);
   return cleanedItems;
 }
+
+export interface MachineTransferParams {
+  selectedPalletSpools?: Map<string, { pallet: PalletCardRef; selectedIndices: number[] }>;
+  selectedLooseSpools?: LooseSpoolRef[];
+  selectedRetailItems?: RetailItemRef[];
+  machineName: string;
+  notes: string;
+}
+
+/**
+ * Transfers selected spools/pallets/items from standard saleable warehouse stock
+ * into the Machine Production / Factory Consumption stock section.
+ */
+export function transferSelectedToMachineProduction(params: MachineTransferParams): WarehouseItem[] {
+  let items = getStoredWarehouseItems();
+  const transferredAt = new Date().toLocaleDateString('fa-IR');
+  const machineCargoItems: WarehouseCargoItem[] = [];
+
+  // 1. Process Pallet Spools selected for machine
+  if (params.selectedPalletSpools) {
+    for (const [_, { pallet, selectedIndices }] of params.selectedPalletSpools.entries()) {
+      if (selectedIndices.length === 0) continue;
+
+      const selectedSpoolWeights = selectedIndices.map((idx) => pallet.spoolWeights[idx] || 0);
+
+      // Create machine cargo items for selected spools
+      selectedSpoolWeights.forEach((w, idx) => {
+        machineCargoItems.push({
+          id: `machine-spool-${pallet.id}-${selectedIndices[idx]}-${Date.now()}-${Math.random()}`,
+          packagingType: 'spool',
+          spoolType: 'non_pallet',
+          brand: pallet.brand,
+          diameterInch: pallet.diameterInch,
+          thicknessMm: pallet.thicknessMm,
+          quantity: 1,
+          unitWeightKg: w,
+          totalWeightKg: w,
+          spoolWeights: [w],
+          spoolCondition: 'opened',
+          isMachineProduction: true,
+          machineName: params.machineName || 'دستگاه اواپراتور',
+          machineNotes: params.notes || 'برای استفاده دستگاه اواپراتور بوده است',
+          transferredToMachineAt: transferredAt,
+          sourcePalletInfo: `انتقال یافته از پالت #${pallet.palletIndex} (${pallet.brand})`,
+          notes: params.notes || `برای استفاده ${params.machineName || 'دستگاه اواپراتور'} بوده است`,
+        });
+      });
+
+      // Handle remaining spools on the pallet
+      const isEntirePallet = selectedIndices.length === pallet.spoolWeights.length;
+      if (isEntirePallet) {
+        // Remove entire pallet cargo item
+        items = items.map((c) => {
+          if (c.id !== pallet.consignmentId) return c;
+          return {
+            ...c,
+            items: (c.items || []).filter((item) => item.id !== pallet.cargoItemId),
+          };
+        });
+      } else {
+        // Remaining unselected spools become loose spools in sales warehouse
+        const remainingWeights = pallet.spoolWeights.filter((_, idx) => !selectedIndices.includes(idx));
+        const remainingLoose: WarehouseCargoItem[] = remainingWeights.map((w, idx) => ({
+          id: `${pallet.cargoItemId}-rem-loose-${idx + 1}-${Date.now()}`,
+          packagingType: 'spool',
+          spoolType: 'non_pallet',
+          brand: pallet.brand,
+          diameterInch: pallet.diameterInch,
+          thicknessMm: pallet.thicknessMm,
+          quantity: 1,
+          unitWeightKg: w,
+          totalWeightKg: w,
+          spoolWeights: [w],
+          spoolCondition: 'sealed',
+          sourcePalletInfo: `باقی‌مانده انتقال پالت #${pallet.palletIndex} به دستگاه`,
+          notes: `قرقره آزاد باقی‌مانده پس از انتقال به دستگاه ${params.machineName}`,
+        }));
+
+        items = items.map((c) => {
+          if (c.id !== pallet.consignmentId) return c;
+          const otherCargo = (c.items || []).filter((item) => item.id !== pallet.cargoItemId);
+          return {
+            ...c,
+            items: [...otherCargo, ...remainingLoose],
+          };
+        });
+      }
+    }
+  }
+
+  // 2. Process Loose Spools selected for machine
+  if (params.selectedLooseSpools && params.selectedLooseSpools.length > 0) {
+    const looseCargoIds = new Set(params.selectedLooseSpools.map((l) => l.cargoItemId || l.id));
+    items = items.map((c) => ({
+      ...c,
+      items: (c.items || []).map((item) => {
+        if (looseCargoIds.has(item.id)) {
+          return {
+            ...item,
+            isMachineProduction: true,
+            machineName: params.machineName || 'دستگاه اواپراتور',
+            machineNotes: params.notes || 'برای استفاده دستگاه اواپراتور بوده است',
+            transferredToMachineAt: transferredAt,
+            notes: params.notes || `برای استفاده ${params.machineName || 'دستگاه اواپراتور'} بوده است`,
+          };
+        }
+        return item;
+      }),
+    }));
+  }
+
+  // 3. Process Retail Items selected for machine
+  if (params.selectedRetailItems && params.selectedRetailItems.length > 0) {
+    const retailCargoIds = new Set(params.selectedRetailItems.map((r) => r.cargoItemId || r.id));
+    items = items.map((c) => ({
+      ...c,
+      items: (c.items || []).map((item) => {
+        if (retailCargoIds.has(item.id)) {
+          return {
+            ...item,
+            isMachineProduction: true,
+            machineName: params.machineName || 'دستگاه اواپراتور',
+            machineNotes: params.notes || 'برای استفاده دستگاه اواپراتور بوده است',
+            transferredToMachineAt: transferredAt,
+            notes: params.notes || `برای استفاده ${params.machineName || 'دستگاه اواپراتور'} بوده است`,
+          };
+        }
+        return item;
+      }),
+    }));
+  }
+
+  // If new machine cargo items were created from pallets, add them as a new inbound machine consignment
+  if (machineCargoItems.length > 0) {
+    const totalMachineW = machineCargoItems.reduce((sum, item) => sum + item.totalWeightKg, 0);
+    const newDoc: WarehouseItem = {
+      id: `wh-machine-${Date.now()}`,
+      entryType: 'inbound',
+      referenceDocNumber: `MAC-${params.machineName || 'اواپراتور'}-${Math.floor(100 + Math.random() * 900)}`,
+      date: transferredAt,
+      targetPartyName: `خط تولید / ${params.machineName || 'دستگاه اواپراتور'}`,
+      registeredBy: 'انباردار مس واته',
+      notes: params.notes || `انتقال به ${params.machineName || 'دستگاه اواپراتور'}`,
+      createdAt: new Date().toISOString(),
+      items: machineCargoItems,
+      totalWeightKg: totalMachineW,
+      totalItemsCount: machineCargoItems.length,
+    };
+    items = [newDoc, ...items];
+  }
+
+  saveWarehouseItems(items);
+  return items;
+}
+
+/**
+ * Returns a machine production item back into standard saleable warehouse stock.
+ */
+export function returnFromMachineProduction(cargoItemId: string): WarehouseItem[] {
+  let items = getStoredWarehouseItems();
+  items = items.map((c) => ({
+    ...c,
+    items: (c.items || []).map((item) => {
+      if (item.id === cargoItemId) {
+        const { isMachineProduction, machineName, machineNotes, transferredToMachineAt, ...rest } = item;
+        return {
+          ...rest,
+          isMachineProduction: false,
+          notes: `بازگردانده شده از ${machineName || 'دستگاه'} به انبار فروش`,
+        };
+      }
+      return item;
+    }),
+  }));
+
+  saveWarehouseItems(items);
+  return items;
+}
+

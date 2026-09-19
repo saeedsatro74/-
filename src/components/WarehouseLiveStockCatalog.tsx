@@ -60,7 +60,9 @@ import {
   openLooseSpoolToRetail,
   hasPalletSplitHistory,
   undoLastPalletSplit,
-  executeDirectSaleStockDeduction
+  executeDirectSaleStockDeduction,
+  transferSelectedToMachineProduction,
+  returnFromMachineProduction
 } from '../utils/warehousePalletManager';
 import { 
   WarehouseDirectSaleModal, 
@@ -152,13 +154,30 @@ export interface StraightsStockGroup {
   isHard?: boolean;
 }
 
+export interface MachineProductionStockItem {
+  id: string;
+  consignmentId: string;
+  cargoItemId: string;
+  referenceDocNumber: string;
+  date: string;
+  brand: string;
+  diameterInch: string;
+  thicknessMm: number;
+  totalWeightKg: number;
+  machineName: string;
+  machineNotes: string;
+  transferredToMachineAt?: string;
+  sourcePalletInfo?: string;
+  notes?: string;
+}
+
 interface WarehouseLiveStockCatalogProps {
   items: WarehouseItem[];
   inventorySummary: WarehouseInventorySummary;
   people?: Person[];
   marketPrices?: MarketPrices;
   externalSearchQuery?: string;
-  categoryFilter?: 'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights';
+  categoryFilter?: 'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights' | 'machine_production';
   onOpenAdd?: (type: 'inbound' | 'outbound') => void;
   onViewReceipt?: (item: WarehouseItem) => void;
   onUpdateItem?: (item: WarehouseItem) => void;
@@ -180,7 +199,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
   onExecuteDirectSale,
 }) => {
   // Navigation & Category Filters
-  const [stockCategoryFilter, setStockCategoryFilter] = useState<'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights'>('all');
+  const [stockCategoryFilter, setStockCategoryFilter] = useState<'all' | 'pallets' | 'loose_spools' | 'retail' | 'coils' | 'straights' | 'machine_production'>('all');
   const effectiveCategoryFilter = categoryFilter || stockCategoryFilter;
   
   // Search & Filters
@@ -199,6 +218,11 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
 
   // Direct Sale Modal State
   const [isDirectSaleModalOpen, setIsDirectSaleModalOpen] = useState(false);
+
+  // Machine Transfer Modal State
+  const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
+  const [machineNameInput, setMachineNameInput] = useState('دستگاه اواپراتور');
+  const [machineNotesInput, setMachineNotesInput] = useState('برای استفاده دستگاه اواپراتور بوده است');
 
   // Confirmation Modal State (for explicit dismantle or retail split)
   const [confirmModalData, setConfirmModalData] = useState<{
@@ -248,12 +272,13 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
   };
 
   // Extract inventory items from liveItems
-  const { palletCards, looseSpools, retailItems, coilsGroups, straightsGroups } = useMemo(() => {
+  const { palletCards, looseSpools, retailItems, coilsGroups, straightsGroups, machineItems } = useMemo(() => {
     const pallets: PalletStockCard[] = [];
     const loose: LooseSpoolItem[] = [];
     const retail: RetailCopperItem[] = [];
     const coilsMap: Record<string, CoilsStockGroup> = {};
     const straightsMap: Record<string, StraightsStockGroup> = {};
+    const machineList: MachineProductionStockItem[] = [];
 
     let palletGlobalCounter = 1;
 
@@ -280,7 +305,29 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
             }
           ];
 
-      for (const cargo of cargoItems) {
+      for (const cargoItem of cargoItems) {
+        const cargo = cargoItem as WarehouseCargoItem;
+        // 0. Machine Production / Factory Usage Item
+        if (cargo.isMachineProduction) {
+          machineList.push({
+            id: cargo.id || `machine-${consignment.id}`,
+            consignmentId: consignment.id,
+            cargoItemId: cargo.id,
+            referenceDocNumber: consignment.referenceDocNumber,
+            date: cargo.transferredToMachineAt || consignment.date,
+            brand: cargo.brand || 'باهنر',
+            diameterInch: cargo.diameterInch || '5/8',
+            thicknessMm: cargo.thicknessMm || 0.75,
+            totalWeightKg: cargo.totalWeightKg || (cargo.spoolWeights ? cargo.spoolWeights[0] : 0) || 0,
+            machineName: cargo.machineName || 'دستگاه اواپراتور',
+            machineNotes: cargo.machineNotes || cargo.notes || 'برای استفاده دستگاه اواپراتور بوده است',
+            transferredToMachineAt: cargo.transferredToMachineAt,
+            sourcePalletInfo: cargo.sourcePalletInfo,
+            notes: cargo.notes,
+          });
+          continue;
+        }
+
         // 1. Spool / Pallets vs Loose Spools
         if (cargo.packagingType === 'spool') {
           const weights = cargo.spoolWeights && cargo.spoolWeights.length > 0
@@ -404,6 +451,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
       retailItems: retail,
       coilsGroups: Object.values(coilsMap),
       straightsGroups: Object.values(straightsMap),
+      machineItems: machineList,
     };
   }, [liveItems]);
 
@@ -568,6 +616,39 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
     handleClearAllSelections();
     window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
     triggerToast('پالت‌های انتخاب‌شده تفکیک شده و تمام قرقره‌های آن‌ها به بخش غیرپالتی منتقل شدند.', true);
+  };
+
+  // Handle Transfer to Machine Production
+  const handleConfirmTransferToMachine = () => {
+    if (!selectionSummary.hasAnySelection) {
+      triggerToast('هیچ کالایی برای انتقال انتخاب نشده است.');
+      return;
+    }
+
+    const mName = machineNameInput.trim() || 'دستگاه اواپراتور';
+    const mNotes = machineNotesInput.trim() || `برای استفاده ${mName} بوده است`;
+
+    const updated = transferSelectedToMachineProduction({
+      selectedPalletSpools: selectionSummary.selectedPalletSpoolsMap as any,
+      selectedLooseSpools: selectionSummary.selectedLooseList as any,
+      selectedRetailItems: selectionSummary.selectedRetailList as any,
+      machineName: mName,
+      notes: mNotes,
+    });
+
+    setLiveItems(updated);
+    handleClearAllSelections();
+    setIsMachineModalOpen(false);
+    window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
+    triggerToast(`اقلام انتخابی با موفقیت به مس مصرفی ${mName} منتقل شدند و از لیست انبار فروش کسر گردیدند.`);
+  };
+
+  // Handle Return From Machine Production to Sales Warehouse
+  const handleReturnFromMachine = (cargoItemId: string, machineName: string) => {
+    const restored = returnFromMachineProduction(cargoItemId);
+    setLiveItems(restored);
+    window.dispatchEvent(new CustomEvent('warehouse-stock-updated'));
+    triggerToast(`کالای مورد نظر با موفقیت از ${machineName || 'دستگاه'} به انبار فروش بازگردانده شد.`);
   };
 
   // Handle direct sale submission from modal
@@ -1103,6 +1184,104 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
         </div>
       )}
 
+      {/* SECTION 5: MACHINE PRODUCTION / FACTORY USAGE INVENTORY */}
+      {(effectiveCategoryFilter === 'all' || effectiveCategoryFilter === 'machine_production') && (
+        <div className="space-y-3 pt-4 border-t border-purple-200/80">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-sm font-black text-purple-950 flex items-center gap-2">
+              <Factory className="w-4 h-4 text-purple-800" />
+              <span>مس مصرفی دستگاه‌ها و خطوط تولید (کارخانه)</span>
+              <span className="text-xs text-purple-900 font-bold bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-300">
+                {toFaDigits(machineItems.length)} قلم در حال استفاده
+              </span>
+            </h2>
+            <span className="text-[11px] font-bold text-purple-900 bg-purple-100/90 px-2.5 py-1 rounded-xl border border-purple-300/80 flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5 text-rose-600" />
+              <span>غیرقابل فروش مستقیم (تجهیزات و خط تولید کارخانه)</span>
+            </span>
+          </div>
+
+          {machineItems.length === 0 ? (
+            <div className="bg-purple-50/50 border border-purple-200/80 rounded-2xl p-6 text-center text-xs font-bold text-purple-900 space-y-1">
+              <p className="font-black text-purple-950">هیچ قرقره یا پالت متصلی به دستگاه‌های تولید گزارش نشده است.</p>
+              <p className="text-[11px] text-stone-500 font-normal">
+                جهت انتقال قرقره یا پالت به دستگاه اواپراتور یا خط تولید، گزینه مورد نظر را در جدول بالا تیک زده و دکمه «انتقال به تولید / دستگاه» را فشار دهید.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {machineItems.map((item) => (
+                <div key={item.id} className="bg-white rounded-2xl border border-purple-200/90 shadow-2xs p-3.5 space-y-3 relative overflow-hidden hover:border-purple-400 transition-all">
+                  {/* Card Banner */}
+                  <div className="flex items-center justify-between bg-purple-900 text-white px-3.5 py-2 -mx-3.5 -mt-3.5 mb-2 border-b border-purple-800">
+                    <div className="flex items-center gap-2 text-xs font-black">
+                      <Factory className="w-4 h-4 text-purple-300" />
+                      <span>{item.machineName}</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-purple-950/90 text-rose-300 px-2 py-0.5 rounded-md border border-purple-700/80 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-rose-400" />
+                      <span>غیرقابل فروش</span>
+                    </span>
+                  </div>
+
+                  {/* Weight & Specs */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-black text-stone-900 block">
+                          برند {item.brand} — سایز "{item.diameterInch} ({item.thicknessMm}mm)
+                        </span>
+                        <span className="text-[10px] text-stone-500 font-mono">
+                          سند: {item.referenceDocNumber} • تاریخ انتقال: {toFaDigits(item.date)}
+                        </span>
+                      </div>
+                      <div className="text-left bg-purple-50 border border-purple-200 px-3 py-1 rounded-xl shrink-0">
+                        <span className="text-[9px] text-purple-700 font-bold block">وزن صافی</span>
+                        <span className="text-sm font-black font-mono text-purple-950">
+                          {toFaDigits(item.totalWeightKg.toFixed(1))} kg
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Machine Usage Note */}
+                    <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-2.5 text-xs font-bold text-purple-950 space-y-1">
+                      <div className="flex items-center gap-1 text-[11px] text-purple-900 font-black">
+                        <Info className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                        <span>توضیحات و علت استفاده:</span>
+                      </div>
+                      <p className="text-[11px] text-stone-700 font-medium leading-relaxed pr-1">
+                        {item.machineNotes || item.notes || 'برای استفاده دستگاه اواپراتور بوده است'}
+                      </p>
+                      {item.sourcePalletInfo && (
+                        <p className="text-[10px] text-stone-400 font-mono pt-0.5">
+                          {item.sourcePalletInfo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Return Action Button */}
+                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                    <span className="text-[10px] text-stone-400 font-mono">
+                      تجهیزات تولید
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleReturnFromMachine(item.cargoItemId || item.id, item.machineName)}
+                      className="px-3 py-1.5 bg-stone-800 hover:bg-stone-950 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs border border-stone-700"
+                      title="بازگردانی این قلم از دستگاه تولید به انبار فروش"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                      <span>بازگردانی به انبار فروش</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* FLOATING ACTION TOOLBAR WHEN ITEMS/SPOOLS ARE SELECTED */}
       {selectionSummary.hasAnySelection && (
         <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-8 sm:left-8 z-40 bg-stone-950/95 text-white border border-stone-700/80 shadow-2xl rounded-2xl p-3 sm:p-4 backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 flex flex-col md:flex-row items-center justify-between gap-3">
@@ -1120,7 +1299,7 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
                 </span>
               </div>
               <p className="text-[11px] text-stone-400 truncate max-w-sm">
-                آماده فروش مستقیم به مشتری/بورس یا تفکیک اقلام
+                آماده فروش مستقیم به مشتری/بورس، تفکیک یا انتقال به دستگاه تولید
               </p>
             </div>
 
@@ -1142,6 +1321,23 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
               className="hidden md:inline-flex px-3 py-2 text-stone-400 hover:text-white text-xs font-bold cursor-pointer transition-colors"
             >
               لغو انتخاب
+            </button>
+
+            {/* NEW BUTTON: Move to Machine Production */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectionSummary.hasAnySelection) {
+                  triggerToast('لطفاً ابتدا حداقل یک قرقره، پالت یا کالا را از لیست تیک بزنید.');
+                  return;
+                }
+                setIsMachineModalOpen(true);
+              }}
+              className="px-3.5 py-2 bg-purple-900 hover:bg-purple-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors border border-purple-700 shadow-sm"
+              title="ارسال و اختصاص اقلام انتخابی به دستگاه‌های تولید کارخانه (مثل دستگاه اواپراتور)"
+            >
+              <Factory className="w-3.5 h-3.5 text-purple-300" />
+              <span>انتقال به تولید / دستگاه</span>
             </button>
 
             {selectionSummary.selectedPalletSpoolsMap.size > 0 && (
@@ -1179,6 +1375,132 @@ export const WarehouseLiveStockCatalog: React.FC<WarehouseLiveStockCatalogProps>
 
           </div>
 
+        </div>
+      )}
+
+      {/* MACHINE TRANSFER MODAL */}
+      {isMachineModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 dir-rtl font-sans">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-stone-200 shadow-2xl p-5 space-y-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-black">
+                  <Factory className="w-5 h-5 text-purple-800" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-stone-900">
+                    انتقال به مس مصرفی دستگاه (خط تولید)
+                  </h3>
+                  <p className="text-xs text-stone-500 font-bold">
+                    ارسال اقلام انتخابی به تجهیزات کارخانه — غیرقابل فروش مستقیم
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMachineModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Selected Items Summary Box */}
+            <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-purple-800 block">اقلام انتخاب‌شده برای دستگاه:</span>
+                <span className="text-sm font-black text-purple-950">
+                  {toFaDigits(selectionSummary.totalCount)} قلم (
+                  {toFaDigits(selectionSummary.totalWeight.toFixed(1))} کیلوگرم مس)
+                </span>
+              </div>
+              <span className="text-xs font-mono font-bold bg-purple-900 text-white px-2.5 py-1 rounded-xl">
+                {toFaDigits(selectionSummary.totalWeight.toFixed(1))} kg
+              </span>
+            </div>
+
+            {/* Machine Selection Options */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-stone-800 block">
+                دستگاه / بخش مصرف‌کننده:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  'دستگاه اواپراتور',
+                  'خط تولید کندانسور',
+                  'دستگاه کشش و فرم‌دهی',
+                  'خط کلاف‌پیچی کارخانه',
+                ].map((mName) => (
+                  <button
+                    key={mName}
+                    type="button"
+                    onClick={() => {
+                      setMachineNameInput(mName);
+                      setMachineNotesInput(`برای استفاده ${mName} بوده است`);
+                    }}
+                    className={`p-2.5 rounded-xl text-xs font-bold border text-right transition-all cursor-pointer flex items-center justify-between ${
+                      machineNameInput === mName
+                        ? 'bg-purple-900 text-white border-purple-950 shadow-xs'
+                        : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200'
+                    }`}
+                  >
+                    <span>{mName}</span>
+                    {machineNameInput === mName && <Check className="w-3.5 h-3.5 text-purple-300" />}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Machine Name Input */}
+              <input
+                type="text"
+                value={machineNameInput}
+                onChange={(e) => {
+                  setMachineNameInput(e.target.value);
+                  if (!machineNotesInput || machineNotesInput.startsWith('برای استفاده')) {
+                    setMachineNotesInput(`برای استفاده ${e.target.value} بوده است`);
+                  }
+                }}
+                placeholder="یا نام دستگاه دلخواه را وارد کنید..."
+                className="w-full px-3 py-2 text-xs font-bold bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:border-purple-600 focus:outline-none"
+              />
+            </div>
+
+            {/* Usage Note / Description */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-stone-800 flex items-center gap-1">
+                <Info className="w-3.5 h-3.5 text-purple-700" />
+                <span>توضیحات و علت استفاده:</span>
+              </label>
+              <textarea
+                rows={3}
+                value={machineNotesInput}
+                onChange={(e) => setMachineNotesInput(e.target.value)}
+                placeholder="مثلاً: برای استفاده دستگاه اواپراتور بوده است..."
+                className="w-full p-2.5 text-xs font-bold bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:border-purple-600 focus:outline-none leading-relaxed"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsMachineModalOpen(false)}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                انصراف
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmTransferToMachine}
+                className="px-5 py-2.5 bg-purple-900 hover:bg-purple-950 text-white rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Factory className="w-4 h-4 text-purple-300" />
+                <span>تأیید و انتقال به تولید دستگاه</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

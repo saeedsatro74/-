@@ -39,7 +39,8 @@ import {
   Info,
   BarChart2,
   Check,
-  Tag
+  Tag,
+  Factory
 } from 'lucide-react';
 import { 
   WarehouseItem, 
@@ -94,7 +95,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
 }) => {
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'pallets' | 'loose_spools' | 'coils' | 'straights'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'pallets' | 'loose_spools' | 'coils' | 'straights' | 'machine_production'>('all');
   const [sizeFilter, setSizeFilter] = useState<string>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
@@ -438,6 +439,19 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
                 {toFaDigits(2)} رده
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('machine_production')}
+              className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                selectedCategory === 'machine_production'
+                  ? 'bg-purple-900 text-white font-black shadow-xs'
+                  : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/80'
+              }`}
+            >
+              <Factory className="w-3.5 h-3.5 text-purple-600" />
+              <span>مس مصرفی دستگاه (تولید)</span>
+            </button>
           </div>
 
           <div className="hidden xl:flex items-center gap-1 text-[11px] text-stone-500 bg-amber-50/70 border border-amber-200/60 px-2.5 py-1 rounded-lg shrink-0">
@@ -455,6 +469,7 @@ export const WarehousePortalView: React.FC<WarehousePortalViewProps> = ({
         people={people}
         marketPrices={marketPrices}
         externalSearchQuery={searchQuery}
+        categoryFilter={selectedCategory}
         onOpenAdd={handleOpenAdd}
         onViewReceipt={(item) => setViewingReceiptItem(item)}
         onUpdateItem={(item) => {

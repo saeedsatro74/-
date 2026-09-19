@@ -49,6 +49,12 @@ export interface WarehouseCargoItem {
   spoolCondition?: 'sealed' | 'opened'; // وضعیت قرقره تکی: پلمپ / بسته یا باز شده (در حال مصرف)
   sourcePalletInfo?: string; // مشخصات پالت مبدا (مثلاً «پالت ۵ تایی باهنر بارنامه BAR-1403-9101»)
   
+  // Machine Production / Factory Usage Fields
+  isMachineProduction?: boolean; // آیا برای مصرف دستگاه/تولید اختصاص یافته است؟
+  machineName?: string; // نام دستگاه (مثلاً «دستگاه اواپراتور»)
+  machineNotes?: string; // توضیحات استفاده (مثلاً «برای استفاده دستگاه اواپراتور بوده است»)
+  transferredToMachineAt?: string; // تاریخ و زمان انتقال به دستگاه
+  
   quantity: number; // تعداد (تعداد کلاف، تعداد شاخه، تعداد قرقره)
   unitWeightKg?: number; // وزن تقریبی یا دقیق هر واحد (کیلوگرم)
   totalWeightKg: number; // مجموع وزن این قلم به کیلوگرم
