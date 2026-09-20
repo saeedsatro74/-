@@ -27,6 +27,7 @@ import {
   getStoredDeletedPersonIds,
   isPersonDeleted
 } from '../utils/storage';
+import { CursorEdgeGlowButton } from './CursorEdgeGlowButton';
 
 interface LoginScreenProps {
   people?: Person[];
@@ -223,45 +224,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ people = [], onLoginSu
         </div>
 
         {/* Role Switch Tabs */}
-        <div className="flex border-b border-stone-200 bg-stone-50 p-1.5 gap-1">
-          <button
-            type="button"
+        <div className="flex border-b border-stone-200 bg-stone-50/90 p-2 gap-1.5">
+          <CursorEdgeGlowButton
+            active={activeTab === 'management'}
             onClick={() => setActiveTab('management')}
-            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === 'management'
-                ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
-                : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-            }`}
+            className="px-2"
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'management' ? 'text-amber-600' : 'text-stone-400'}`} />
             <span>ورود مدیریت</span>
-          </button>
+          </CursorEdgeGlowButton>
 
-          <button
-            type="button"
+          <CursorEdgeGlowButton
+            active={activeTab === 'warehouse'}
             onClick={() => setActiveTab('warehouse')}
-            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === 'warehouse'
-                ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
-                : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-            }`}
+            className="px-2"
           >
-            <Boxes className="w-3.5 h-3.5 text-blue-600" />
+            <Boxes className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'warehouse' ? 'text-blue-600' : 'text-stone-400'}`} />
             <span>ورود انباردار</span>
-          </button>
+          </CursorEdgeGlowButton>
 
-          <button
-            type="button"
+          <CursorEdgeGlowButton
+            active={activeTab === 'client'}
             onClick={() => setActiveTab('client')}
-            className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === 'client'
-                ? 'bg-white text-stone-900 shadow-xs border border-stone-200/80'
-                : 'text-stone-500 hover:text-stone-800 hover:bg-stone-200/50'
-            }`}
+            className="px-2"
           >
-            <User className="w-3.5 h-3.5 text-emerald-600" />
+            <User className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'client' ? 'text-emerald-600' : 'text-stone-400'}`} />
             <span>پورتال مشتریان</span>
-          </button>
+          </CursorEdgeGlowButton>
         </div>
 
         {/* Tab 1: Management / CEO Login */}
